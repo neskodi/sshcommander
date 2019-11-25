@@ -1,0 +1,21 @@
+{
+  "name": "neskodi/sshcommander",
+  "description": "A package that lets you manage a remote host via SSH from your PHP program.",
+  "minimum-stability": "stable",
+  "license": "MIT",
+  "authors": [
+    {
+      "name": "Serhiy Neskhodovskiy",
+      "email": "sn@nom.ua"
+    }
+  ],
+  "require": {
+    "php": ">=7.2",
+    "phpseclib/phpseclib": "^2.0"
+  },
+  "autoload": {
+    "psr-4": {
+      "Neskodi\\SSHCommander\\": "src/SSHCommander/"
+    }
+  }
+}
