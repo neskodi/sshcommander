@@ -188,6 +188,17 @@ class SSHCommander
 
         $commandObject = $this->createCommand($command, $options);
 
-        return $commandRunner->run($commandObject, $options);
+        return $commandRunner->run($commandObject);
+    }
+
+    /**
+     * Set the config file location. Can be called before instantiating
+     * any class.
+     *
+     * @param string $path location of config.php
+     */
+    public static function setConfigFile(string $path)
+    {
+        SSHConfig::setConfigFileLocation($path);
     }
 }

@@ -4,13 +4,26 @@ namespace Neskodi\SSHCommander;
 
 use Neskodi\SSHCommander\Exceptions\ConfigValidationException;
 use Neskodi\SSHCommander\Interfaces\SSHConfigInterface;
+use BadMethodCallException;
 
 class SSHConfig implements SSHConfigInterface
 {
     /**
+     * Location of the config file.
+     *
+     * @var string
+     */
+    protected static $configFileLocation;
+
+    /**
+     * The configuration storage.
+     *
      * @var array
      */
     protected $config = [];
+
+    // TODO: hardcode default config values directly in this file and
+    // don't let users override them with invalid input
 
     /**
      * SSHConfig constructor.
@@ -21,10 +34,9 @@ class SSHConfig implements SSHConfigInterface
     {
         // load default configuration values from the default file
         // or user-provided file
-        $this->loadDefaultConfig($config);
+        $this->loadDefaultConfig();
 
-        // load default configuration values from the default file
-        // or file provided by user
+        // validate user-defined configuration for current host session.
         $this->validate($config);
 
         // merge in the array of config values provided by user
@@ -36,27 +48,21 @@ class SSHConfig implements SSHConfigInterface
      *
      * @param array $config
      */
-    protected function loadDefaultConfig(array $config = []): void
+    protected function loadDefaultConfig(): void
     {
-        $configFile = array_key_exists('config_file', $config)
-            ? $config['config_file']
-            : $this->getDefaultConfigFilePath();
+        $configFile = static::getConfigFileLocation();
 
         if (file_exists($configFile) && is_readable($configFile)) {
             $this->config = (array)include($configFile);
         }
     }
 
-    protected function getDefaultConfigFilePath(): string
-    {
-        return dirname(__FILE__) . DIRECTORY_SEPARATOR . 'config.php';
-    }
-
     /**
-     * Override the default values loaded from configuration file with values
-     * provided by user.
+     * Override / append the default values loaded from configuration file
+     * with values provided by user. Should be called after user's input is
+     * validated.
      *
-     * @param array $config
+     * @param array $config user-provided config.
      */
     protected function mergeUserConfig(array $config = []): void
     {
@@ -112,7 +118,7 @@ class SSHConfig implements SSHConfigInterface
      *
      * @param array $config the entire array - to know the validation context
      *
-     * @return SSHConfigInterface
+     * @return $this
      *
      * @throws ConfigValidationException
      */
@@ -137,13 +143,13 @@ class SSHConfig implements SSHConfigInterface
     }
 
     /**
-     * Verity that the port provided by the user (if any) is a valid numeric
+     * Verify that the port provided by the user (if any) is a valid numeric
      * value. (It will be cast to integer later in the "prepare()" method).
      * Throw an exception otherwise.
      *
      * @param array $config the entire array - to know the validation context
      *
-     * @return SSHConfigInterface
+     * @return $this
      *
      * @throws ConfigValidationException
      */
@@ -168,7 +174,7 @@ class SSHConfig implements SSHConfigInterface
      *
      * @param array $config the entire array - to know the validation context
      *
-     * @return SSHConfigInterface
+     * @return $this
      *
      * @throws ConfigValidationException
      */
@@ -207,7 +213,7 @@ class SSHConfig implements SSHConfigInterface
      *
      * @param array $config the entire array - to know the validation context
      *
-     * @return SSHConfigInterface
+     * @return $this
      *
      * @throws ConfigValidationException
      */
@@ -264,7 +270,7 @@ class SSHConfig implements SSHConfigInterface
      */
     public function set(string $param, $value): void
     {
-        $method = 'set' . $this->camelCase($param);
+        $method = 'set' . Utils::camelCase($param);
         if (method_exists($this, $method)) {
             // we have a special setter for this
             $this->$method($value);
@@ -313,6 +319,12 @@ class SSHConfig implements SSHConfigInterface
 
             return $this->get($param, $default);
         }
+
+        throw new BadMethodCallException(sprintf(
+            'Method "%s" does not exist in class "%s"',
+            $name,
+            get_class($this)
+        ));
     }
 
     /**
@@ -323,5 +335,124 @@ class SSHConfig implements SSHConfigInterface
     public function all(): array
     {
         return $this->config;
+    }
+
+    /**
+     * Set the location of the config file that is used for reading the default
+     * settings.
+     *
+     * @param string $location
+     */
+    public static function setConfigFileLocation(string $location): void
+    {
+        static::$configFileLocation = $location;
+    }
+
+    /**
+     * Get the config file location - will return the location set by user,
+     * if any, otherwise the default config file location from package source.
+     *
+     * @return string|null
+     */
+    public static function getConfigFileLocation(): string
+    {
+        return static::$configFileLocation ??
+               static::getDefaultConfigFileLocation();
+    }
+
+    /**
+     * Get the default config file location.
+     *
+     * @return string
+     */
+    protected static function getDefaultConfigFileLocation(): string
+    {
+        return implode(DIRECTORY_SEPARATOR, [
+            dirname(__FILE__),
+            '..',
+            'config.php',
+        ]);
+    }
+
+    /**
+     * Get the SSH host.
+     *
+     * @return string|null
+     */
+    public function getHost(): ?string
+    {
+        return $this->config['host'] ?? null;
+    }
+
+    /**
+     * Get the SSH port.
+     *
+     * @return int|null
+     */
+    public function getPort(): ?int
+    {
+        if ($port = $this->config['port']) {
+            return (int)$port;
+        }
+
+        return null;
+    }
+
+    /**
+     * Get the SSH key.
+     *
+     * @return string|null
+     */
+    public function getKey(): ?string
+    {
+        return $this->config['key'] ?? null;
+    }
+
+    /**
+     * Get the SSH keyfile.
+     *
+     * @return string|null
+     */
+    public function getKeyfile(): ?string
+    {
+        return $this->config['keyfile'] ?? null;
+    }
+
+    /**
+     * Get the SSH user.
+     *
+     * @return string|null
+     */
+    public function getUser(): ?string
+    {
+        return $this->config['user'] ?? null;
+    }
+
+    /**
+     * Get the password used for password-based authentication or for unlocking
+     * the key.
+     *
+     * @return string|null
+     */
+    public function getPassword(): ?string
+    {
+        return $this->config['password'] ?? null;
+    }
+
+    /**
+     * Get the list of addresses considered local (for them, LocalCommandRunner
+     * will be used instead of RemoteCommandRunner).
+     *
+     * @return array|null
+     */
+    public function getLocalAddresses(): ?array
+    {
+        $addresses = $this->config['local_addresses'];
+
+        if (!is_array($addresses)) {
+            return null;
+        }
+
+        return $addresses;
     }
 }
