@@ -8,6 +8,8 @@ interface CommandResultInterface
 
     public function setOutput(array $output): CommandResultInterface;
 
+    public function setErrorOutput(array $stderr): CommandResultInterface;
+
     public function getStatus(): string;
 
     public function isOk(): bool;
@@ -17,6 +19,8 @@ interface CommandResultInterface
     public function getExitCode(): int;
 
     public function getOutput(bool $asString = false);
+
+    public function getStdErrOutput(bool $asString = false);
 
     public function __toString(): string;
 

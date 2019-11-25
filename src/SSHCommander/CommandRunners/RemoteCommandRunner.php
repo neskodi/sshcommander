@@ -22,18 +22,13 @@ class RemoteCommandRunner extends BaseCommandRunner implements CommandRunnerInte
     public function run(CommandInterface $command): CommandResultInterface
     {
         $conn   = $this->commander->getConnection();
-        $delimS = $this->commander->getConfig()->get('delimiter_split_output');
-        $delimJ = $this->commander->getConfig()->get('delimiter_join_output');
+        $delim  = $this->commander->getConfig()->get('delimiter_join_output');
 
-        $result = [];
+        $return = $conn->exec($command);
 
-        $conn->exec($command, function ($str) use ($delimS, &$result) {
-            $result[] = explode($delimS, $str);
-        });
+        $result = new CommandResult($command, $return);
+        $result->setOutputDelimiter($delim);
 
-        $code = $conn->getSSH2()->getExitStatus();
-        $result = new CommandResult($command, $code, $result);
-
-        return $result->setOutputDelimiter($delimJ);
+        return $result;
     }
 }

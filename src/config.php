@@ -35,9 +35,15 @@ return [
 
     // Character or string used to split multiple lines of output returned by
     // a command.
-    'delimiter_split_output' => PHP_EOL,
+    'delimiter_split_output' => "\n",
 
     // Character or string used to glue together multiple lines of output
     // before returning to your program
     'delimiter_join_output' => PHP_EOL,
+
+    // Whether to return stderr command output separately from stdout.
+    'separate_stderr' => false,
+
+    // Whether to include stderr in command result in normal mode.
+    'suppress_stderr' => false,
 ];

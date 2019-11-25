@@ -3,11 +3,11 @@
 namespace Neskodi\SSHCommander;
 
 use Neskodi\SSHCommander\Exceptions\AuthenticationException;
+use Neskodi\SSHCommander\Interfaces\CommandInterface;
 use Neskodi\SSHCommander\Interfaces\SSHConnectionInterface;
 use Neskodi\SSHCommander\Interfaces\SSHConfigInterface;
 use phpseclib\Crypt\RSA;
 use phpseclib\Net\SSH2;
-use Closure;
 
 class SSHConnection implements SSHConnectionInterface
 {
@@ -182,16 +182,47 @@ class SSHConnection implements SSHConnectionInterface
      * Execute a command or a series of commands. Proxy to phpseclib SSH2
      * exec() method.
      *
-     * @param string       $command  the command to execute, or multiple
-     *                               commands separated by newline.
-     * @param Closure|null $callback the callback function to pass fragments of
-     *                               command output to.
+     * @param CommandInterface $command  the command to execute, or multiple
+     *                                   commands separated by newline.
      *
-     * @return string|bool the output of the command as string, or false in case
-     *                     of failure.
+     * @return array
      */
-    public function exec(string $command, ?Closure $callback = null)
+    public function exec(CommandInterface $command): array
     {
-        return $this->getSSH2()->exec($command, $callback);
+        $ssh = $this->getSSH2();
+
+        // the delimiter used to split output lines, by default \n
+        $delim = $command->getOption('delimiter_split_output');
+
+        // if user wants stderr as separate stream or wants to suppress it
+        // altogether, tell phpseclib about it
+        if (
+            $command->getOption('separate_stderr') ||
+            $command->getOption('suppress_stderr')
+        ) {
+            $ssh->enableQuietMode();
+        }
+
+        // an array to write output lines to
+        $lines = [];
+
+        // finally, execute the command via phpseclib and put the returned lines
+        // into an array
+        $ssh->exec((string)$command, function ($str) use ($delim, &$lines) {
+            $lines = array_merge($lines, explode($delim, $str));
+        });
+
+        // structure the result
+        $result = [
+            'exitcode' => (int)$ssh->getExitStatus(),
+            'out'      => $lines,
+        ];
+
+        // get the error stream separately, if we were asked to
+        if ($command->getOption('separate_stderr')) {
+            $result['err'] = explode($delim, $ssh->getStdError());
+        }
+
+        return $result;
     }
 }

@@ -31,17 +31,25 @@ class CommandResult implements CommandResultInterface
     protected $outputLines = [];
 
     /**
+     * @var array
+     */
+    protected $errorLines = [];
+
+    /**
      * CommandResult constructor.
      *
-     * @param CommandInterface $command the command that was run.
-     * @param int              $code    the exit code of the command.
-     * @param array            $output  the array of output lines.
+     * @param CommandInterface $command the command that was run
+     * @param array            $result ['exitcode', 'out', ?'err']
      */
-    public function __construct(CommandInterface $command, int $code, array $output)
+    public function __construct(CommandInterface $command, array $result)
     {
         $this->setCommand($command)
-             ->setExitCode($code)
-             ->setOutput($output);
+             ->setExitCode($result['exitcode'])
+             ->setOutput((array)$result['out']);
+
+        if (array_key_exists('err', $result)) {
+            $this->setErrorOutput((array)$result['err']);
+        }
     }
 
     /**
@@ -97,6 +105,20 @@ class CommandResult implements CommandResultInterface
     }
 
     /**
+     * Fluent setter for the stderr lines of the command.
+     *
+     * @param array $output an array of output lines.
+     *
+     * @return CommandResultInterface
+     */
+    public function setErrorOutput(array $output): CommandResultInterface
+    {
+        $this->errorLines = $output;
+
+        return $this;
+    }
+
+    /**
      * Get the status of the command as 'ok' or 'error'.
      *
      * @return string
@@ -132,6 +154,20 @@ class CommandResult implements CommandResultInterface
         return $asString
             ? implode($this->delimiter, $this->outputLines)
             : $this->outputLines;
+    }
+
+    /**
+     * Get error output lines as a string or as an array.
+     *
+     * @param bool $asString
+     *
+     * @return array|string
+     */
+    public function getStdErrOutput(bool $asString = false)
+    {
+        return $asString
+            ? implode($this->delimiter, $this->errorLines)
+            : $this->errorLines;
     }
 
     /**

@@ -3,7 +3,6 @@
 namespace Neskodi\SSHCommander\Interfaces;
 
 use phpseclib\Net\SSH2;
-use Closure;
 
 interface SSHConnectionInterface
 {
@@ -15,5 +14,5 @@ interface SSHConnectionInterface
 
     public function getSSH2(): SSH2;
 
-    public function exec(string $command, ?Closure $callback = null);
+    public function exec(CommandInterface $command): array;
 }

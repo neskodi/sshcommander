@@ -28,10 +28,17 @@ class SSHCommander
      */
     protected $commandRunner;
 
+    /**
+     * Mandatory command options.
+     * @var array
+     */
     protected $commandOptions = [
-        'break_on_error',
+        'delimiter_split_output',
         'delimiter_split_input',
         'delimiter_join_input',
+        'separate_stderr',
+        'suppress_stderr',
+        'break_on_error',
     ];
 
     /**

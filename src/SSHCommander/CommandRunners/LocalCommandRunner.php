@@ -19,10 +19,15 @@ class LocalCommandRunner extends BaseCommandRunner implements CommandRunnerInter
     public function run(CommandInterface $command): CommandResultInterface
     {
         $output = [];
-        $return = 0;
+        $code   = 0;
 
-        exec($command, $output, $return);
+        exec($command, $output, $code);
 
-        return new CommandResult($command, $return, $output);
+        $result = [
+            'exitcode' => $code,
+            'out'      => $output,
+        ];
+
+        return new CommandResult($command, $result);
     }
 }
