@@ -23,7 +23,7 @@ class SSHConfig implements SSHConfigInterface
     protected $config = [];
 
     // TODO: hardcode default config values directly in this file and
-    // don't let users override them with invalid input
+    // protect from overriding with invalid input
 
     /**
      * SSHConfig constructor.
@@ -100,13 +100,9 @@ class SSHConfig implements SSHConfigInterface
     {
         switch ($param) {
             case 'port':
-                return (array_key_exists($param, $config))
-                    ? (int)$config[$param]
-                    : null;
+                return (int)$config[$param];
             default:
-                return (array_key_exists($param, $config))
-                    ? $config[$param]
-                    : null;
+                return $config[$param];
         }
     }
 
