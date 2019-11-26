@@ -370,6 +370,7 @@ class SSHConfig implements SSHConfigInterface
         return implode(DIRECTORY_SEPARATOR, [
             dirname(__FILE__),
             '..',
+            '..',
             'config.php',
         ]);
     }
