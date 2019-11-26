@@ -8,7 +8,14 @@ $c = new SSHCommander([
 
     'host' => '192.168.11.2',
     'user' => 'vagrant',
-    'keyfile' => 'i:/Dropbox/Personal/Documents and Settings/Keys/SSH/sn'
+    'keyfile' => 'i:/Dropbox/Personal/Documents and Settings/Keys/SSH/sn',
+
+    'basedir' => '/var/www/vhosts',
 ]);
 
-echo $c->run('ls -lA') . PHP_EOL;
+$result = $c->run('ls -lA');
+
+echo $result->getStatus() . PHP_EOL;
+echo $result->getOutput(true) . PHP_EOL;
+
+

@@ -14,5 +14,5 @@ interface SSHConnectionInterface
 
     public function getSSH2(): SSH2;
 
-    public function exec(CommandInterface $command): array;
+    public function exec(CommandInterface $command): CommandResultInterface;
 }

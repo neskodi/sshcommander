@@ -6,7 +6,7 @@ interface CommandInterface
 {
     public function setCommand(string $command): CommandInterface;
 
-    public function getCommands(bool $asString = true);
+    public function getCommands(bool $asString = true, bool $prepared = true);
 
     public function setOptions(array $options = []): CommandInterface;
 
@@ -16,5 +16,7 @@ interface CommandInterface
 
     public function getOption(string $key);
 
-    public function breaksOnError(): bool;
+    public function appendCommand($command): CommandInterface;
+
+    public function prependCommand($command): CommandInterface;
 }

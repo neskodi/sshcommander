@@ -23,11 +23,10 @@ class LocalCommandRunner extends BaseCommandRunner implements CommandRunnerInter
 
         exec($command, $output, $code);
 
-        $result = [
-            'exitcode' => $code,
-            'out'      => $output,
-        ];
+        $result = new CommandResult($command);
+        $result->setOutput($output)
+               ->setExitCode($code);
 
-        return new CommandResult($command, $result);
+        return $result;
     }
 }

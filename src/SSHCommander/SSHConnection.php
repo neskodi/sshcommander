@@ -3,9 +3,11 @@
 namespace Neskodi\SSHCommander;
 
 use Neskodi\SSHCommander\Exceptions\AuthenticationException;
-use Neskodi\SSHCommander\Interfaces\CommandInterface;
+use Neskodi\SSHCommander\Interfaces\CommandResultInterface;
 use Neskodi\SSHCommander\Interfaces\SSHConnectionInterface;
+use Neskodi\SSHCommander\Exceptions\CommandRunException;
 use Neskodi\SSHCommander\Interfaces\SSHConfigInterface;
+use Neskodi\SSHCommander\Interfaces\CommandInterface;
 use phpseclib\Crypt\RSA;
 use phpseclib\Net\SSH2;
 
@@ -27,6 +29,16 @@ class SSHConnection implements SSHConnectionInterface
     protected $authenticationStatus = false;
 
     /**
+     * @var array
+     */
+    protected $outputLines = [];
+
+    /**
+     * @var CommandInterface
+     */
+    protected $command;
+
+    /**
      * SSHConnection constructor.
      *
      * @param SSHConfigInterface $config
@@ -34,11 +46,11 @@ class SSHConnection implements SSHConnectionInterface
      *
      * @throws AuthenticationException
      */
-    public function __construct(SSHConfigInterface $config, $autologin = true)
+    public function __construct(SSHConfigInterface $config)
     {
         $this->setConfig($config);
 
-        if ($autologin) {
+        if ($config->get('autologin')) {
             $this->authenticate();
         }
     }
@@ -185,44 +197,124 @@ class SSHConnection implements SSHConnectionInterface
      * @param CommandInterface $command  the command to execute, or multiple
      *                                   commands separated by newline.
      *
-     * @return array
+     * @return CommandResultInterface
+     *
+     * @throws CommandRunException
      */
-    public function exec(CommandInterface $command): array
+    public function exec(CommandInterface $command): CommandResultInterface
     {
-        $ssh = $this->getSSH2();
+        return $this->setCommand($command)
+                    ->prepare()
+                    ->run()
+                    ->collectResult();
+    }
 
-        // the delimiter used to split output lines, by default \n
-        $delim = $command->getOption('delimiter_split_output');
+    /**
+     * Set the command to execute.
+     *
+     * @param CommandInterface $command
+     *
+     * @return $this
+     */
+    protected function setCommand(CommandInterface $command): SSHConnectionInterface
+    {
+        $this->command = $command;
+
+        return $this;
+    }
+
+    /**
+     * Prepare to execute by setting additional options to the ssh2 object.
+     *
+     * @return $this
+     *
+     * @throws CommandRunException
+     */
+    protected function prepare(): SSHConnectionInterface
+    {
+        // safety net for people extending this class
+        $this->requireCommand();
 
         // if user wants stderr as separate stream or wants to suppress it
         // altogether, tell phpseclib about it
         if (
-            $command->getOption('separate_stderr') ||
-            $command->getOption('suppress_stderr')
+            $this->command->getOption('separate_stderr') ||
+            $this->command->getOption('suppress_stderr')
         ) {
-            $ssh->enableQuietMode();
+            $this->getSSH2()->enableQuietMode();
         }
 
-        // an array to write output lines to
-        $lines = [];
+        return $this;
+    }
 
-        // finally, execute the command via phpseclib and put the returned lines
+    /**
+     * Execute the command using the ssh2 object.
+     *
+     * @return $this
+     *
+     * @throws CommandRunException
+     */
+    protected function run(): SSHConnectionInterface
+    {
+        // safety net for people extending this class
+        $this->requireCommand();
+
+        // the delimiter used to split output lines, by default \n
+        $delim = $this->command->getOption('delimiter_split_output');
+        $ssh = $this->getSSH2();
+
+        $this->outputLines = [];
+
+        // execute the command via phpseclib and collect the returned lines
         // into an array
-        $ssh->exec((string)$command, function ($str) use ($delim, &$lines) {
-            $lines = array_merge($lines, explode($delim, $str));
+        $ssh->exec((string)$this->command, function ($str) use ($delim) {
+            $this->outputLines = array_merge(
+                $this->outputLines,
+                explode($delim, $str)
+            );
         });
 
+        return $this;
+    }
+
+    /**
+     * Collect the execution result into the result object.
+     *
+     * @return CommandResultInterface
+     *
+     * @throws CommandRunException
+     */
+    protected function collectResult(): CommandResultInterface
+    {
+        // safety net for people extending this class
+        $this->requireCommand();
+
+        // the delimiter used to split output lines, by default \n
+        $delim = $this->command->getOption('delimiter_split_output');
+        $ssh = $this->getSSH2();
+
         // structure the result
-        $result = [
-            'exitcode' => (int)$ssh->getExitStatus(),
-            'out'      => $lines,
-        ];
+        $result = (new CommandResult($this->command))
+            ->setExitCode((int)$ssh->getExitStatus())
+            ->setOutput($this->outputLines);
 
         // get the error stream separately, if we were asked to
-        if ($command->getOption('separate_stderr')) {
-            $result['err'] = explode($delim, $ssh->getStdError());
+        if ($this->command->getOption('separate_stderr')) {
+            $result->setErrorOutput(explode($delim, $ssh->getStdError()));
         }
 
         return $result;
+    }
+
+    /**
+     * Throw an exception when trying to run a command before setting it.
+     *
+     * @throws CommandRunException
+     */
+    protected function requireCommand()
+    {
+        if (!$this->command instanceof CommandInterface) {
+            throw new CommandRunException('Command is not set');
+        }
     }
 }

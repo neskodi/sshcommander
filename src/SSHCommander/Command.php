@@ -2,6 +2,7 @@
 
 namespace Neskodi\SSHCommander;
 
+use Neskodi\SSHCommander\Exceptions\InvalidCommandException;
 use Neskodi\SSHCommander\Interfaces\CommandInterface;
 
 class Command implements CommandInterface
@@ -47,12 +48,7 @@ class Command implements CommandInterface
      */
     public function setCommand($command): CommandInterface
     {
-        if (is_string($command)) {
-            $delimiter      = $this->getOption('delimiter_split_input');
-            $this->commands = explode($delimiter, $command);
-        } elseif (is_array($command)) {
-            $this->commands = $command;
-        }
+        $this->commands = $this->sanitizeInput($command);
 
         return $this;
     }
@@ -64,7 +60,7 @@ class Command implements CommandInterface
      */
     public function __toString(): string
     {
-        return $this->getCommands();
+        return $this->getCommands(true, true);
     }
 
     /**
@@ -72,18 +68,21 @@ class Command implements CommandInterface
      *
      * @param bool $asString pass false to get commands as an array.
      *
+     * @param bool $prepared perform preparation before actual run, for example
+     *                       prepend 'cd basedir' and 'sed -e' for breaking on
+     *                       errors.
+     *
      * @return array|string
      */
-    public function getCommands(bool $asString = true)
+    public function getCommands(bool $asString = true, bool $prepared = true)
     {
-        $commands = $this->commands;
-        if ($this->breaksOnError()) {
-            array_unshift($commands, 'set -e');
-        }
+        $commands = $prepared
+            ? $this->getPreparedCommands()
+            : $this->commands;
 
         return $asString
-            ? implode($this->getOption('delimiter_join_input'), $this->commands)
-            : $this->commands;
+            ? implode($this->getOption('delimiter_join_input'), $commands)
+            : $commands;
     }
 
     /**
@@ -112,6 +111,8 @@ class Command implements CommandInterface
     public function setOption(string $key, $value): CommandInterface
     {
         $this->options[$key] = $value;
+
+        return $this;
     }
 
     /**
@@ -139,17 +140,82 @@ class Command implements CommandInterface
     }
 
     /**
-     * Whether this command should stop execution on error. (Default: false)
+     * Appends a command or commands to the end of the execution sequence.
      *
-     * If multiple commands are passed, they will be executed sequentially.
-     * Pass ['break_on_error' => true] among command options to stop execution
-     * on first error.
+     * @param string|array $command
      *
-     * @return bool
+     * @return $this
      */
-    public function breaksOnError(): bool
+    public function appendCommand($command): CommandInterface
     {
-        return array_key_exists('break_on_error', $this->options) &&
-               $this->options['break_on_error'];
+        $commands = $this->sanitizeInput($command);
+
+        $this->commands = array_merge($this->commands, $commands);
+
+        return $this;
+    }
+
+    /**
+     * Prepends a command or commands to the beginning of the execution sequence.
+     *
+     * @param array|string $command
+     *
+     * @return $this
+     */
+    public function prependCommand($command): CommandInterface
+    {
+        $commands = $this->sanitizeInput($command);
+
+        $this->commands = array_merge($commands, $this->commands);
+
+        return $this;
+    }
+
+    /**
+     * Inject user input, be it a string, an array or another command object.
+     * Throw an exception if input is invalid.
+     *
+     * @param $command
+     *
+     * @return array
+     */
+    protected function sanitizeInput($command): array
+    {
+        if ($command instanceof CommandInterface) {
+            return $command->getCommands(false);
+        }
+
+        if (is_array($command)) {
+            return $command;
+        }
+
+        if (is_string($command)) {
+            $delimiter = $this->getOption('delimiter_split_input');
+
+            return explode($delimiter, $command);
+        }
+
+        throw new InvalidCommandException(gettype($command));
+    }
+
+    /**
+     * Perform preparation before actual run, for example prepend 'cd basedir'
+     * and 'sed -e' for breaking on errors.
+     *
+     * @return array
+     */
+    protected function getPreparedCommands(): array
+    {
+        $commands = $this->commands;
+
+        if ($basedir = $this->getOption('basedir')) {
+            array_unshift($commands, 'cd ' . $basedir);
+        }
+
+        if ($this->getOption('break_on_error')) {
+            array_unshift($commands, 'set -e');
+        }
+
+        return $commands;
     }
 }

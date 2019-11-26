@@ -6,7 +6,6 @@ use Neskodi\SSHCommander\Exceptions\AuthenticationException;
 use Neskodi\SSHCommander\Interfaces\CommandResultInterface;
 use Neskodi\SSHCommander\Interfaces\CommandRunnerInterface;
 use Neskodi\SSHCommander\Interfaces\CommandInterface;
-use Neskodi\SSHCommander\CommandResult;
 
 class RemoteCommandRunner extends BaseCommandRunner implements CommandRunnerInterface
 {
@@ -24,9 +23,7 @@ class RemoteCommandRunner extends BaseCommandRunner implements CommandRunnerInte
         $conn   = $this->commander->getConnection();
         $delim  = $this->commander->getConfig()->get('delimiter_join_output');
 
-        $return = $conn->exec($command);
-
-        $result = new CommandResult($command, $return);
+        $result = $conn->exec($command);
         $result->setOutputDelimiter($delim);
 
         return $result;

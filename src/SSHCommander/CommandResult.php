@@ -2,8 +2,8 @@
 
 namespace Neskodi\SSHCommander;
 
-use Neskodi\SSHCommander\Interfaces\CommandInterface;
 use Neskodi\SSHCommander\Interfaces\CommandResultInterface;
+use Neskodi\SSHCommander\Interfaces\CommandInterface;
 
 class CommandResult implements CommandResultInterface
 {
@@ -41,15 +41,9 @@ class CommandResult implements CommandResultInterface
      * @param CommandInterface $command the command that was run
      * @param array            $result ['exitcode', 'out', ?'err']
      */
-    public function __construct(CommandInterface $command, array $result)
+    public function __construct(CommandInterface $command)
     {
-        $this->setCommand($command)
-             ->setExitCode($result['exitcode'])
-             ->setOutput((array)$result['out']);
-
-        if (array_key_exists('err', $result)) {
-            $this->setErrorOutput((array)$result['err']);
-        }
+        $this->setCommand($command);
     }
 
     /**

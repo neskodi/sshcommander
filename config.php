@@ -15,9 +15,8 @@ return [
     // Move into this directory right after login. Leave null to skip.
     'basedir' => null,
 
-    // If you run multiple commands and want to stop the sequence if any of them
-    // returns an error code, set this to true
-    'break_on_error' => false,
+    // Stop running a sequence of commands if any of them returns an error code
+    'break_on_error' => true,
 
     // Timeout for establishing TCP connection to remote host.
     'timeout_connect' => 10,
@@ -31,7 +30,7 @@ return [
 
     // Character or string used to glue multiple commands when passed to SSH2
     // for execution. Don't change unless you know what you are doing.
-    'delimiter_join_input' => PHP_EOL,
+    'delimiter_join_input' => "\n",
 
     // Character or string used to split multiple lines of output returned by
     // a command.

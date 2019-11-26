@@ -29,19 +29,6 @@ class SSHCommander
     protected $commandRunner;
 
     /**
-     * Mandatory command options.
-     * @var array
-     */
-    protected $commandOptions = [
-        'delimiter_split_output',
-        'delimiter_split_input',
-        'delimiter_join_input',
-        'separate_stderr',
-        'suppress_stderr',
-        'break_on_error',
-    ];
-
-    /**
      * SSHCommander constructor.
      *
      * @param array|SSHConfig $config
@@ -174,11 +161,9 @@ class SSHCommander
      */
     protected function setDefaultCommandOptions(array &$options)
     {
-        foreach ($this->commandOptions as $option) {
-            if (!array_key_exists($option, $options)) {
-                $options[$option] = $this->getConfig()->get($option);
-            }
-        }
+        $config = $this->getConfig()->all();
+
+        $options = array_merge($config, $options);
     }
 
     /**
