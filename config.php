@@ -22,7 +22,7 @@ return [
     'timeout_connect' => 10,
 
     // How long to wait for a command to complete.
-    'timeout_command' => 120,
+    'timeout_command' => 10,
 
     // Character or string used to separate commands if multiple commands are
     // passed as one line.
