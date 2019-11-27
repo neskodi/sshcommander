@@ -11,11 +11,13 @@ $c = new SSHCommander([
     'keyfile' => 'i:/Dropbox/Personal/Documents and Settings/Keys/SSH/sn',
 
     'basedir' => '/var/www/vhosts',
+    'timeout_connect' => 3,
 ]);
 
-$result = $c->run('ls -lA');
-
-echo $result->getStatus() . PHP_EOL;
-echo $result->getOutput(true) . PHP_EOL;
-
-
+try {
+    $result = $c->run('ls -lA');
+    echo $result->getStatus() . PHP_EOL;
+    echo $result->getOutput(true) . PHP_EOL;
+} catch (Throwable $e) {
+    echo $e->getMessage();
+}

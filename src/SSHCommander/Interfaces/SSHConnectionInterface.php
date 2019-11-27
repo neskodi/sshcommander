@@ -6,9 +6,11 @@ use phpseclib\Net\SSH2;
 
 interface SSHConnectionInterface
 {
-    public function authenticate();
+    public function authenticate(): bool;
 
     public function setConfig(SSHConfigInterface $config): SSHConnectionInterface;
+
+    public function setTimeout(int $timeout): SSHConnectionInterface;
 
     public function getConfig(): SSHConfigInterface;
 

@@ -13,6 +13,8 @@ use phpseclib\Net\SSH2;
 
 class SSHConnection implements SSHConnectionInterface
 {
+    const DEFAULT_TIMEOUT = 10;
+
     /**
      * @var SSHConfigInterface
      */
@@ -53,6 +55,75 @@ class SSHConnection implements SSHConnectionInterface
         if ($config->get('autologin')) {
             $this->authenticate();
         }
+    }
+
+    /**
+     * Set the timeout (in seconds) for the next SSH2 operation.
+     *
+     * @param int $timeout timeout in seconds
+     *
+     * @return $this
+     */
+    public function setTimeout(int $timeout): SSHConnectionInterface
+    {
+        $this->getSSH2()->setTimeout($timeout);
+
+        return $this;
+    }
+
+    /**
+     * Set timeout automatically based on the relevant configuration value.
+     *
+     * @param string $configKey the config key to read the timeout from (in seconds)
+     *
+     * @return $this
+     */
+    protected function setTimeoutFromConfig(string $configKey): SSHConnectionInterface
+    {
+        // TODO: log a notice if this operation fails
+
+        if ($timeout = $this->getConfig()->get($configKey)) {
+            $timeout = (int)$timeout;
+            $this->setTimeout($timeout);
+        }
+
+        return $this;
+    }
+
+    /**
+     * Reset the timeout to its default value.
+     *
+     * @return $this
+     */
+    public function resetTimeout(): SSHConnectionInterface
+    {
+        $this->setTimeout(static::DEFAULT_TIMEOUT);
+
+        return $this;
+    }
+
+    /**
+     * Automatically set the timeout from the config value "timeout_command".
+     *
+     * @return $this
+     */
+    protected function setCommandTimeout(): SSHConnectionInterface
+    {
+        $this->setTimeoutFromConfig('timeout_command');
+
+        return $this;
+    }
+
+    /**
+     * Automatically set the timeout from the config value "timeout_connect".
+     *
+     * @return $this
+     */
+    protected function setLoginTimeout(): SSHConnectionInterface
+    {
+        $this->setTimeoutFromConfig('timeout_connect');
+
+        return $this;
     }
 
     /**
@@ -104,20 +175,25 @@ class SSHConnection implements SSHConnectionInterface
      * Choose the authentication algorithm (password or key) and perform the
      * authentication.
      *
-     * @return bool true if authentication was successful, false otherwise.
+     * @return bool true if authentication was successful, throws an exception
+     * otherwise.
      *
      * @throws AuthenticationException
      */
-    public function authenticate()
+    public function authenticate(): bool
     {
+        $this->setLoginTimeout();
+
         if ($keyContents = $this->getKeyContents()) {
-            $result = $this->authenticateWithKey($keyContents);
+            @$result = $this->authenticateWithKey($keyContents);
         } else {
-            $result = $this->authenticateWithPassword();
+            @$result = $this->authenticateWithPassword();
         }
 
+        $this->resetTimeout();
+
         if (!$result) {
-            throw new AuthenticationException;
+            $this->processLoginError();
         }
 
         $this->authenticationStatus = true;
@@ -261,18 +337,23 @@ class SSHConnection implements SSHConnectionInterface
 
         // the delimiter used to split output lines, by default \n
         $delim = $this->command->getOption('delimiter_split_output');
-        $ssh = $this->getSSH2();
 
+        // reset the output lines
         $this->outputLines = [];
+
+        $this->setCommandTimeout();
 
         // execute the command via phpseclib and collect the returned lines
         // into an array
+        $ssh = $this->getSSH2();
         $ssh->exec((string)$this->command, function ($str) use ($delim) {
             $this->outputLines = array_merge(
                 $this->outputLines,
                 explode($delim, $str)
             );
         });
+
+        $this->resetTimeout();
 
         return $this;
     }
@@ -316,5 +397,19 @@ class SSHConnection implements SSHConnectionInterface
         if (!$this->command instanceof CommandInterface) {
             throw new CommandRunException('Command is not set');
         }
+    }
+
+    /**
+     * Handle login error gracefully by recording a message into our own
+     * exception and throwing it. Do not pollute the command line.
+     *
+     * @throws AuthenticationException
+     */
+    protected function processLoginError(): void
+    {
+        $errorText = error_get_last();
+        $message   = $errorText ? $errorText['message'] : '';
+
+        throw new AuthenticationException($message);
     }
 }
