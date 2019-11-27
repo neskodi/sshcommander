@@ -276,9 +276,15 @@ class SSHConnection implements SSHConnectionInterface
      * @return CommandResultInterface
      *
      * @throws CommandRunException
+     *
+     * @throws AuthenticationException
      */
     public function exec(CommandInterface $command): CommandResultInterface
     {
+        if (!$this->authenticationStatus) {
+            $this->authenticate();
+        }
+
         return $this->setCommand($command)
                     ->prepare()
                     ->run()
