@@ -3,6 +3,7 @@
 namespace Neskodi\SSHCommander\Interfaces;
 
 use phpseclib\Net\SSH2;
+use Psr\Log\LoggerInterface;
 
 interface SSHConnectionInterface
 {
@@ -17,4 +18,8 @@ interface SSHConnectionInterface
     public function getSSH2(): SSH2;
 
     public function exec(CommandInterface $command): CommandResultInterface;
+
+    public function setLogger(LoggerInterface $logger): SSHConnectionInterface;
+
+    public function getLogger(): ?LoggerInterface;
 }

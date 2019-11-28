@@ -4,9 +4,12 @@ namespace Neskodi\SSHCommander\CommandRunners;
 
 use Neskodi\SSHCommander\Interfaces\CommandInterface;
 use Neskodi\SSHCommander\SSHCommander;
+use Neskodi\SSHCommander\Traits\Loggable;
 
 abstract class BaseCommandRunner
 {
+    use Loggable;
+
     /**
      * @var SSHCommander
      */

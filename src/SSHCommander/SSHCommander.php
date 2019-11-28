@@ -10,9 +10,15 @@ use Neskodi\SSHCommander\Interfaces\CommandRunnerInterface;
 use Neskodi\SSHCommander\Interfaces\SSHConnectionInterface;
 use Neskodi\SSHCommander\Interfaces\SSHConfigInterface;
 use Neskodi\SSHCommander\Interfaces\CommandInterface;
+use Neskodi\SSHCommander\Factories\LoggerFactory;
+use Neskodi\SSHCommander\Traits\Loggable;
+use Psr\Log\LoggerInterface;
+use Exception;
 
 class SSHCommander
 {
+    use Loggable;
+
     /**
      * @var SSHConfigInterface
      */
@@ -32,10 +38,14 @@ class SSHCommander
      * SSHCommander constructor.
      *
      * @param array|SSHConfig $config
+     *
+     * @throws Exception
      */
     public function __construct($config)
     {
         $this->setConfig($config);
+
+        $this->setLogger(LoggerFactory::makeLogger($this->config));
     }
 
     /**
@@ -81,6 +91,8 @@ class SSHCommander
      */
     public function setConnection(SSHConnectionInterface $connection): SSHCommander
     {
+        $this->injectLogger($connection);
+
         $this->connection = $connection;
 
         return $this;
@@ -96,7 +108,7 @@ class SSHCommander
     public function getConnection(): SSHConnectionInterface
     {
         if (!$this->connection) {
-            $this->connection = new SSHConnection($this->config);
+            $this->setConnection(new SSHConnection($this->config));
         }
 
         return $this->connection;
@@ -112,6 +124,8 @@ class SSHCommander
      */
     public function setCommandRunner(CommandRunnerInterface $commandRunner): SSHCommander
     {
+        $this->injectLogger($commandRunner);
+
         $this->commandRunner = $commandRunner;
 
         return $this;
@@ -125,9 +139,11 @@ class SSHCommander
     public function getCommandRunner(): CommandRunnerInterface
     {
         if (!$this->commandRunner) {
-            $this->commandRunner = $this->config->isLocal()
+            $commandRunner = $this->config->isLocal()
                 ? new LocalCommandRunner($this)
                 : new RemoteCommandRunner($this);
+
+            $this->setCommandRunner($commandRunner);
         }
 
         return $this->commandRunner;
@@ -138,7 +154,8 @@ class SSHCommander
      * If a Command object was already provided, short circuit.
      *
      * @param string|array|CommandInterface $command
-     * @param array                         $options optional command parameters, such as break_on_error
+     * @param array                         $options optional command parameters,
+     *                                               such as break_on_error
      *
      * @return CommandInterface
      */
@@ -192,5 +209,20 @@ class SSHCommander
     public static function setConfigFile(string $path)
     {
         SSHConfig::setConfigFileLocation($path);
+    }
+
+    /**
+     * If we have a logger, try injecting it into other objects we construct
+     *
+     * @param $object
+     */
+    protected function injectLogger($object): void
+    {
+        if (
+            $this->logger instanceof LoggerInterface &&
+            method_exists($object, 'setLogger')
+        ) {
+            $object->setLogger($this->logger);
+        }
     }
 }

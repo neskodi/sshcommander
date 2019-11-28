@@ -8,11 +8,14 @@ use Neskodi\SSHCommander\Interfaces\SSHConnectionInterface;
 use Neskodi\SSHCommander\Exceptions\CommandRunException;
 use Neskodi\SSHCommander\Interfaces\SSHConfigInterface;
 use Neskodi\SSHCommander\Interfaces\CommandInterface;
+use Neskodi\SSHCommander\Traits\Loggable;
 use phpseclib\Crypt\RSA;
 use phpseclib\Net\SSH2;
 
 class SSHConnection implements SSHConnectionInterface
 {
+    use Loggable;
+
     const DEFAULT_TIMEOUT = 10;
 
     /**

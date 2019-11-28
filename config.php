@@ -45,4 +45,13 @@ return [
 
     // Whether to include stderr in command result in normal mode.
     'suppress_stderr' => false,
+
+    // Provide a path to a writeable file to enable logging.
+    'log_file' => null,
+
+    // 'error' (only connection errors and timeouts)
+    // 'notice' (connection errors, timeouts, and commands that return an error exit code)
+    // 'info' (report about completing basic operations, such as connect, send command, get response, disconnect)
+    // 'debug' (includes the entire command output in the log)
+    'log_level' => 'info',
 ];
