@@ -64,6 +64,21 @@ class Command implements CommandInterface
     }
 
     /**
+     * Return the commands as a string in a format most appropriate to write to
+     * the log.
+     *
+     * @param string $delimiter the delimiter to use to separate commands.
+     *
+     * @return string
+     */
+    public function toLoggableString($delimiter = ';'): string
+    {
+        $commands = $this->getPreparedCommands();
+
+        return PHP_EOL . implode($delimiter, $commands);
+    }
+
+    /**
      * Get all commands as a string or an array.
      *
      * @param bool $asString pass false to get commands as an array.

@@ -1,13 +1,16 @@
-<?php
+<?php /** @noinspection PhpUnusedParameterInspection */
 
 namespace Neskodi\SSHCommander\Factories;
 
-use Exception;
 use Neskodi\SSHCommander\Interfaces\SSHConfigInterface;
+use Monolog\Processor\PsrLogMessageProcessor;
+use Monolog\Formatter\FormatterInterface;
+use Monolog\Formatter\LineFormatter;
 use Monolog\Handler\StreamHandler;
 use Psr\Log\LoggerInterface;
 use Psr\Log\LogLevel;
 use Monolog\Logger;
+use Exception;
 
 class LoggerFactory
 {
@@ -38,17 +41,87 @@ class LoggerFactory
      */
     public static function makeLogger(SSHConfigInterface $config): ?LoggerInterface
     {
+        $handlers = static::getHandlers($config);
+        if (empty($handlers)) {
+            return null;
+        }
+
+        $processors = static::getProcessors($config);
+
+        $logChannelName = $config->get('log_channel_name', static::LOG_CHANNEL_NAME);
+        $logger = new Logger($logChannelName);
+
+        foreach ($handlers as $handler) {
+            $logger->pushHandler($handler);
+        }
+
+        foreach ($processors as $processor) {
+            $logger->pushProcessor($processor);
+        }
+
+        return $logger;
+    }
+
+    /**
+     * Get the handlers that this logger must use.
+     * For more details, see
+     * https://github.com/Seldaek/monolog/blob/master/doc/01-usage.md
+     *
+     * @param SSHConfigInterface $config
+     *
+     * @return array
+     * @throws Exception
+     */
+    protected static function getHandlers(SSHConfigInterface $config): array
+    {
         if (!$file = static::hasWritableLogFile($config)) {
             return null;
         }
 
         $logLevel = static::getLogLevel($config);
-        $logChannelName = $config->get('log_channel_name', static::LOG_CHANNEL_NAME);
 
-        $logger = new Logger($logChannelName);
-        $logger->pushHandler(new StreamHandler($file, $logLevel));
+        $formatter = static::getStreamLineFormatter($config);
 
-        return $logger;
+        return [
+            (new StreamHandler($file, $logLevel))->setFormatter($formatter),
+        ];
+    }
+
+    /**
+     * Get the processors that this logger must use.
+     * For more details, see
+     * https://github.com/Seldaek/monolog/blob/master/doc/01-usage.md
+     *
+     * @param SSHConfigInterface $config
+     *
+     * @return array
+     */
+    protected static function getProcessors(SSHConfigInterface $config): array
+    {
+        return [
+            // This processor is needed to interpolate context into message
+            // placeholders like {var}
+            new PsrLogMessageProcessor()
+        ];
+    }
+
+    /**
+     * Get the line formatter for the stream log handler (that writes to file).
+     * For more details, see
+     * https://github.com/Seldaek/monolog/blob/master/doc/01-usage.md
+     *
+     * @param SSHConfigInterface $config
+     *
+     * @return FormatterInterface
+     */
+    protected static function getStreamLineFormatter(SSHConfigInterface $config): FormatterInterface
+    {
+        // remove the 'context' and 'extra' elements from the standard format
+        $output = '[%datetime%] %channel%.%level_name%: %message%' . PHP_EOL;
+
+        $formatter = new LineFormatter($output);
+
+        return $formatter;
     }
 
     /**
@@ -64,11 +137,14 @@ class LoggerFactory
             return null;
         }
 
-        if (!is_writable($file)) {
-            return null;
+        if (
+            is_writable($file) ||
+            (!file_exists($file) && is_writable(dirname($file)))
+        ) {
+            return $file;
         }
 
-        return $file;
+        return null;
     }
 
     /**
@@ -78,7 +154,7 @@ class LoggerFactory
      *
      * @return int
      */
-    protected static function getLogLevel(SSHConfigInterface $config): int
+    protected static function getLogLevel(SSHConfigInterface $config): string
     {
         $level = $config->get('log_level');
 

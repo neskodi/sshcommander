@@ -9,12 +9,13 @@ use Neskodi\SSHCommander\Exceptions\CommandRunException;
 use Neskodi\SSHCommander\Interfaces\SSHConfigInterface;
 use Neskodi\SSHCommander\Interfaces\CommandInterface;
 use Neskodi\SSHCommander\Traits\Loggable;
+use Neskodi\SSHCommander\Traits\Timer;
 use phpseclib\Crypt\RSA;
 use phpseclib\Net\SSH2;
 
 class SSHConnection implements SSHConnectionInterface
 {
-    use Loggable;
+    use Loggable, Timer;
 
     const DEFAULT_TIMEOUT = 10;
 
@@ -46,16 +47,19 @@ class SSHConnection implements SSHConnectionInterface
     /**
      * SSHConnection constructor.
      *
-     * @param SSHConfigInterface $config
-     * @param bool               $autologin
+     * @param SSHCommander $commander
      *
      * @throws AuthenticationException
      */
-    public function __construct(SSHConfigInterface $config)
+    public function __construct(SSHCommander $commander)
     {
-        $this->setConfig($config);
+        $this->setConfig($commander->getConfig());
 
-        if ($config->get('autologin')) {
+        if ($logger = $commander->getLogger()) {
+            $this->setLogger($logger);
+        }
+
+        if ($this->getConfig()->get('autologin')) {
             $this->authenticate();
         }
     }
@@ -164,8 +168,8 @@ class SSHConnection implements SSHConnectionInterface
     {
         if (!$this->ssh2) {
             [$host, $port] = [
-                $this->config->getHost(),
-                $this->config->getPort(),
+                $this->getConfig()->getHost(),
+                $this->getConfig()->getPort(),
             ];
 
             $this->ssh2 = new SSH2($host, $port);
@@ -187,6 +191,8 @@ class SSHConnection implements SSHConnectionInterface
     {
         $this->setLoginTimeout();
 
+        $this->logConnecting();
+
         if ($keyContents = $this->getKeyContents()) {
             @$result = $this->authenticateWithKey($keyContents);
         } else {
@@ -198,6 +204,8 @@ class SSHConnection implements SSHConnectionInterface
         if (!$result) {
             $this->processLoginError();
         }
+
+        $this->info('Authenticated.');
 
         $this->authenticationStatus = true;
 
@@ -214,9 +222,14 @@ class SSHConnection implements SSHConnectionInterface
     {
         $keyContents = null;
 
-        if ($key = $this->config->getKey()) {
+        if ($key = $this->getConfig()->getKey()) {
+            $this->debug('Key contents provided via configuration.');
             $keyContents = $key;
-        } elseif ($keyfile = $this->config->getKeyfile()) {
+        } elseif ($keyfile = $this->getConfig()->getKeyfile()) {
+            $this->debug(
+                'Reading key contents from file: {file}',
+                ['file' => $keyfile]
+            );
             $keyContents = file_get_contents($keyfile);
         }
 
@@ -232,8 +245,13 @@ class SSHConnection implements SSHConnectionInterface
      */
     protected function authenticateWithKey(string $keyContents): bool
     {
-        $username = $this->config->getUser();
+        $username = $this->getConfig()->getUser();
         $key      = $this->loadRSAKey($keyContents);
+
+        $this->info(
+            'Authenticating as user "{user}" with a public key.',
+            ['user' => $username]
+        );
 
         return $this->getSSH2()->login($username, $key);
     }
@@ -245,8 +263,13 @@ class SSHConnection implements SSHConnectionInterface
      */
     protected function authenticateWithPassword()
     {
-        $username = $this->config->getUser();
-        $password = $this->config->getPassword();
+        $username = $this->getConfig()->getUser();
+        $password = $this->getConfig()->getPassword();
+
+        $this->info(
+            'Authenticating as user "{user}" with a password.',
+            ['user' => $username]
+        );
 
         return $this->getSSH2()->login($username, $password);
     }
@@ -261,7 +284,7 @@ class SSHConnection implements SSHConnectionInterface
     protected function loadRSAKey(string $keyContents): RSA
     {
         $key = new RSA;
-        if ($password = $this->config->getPassword()) {
+        if ($password = $this->getConfig()->getPassword()) {
             $key->setPassword($password);
         }
         $key->loadKey($keyContents);
@@ -352,15 +375,27 @@ class SSHConnection implements SSHConnectionInterface
 
         $this->setCommandTimeout();
 
+        $this->info(sprintf(
+                'Running command: %s',
+                $this->command->toLoggableString())
+        );
+
         // execute the command via phpseclib and collect the returned lines
         // into an array
         $ssh = $this->getSSH2();
+
+        $this->startTimer();
+
         $ssh->exec((string)$this->command, function ($str) use ($delim) {
             $this->outputLines = array_merge(
                 $this->outputLines,
                 explode($delim, $str)
             );
         });
+
+        $this->info('Command completed in {seconds} seconds', [
+            'seconds' => $this->endTimer(),
+        ]);
 
         $this->resetTimeout();
 
@@ -381,10 +416,11 @@ class SSHConnection implements SSHConnectionInterface
 
         // the delimiter used to split output lines, by default \n
         $delim = $this->command->getOption('delimiter_split_output');
-        $ssh = $this->getSSH2();
+        $ssh   = $this->getSSH2();
 
         // structure the result
         $result = (new CommandResult($this->command))
+            ->setLogger($this->getLogger())
             ->setExitCode((int)$ssh->getExitStatus())
             ->setOutput($this->outputLines);
 
@@ -392,6 +428,9 @@ class SSHConnection implements SSHConnectionInterface
         if ($this->command->getOption('separate_stderr')) {
             $result->setErrorOutput(explode($delim, $ssh->getStdError()));
         }
+
+        // log the output (debug level only)
+        $result->logResult();
 
         return $result;
     }
@@ -416,9 +455,33 @@ class SSHConnection implements SSHConnectionInterface
      */
     protected function processLoginError(): void
     {
-        $errorText = error_get_last();
-        $message   = $errorText ? $errorText['message'] : '';
+        if ($this->getSSH2()->isTimeout()) {
+            $message = sprintf(
+                'Timed out after %d seconds',
+                $this->getConfig()->get('timeout_connect')
+            );
+        } else {
+            $errorText = error_get_last();
+            $message   = $errorText ? $errorText['message'] : '';
+        }
 
-        throw new AuthenticationException($message);
+        $exception = new AuthenticationException($message);
+        $this->error($message, ['exception' => $exception]);
+
+        throw $exception;
+    }
+
+    /**
+     * Log that we are starting connection.
+     */
+    protected function logConnecting(): void
+    {
+        $this->info(
+            'Connecting to {host}:{port}',
+            [
+                'host' => $this->getConfig()->getHost(),
+                'port' => $this->getConfig()->getPort(),
+            ]
+        );
     }
 }

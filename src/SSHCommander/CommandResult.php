@@ -4,9 +4,12 @@ namespace Neskodi\SSHCommander;
 
 use Neskodi\SSHCommander\Interfaces\CommandResultInterface;
 use Neskodi\SSHCommander\Interfaces\CommandInterface;
+use Neskodi\SSHCommander\Traits\Loggable;
 
 class CommandResult implements CommandResultInterface
 {
+    use Loggable;
+
     const STATUS_OK = 'ok';
     const STATUS_ERROR = 'error';
 
@@ -39,7 +42,7 @@ class CommandResult implements CommandResultInterface
      * CommandResult constructor.
      *
      * @param CommandInterface $command the command that was run
-     * @param array            $result ['exitcode', 'out', ?'err']
+     * @param array            $result  ['exitcode', 'out', ?'err']
      */
     public function __construct(CommandInterface $command)
     {
@@ -157,7 +160,7 @@ class CommandResult implements CommandResultInterface
      *
      * @return array|string
      */
-    public function getStdErrOutput(bool $asString = false)
+    public function getErrorOutput(bool $asString = false)
     {
         return $asString
             ? implode($this->delimiter, $this->errorLines)
@@ -209,5 +212,50 @@ class CommandResult implements CommandResultInterface
         $this->delimiter = $delim;
 
         return $this;
+    }
+
+    /**
+     * Log the command output (debug level only).
+     *
+     * @param CommandResultInterface $result
+     */
+    public function logResult(): void
+    {
+        $outputLines = $this->getOutput();
+        $errorLines  = $this->getErrorOutput();
+        $status      = $this->getStatus();
+        $code        = $this->getExitCode();
+
+        $this->debug(
+            'Command returned exit status: {status} (code {code})',
+            compact('status', 'code')
+        );
+
+        $this->logMultilineOutput(
+            empty($outputLines)
+                ? 'Command output was empty.'
+                : 'Command returned:',
+            $outputLines
+        );
+
+        if (!empty($errorLines)) {
+            $this->logMultilineOutput('Command STDERR:', $errorLines);
+        }
+    }
+
+    /**
+     * Log one title line and then each line of the passed array on a separate
+     * log line.
+     *
+     * @param string $title
+     * @param array  $lines
+     */
+    protected function logMultilineOutput(string $title, array $lines): void
+    {
+        $this->debug($title);
+        foreach ($lines as $line) {
+            $this->debug($line);
+        }
+        $this->debug('---');
     }
 }

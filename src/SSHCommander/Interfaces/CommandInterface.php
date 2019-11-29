@@ -19,4 +19,6 @@ interface CommandInterface
     public function appendCommand($command): CommandInterface;
 
     public function prependCommand($command): CommandInterface;
+
+    public function toLoggableString($delimiter = ';'): string;
 }

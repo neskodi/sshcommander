@@ -12,7 +12,6 @@ use Neskodi\SSHCommander\Interfaces\SSHConfigInterface;
 use Neskodi\SSHCommander\Interfaces\CommandInterface;
 use Neskodi\SSHCommander\Factories\LoggerFactory;
 use Neskodi\SSHCommander\Traits\Loggable;
-use Psr\Log\LoggerInterface;
 use Exception;
 
 class SSHCommander
@@ -45,7 +44,9 @@ class SSHCommander
     {
         $this->setConfig($config);
 
-        $this->setLogger(LoggerFactory::makeLogger($this->config));
+        if ($logger = LoggerFactory::makeLogger($this->config)) {
+            $this->setLogger($logger);
+        }
     }
 
     /**
@@ -91,8 +92,6 @@ class SSHCommander
      */
     public function setConnection(SSHConnectionInterface $connection): SSHCommander
     {
-        $this->injectLogger($connection);
-
         $this->connection = $connection;
 
         return $this;
@@ -108,7 +107,7 @@ class SSHCommander
     public function getConnection(): SSHConnectionInterface
     {
         if (!$this->connection) {
-            $this->setConnection(new SSHConnection($this->config));
+            $this->setConnection(new SSHConnection($this));
         }
 
         return $this->connection;
@@ -124,8 +123,6 @@ class SSHCommander
      */
     public function setCommandRunner(CommandRunnerInterface $commandRunner): SSHCommander
     {
-        $this->injectLogger($commandRunner);
-
         $this->commandRunner = $commandRunner;
 
         return $this;
@@ -209,20 +206,5 @@ class SSHCommander
     public static function setConfigFile(string $path)
     {
         SSHConfig::setConfigFileLocation($path);
-    }
-
-    /**
-     * If we have a logger, try injecting it into other objects we construct
-     *
-     * @param $object
-     */
-    protected function injectLogger($object): void
-    {
-        if (
-            $this->logger instanceof LoggerInterface &&
-            method_exists($object, 'setLogger')
-        ) {
-            $object->setLogger($this->logger);
-        }
     }
 }

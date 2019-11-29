@@ -20,7 +20,7 @@ interface CommandResultInterface
 
     public function getOutput(bool $asString = false);
 
-    public function getStdErrOutput(bool $asString = false);
+    public function getErrorOutput(bool $asString = false);
 
     public function __toString(): string;
 
@@ -29,4 +29,6 @@ interface CommandResultInterface
     public function setCommand(CommandInterface $command): CommandResultInterface;
 
     public function getCommand(): CommandInterface;
+
+    public function logResult(): void;
 }

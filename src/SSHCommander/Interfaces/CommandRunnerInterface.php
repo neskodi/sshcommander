@@ -8,7 +8,7 @@ interface CommandRunnerInterface
 {
     public function run(CommandInterface $command): CommandResultInterface;
 
-    public function setLogger(LoggerInterface $logger): CommandResultInterface;
+    public function setLogger(LoggerInterface $logger);
 
     public function getLogger(): ?LoggerInterface;
 }

@@ -42,7 +42,7 @@ trait Loggable
      *
      * @return $this
      */
-    protected function setLogger(LoggerInterface $logger)
+    public function setLogger(LoggerInterface $logger)
     {
         $this->logger = $logger;
 

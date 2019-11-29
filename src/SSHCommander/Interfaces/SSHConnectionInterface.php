@@ -19,7 +19,7 @@ interface SSHConnectionInterface
 
     public function exec(CommandInterface $command): CommandResultInterface;
 
-    public function setLogger(LoggerInterface $logger): SSHConnectionInterface;
+    public function setLogger(LoggerInterface $logger);
 
     public function getLogger(): ?LoggerInterface;
 }
