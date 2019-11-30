@@ -96,14 +96,27 @@ class CommandResult implements CommandResultInterface
      */
     public function setOutput(array $lines): CommandResultInterface
     {
-        // remove the last empty line of output
-        if (empty(trim(end($lines)))) {
-            array_pop($lines);
-        }
+        $this->sanitize($lines);
 
         $this->outputLines = $lines;
 
         return $this;
+    }
+
+    /**
+     * Apply formatting before consuming the lines, e.g. trim the last
+     * empty line.
+     *
+     * @param array $lines
+     */
+    protected function sanitize(array &$lines)
+    {
+        // remove the last empty line of output
+        if ($this->getCommand()->getOption('output_trim_last_empty_line')) {
+            if (empty(trim(end($lines)))) {
+                array_pop($lines);
+            }
+        }
     }
 
     /**

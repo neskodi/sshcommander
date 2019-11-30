@@ -54,4 +54,7 @@ return [
     // 'info' (report about completing basic operations, such as connect, send command, get response, disconnect)
     // 'debug' (includes the entire command output in the log)
     'log_level' => 'info',
+
+    // trim the last line of output if it is empty, which is almost always true
+    'output_trim_last_empty_line' => true,
 ];
