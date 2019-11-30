@@ -8,11 +8,13 @@ interface SSHConfigInterface
 
     public function set(string $name, $value);
 
+    public function setFromArray(array $config): SSHConfigInterface;
+
     public function all(): array;
 
     public function isLocal(): bool;
 
-    public function validate(array $config): void;
+    public function validate(array $config): SSHConfigInterface;
 
     public function getHost(): ?string;
 

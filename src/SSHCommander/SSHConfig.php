@@ -2,6 +2,7 @@
 
 namespace Neskodi\SSHCommander;
 
+use Neskodi\SSHCommander\Exceptions\ConfigFileMissingException;
 use Neskodi\SSHCommander\Exceptions\ConfigValidationException;
 use Neskodi\SSHCommander\Interfaces\SSHConfigInterface;
 use BadMethodCallException;
@@ -22,53 +23,85 @@ class SSHConfig implements SSHConfigInterface
      */
     protected $config = [];
 
-    // TODO: hardcode default config values directly in this file and
-    // protect from overriding with invalid input
-
     /**
      * SSHConfig constructor.
+     *
+     * Load default configuration values from the default configuration file
+     * and if provided, override with user-provided file and / or runtime
+     * specific settings.
+     *
+     * This way we ensure some required settings that SSHCommander relies upon
+     * are always present.
      *
      * @param array $config
      */
     public function __construct(array $config = [])
     {
-        // load default configuration values from the default file
-        // or user-provided file
-        $this->loadDefaultConfig();
-
-        // validate user-defined configuration for current host session.
-        $this->validate($config);
-
-        // merge in the array of config values provided by user
-        $this->mergeUserConfig($config);
+        $this->loadDefaultConfigFile()
+             ->loadUserConfigFile()
+             ->validate($config)
+             ->setFromArray($config);
     }
 
     /**
-     * Load the default values from the configuration file into $this->config.
+     * Load the default configuration file.
      *
-     * @param array $config
+     * @return $this
      */
-    protected function loadDefaultConfig(): void
+    protected function loadDefaultConfigFile(): SSHConfigInterface
     {
-        $configFile = static::getConfigFileLocation();
+        $file = static::getDefaultConfigFileLocation();
 
-        if (file_exists($configFile) && is_readable($configFile)) {
-            $this->config = (array)include($configFile);
+        if (!file_exists($file) || !is_readable($file)) {
+            throw new ConfigFileMissingException($file);
+        }
+
+        $this->loadConfigFile($file);
+
+        return $this;
+    }
+
+    /**
+     * If user has provided their own configuration file, override the default
+     * values with values read from user's file.
+     *
+     * @return $this
+     */
+    protected function loadUserConfigFile(): SSHConfigInterface
+    {
+        if ($file = static::getConfigFileLocation()) {
+            $this->loadConfigFile(static::getDefaultConfigFileLocation());
+        }
+
+        return $this;
+    }
+
+    /**
+     * Load the specified config file into $this->config.
+     *
+     * @param string $file
+     */
+    protected function loadConfigFile(string $file): void
+    {
+        if (file_exists($file) && is_readable($file)) {
+            $this->setFromArray((array)include($file));
         }
     }
 
     /**
-     * Override / append the default values loaded from configuration file
-     * with values provided by user. Should be called after user's input is
-     * validated.
+     * Import the provided array into $this->config.
      *
-     * @param array $config user-provided config.
+     * @param array $config
+     *
+     * @return SSHConfigInterface
      */
-    protected function mergeUserConfig(array $config = []): void
+    public function setFromArray(array $config): SSHConfigInterface
     {
         foreach ($config as $key => $value) {
             $this->config[$key] = $this->prepare($config, $key);
         }
+
+        return $this;
     }
 
     /**
@@ -78,14 +111,17 @@ class SSHConfig implements SSHConfigInterface
      *
      * @param array $config
      *
+     * @return SSHConfigInterface
      * @throws ConfigValidationException
      */
-    public function validate(array $config = []): void
+    public function validate(array $config = []): SSHConfigInterface
     {
         $this->validateHost($config)
              ->validatePort($config)
              ->validateUser($config)
              ->validateKeyfile($config);
+
+        return $this;
     }
 
     /**
