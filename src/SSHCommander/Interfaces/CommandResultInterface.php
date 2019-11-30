@@ -6,9 +6,9 @@ interface CommandResultInterface
 {
     public function setExitCode(int $code): CommandResultInterface;
 
-    public function setOutput(array $output): CommandResultInterface;
+    public function setOutput(array $lines): CommandResultInterface;
 
-    public function setErrorOutput(array $stderr): CommandResultInterface;
+    public function setErrorOutput(array $lines): CommandResultInterface;
 
     public function getStatus(): string;
 

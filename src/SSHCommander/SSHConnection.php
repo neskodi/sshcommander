@@ -32,7 +32,7 @@ class SSHConnection implements SSHConnectionInterface
     /**
      * @var bool
      */
-    protected $authenticationStatus = false;
+    protected $authenticated = false;
 
     /**
      * @var array
@@ -207,7 +207,7 @@ class SSHConnection implements SSHConnectionInterface
 
         $this->info('Authenticated.');
 
-        $this->authenticationStatus = true;
+        $this->authenticated = true;
 
         return $result;
     }
@@ -307,14 +307,18 @@ class SSHConnection implements SSHConnectionInterface
      */
     public function exec(CommandInterface $command): CommandResultInterface
     {
-        if (!$this->authenticationStatus) {
+        if (!$this->authenticated) {
             $this->authenticate();
         }
 
-        return $this->setCommand($command)
-                    ->prepare()
-                    ->run()
-                    ->collectResult();
+        $result = $this->setCommand($command)
+                       ->prepare()
+                       ->run()
+                       ->collectResult();
+
+        $this->logResult($result);
+
+        return $result;
     }
 
     /**
@@ -429,9 +433,6 @@ class SSHConnection implements SSHConnectionInterface
             $result->setErrorOutput(explode($delim, $ssh->getStdError()));
         }
 
-        // log the output (debug level only)
-        $result->logResult();
-
         return $result;
     }
 
@@ -483,5 +484,34 @@ class SSHConnection implements SSHConnectionInterface
                 'port' => $this->getConfig()->getPort(),
             ]
         );
+    }
+
+    /**
+     * Log command exit code and output:
+     * - notice / info: only exit code in case of error
+     * - debug: any exit code and entire output
+     *
+     * @param CommandResultInterface $result
+     */
+    protected function logResult(CommandResultInterface $result): void
+    {
+        $status = $result->getStatus();
+        $code   = $result->getExitCode();
+        if ($result->isError()) {
+            // error is logged on the notice level
+            $this->notice(
+                'Command returned error status: {status}',
+                ['status' => $result->getExitCode()]
+            );
+        } else {
+            // success is logged on the debug level only
+            $this->debug(
+                'Command returned exit status: {status} (code {code})',
+                compact('status', 'code')
+            );
+        }
+
+        // log the entire command output (debug level only)
+        $result->logResult();
     }
 }

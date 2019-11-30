@@ -90,13 +90,18 @@ class CommandResult implements CommandResultInterface
     /**
      * Fluent setter for the output lines of the command.
      *
-     * @param array $output an array of output lines.
+     * @param array $lines an array of output lines.
      *
      * @return CommandResultInterface
      */
-    public function setOutput(array $output): CommandResultInterface
+    public function setOutput(array $lines): CommandResultInterface
     {
-        $this->outputLines = $output;
+        // remove the last empty line of output
+        if (empty(trim(end($lines)))) {
+            array_pop($lines);
+        }
+
+        $this->outputLines = $lines;
 
         return $this;
     }
@@ -104,13 +109,18 @@ class CommandResult implements CommandResultInterface
     /**
      * Fluent setter for the stderr lines of the command.
      *
-     * @param array $output an array of output lines.
+     * @param array $lines an array of output lines.
      *
      * @return CommandResultInterface
      */
-    public function setErrorOutput(array $output): CommandResultInterface
+    public function setErrorOutput(array $lines): CommandResultInterface
     {
-        $this->errorLines = $output;
+        // remove the last empty line of output
+        if (empty(trim(end($lines)))) {
+            array_pop($lines);
+        }
+
+        $this->errorLines = $lines;
 
         return $this;
     }
@@ -215,21 +225,12 @@ class CommandResult implements CommandResultInterface
     }
 
     /**
-     * Log the command output (debug level only).
-     *
-     * @param CommandResultInterface $result
+     * Log the command output (debug level only)
      */
     public function logResult(): void
     {
         $outputLines = $this->getOutput();
         $errorLines  = $this->getErrorOutput();
-        $status      = $this->getStatus();
-        $code        = $this->getExitCode();
-
-        $this->debug(
-            'Command returned exit status: {status} (code {code})',
-            compact('status', 'code')
-        );
 
         $this->logMultilineOutput(
             empty($outputLines)
