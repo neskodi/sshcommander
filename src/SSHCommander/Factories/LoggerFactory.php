@@ -75,11 +75,10 @@ class LoggerFactory
     protected static function getHandlers(SSHConfigInterface $config): array
     {
         if (!$file = static::hasWritableLogFile($config)) {
-            return null;
+            return [];
         }
 
         $logLevel = static::getLogLevel($config);
-
         $formatter = static::getStreamLineFormatter($config);
 
         return [

@@ -423,10 +423,14 @@ class SSHConnection implements SSHConnectionInterface
         $ssh   = $this->getSSH2();
 
         // structure the result
-        $result = (new CommandResult($this->command))
-            ->setLogger($this->getLogger())
-            ->setExitCode((int)$ssh->getExitStatus())
-            ->setOutput($this->outputLines);
+        $result = new CommandResult($this->command);
+
+        if ($logger = $this->getLogger()) {
+            $result->setLogger($logger);
+        }
+
+        $result->setExitCode((int)$ssh->getExitStatus())
+               ->setOutput($this->outputLines);
 
         // get the error stream separately, if we were asked to
         if ($this->command->getOption('separate_stderr')) {
