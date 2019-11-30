@@ -70,6 +70,7 @@ class LoggerFactory
      * @param SSHConfigInterface $config
      *
      * @return array
+     *
      * @throws Exception
      */
     protected static function getHandlers(SSHConfigInterface $config): array

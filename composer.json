@@ -18,5 +18,8 @@
     "psr-4": {
       "Neskodi\\SSHCommander\\": "src/SSHCommander/"
     }
+  },
+  "require-dev": {
+    "phpunit/phpunit": "8"
   }
 }
