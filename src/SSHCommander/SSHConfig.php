@@ -70,7 +70,7 @@ class SSHConfig implements SSHConfigInterface
     protected function loadUserConfigFile(): SSHConfigInterface
     {
         if ($file = static::getConfigFileLocation()) {
-            $this->loadConfigFile(static::getDefaultConfigFileLocation());
+            $this->loadConfigFile($file);
         }
 
         return $this;
@@ -393,11 +393,19 @@ class SSHConfig implements SSHConfigInterface
     }
 
     /**
+     * Some tests need to reset config file location to the default value.
+     */
+    public static function resetConfigFileLocation(): void
+    {
+        static::$configFileLocation = null;
+    }
+
+    /**
      * Get the default config file location.
      *
      * @return string
      */
-    protected static function getDefaultConfigFileLocation(): string
+    public static function getDefaultConfigFileLocation(): string
     {
         return implode(DIRECTORY_SEPARATOR, [
             dirname(__FILE__),

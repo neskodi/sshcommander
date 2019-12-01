@@ -73,13 +73,16 @@ class SSHCommander
     }
 
     /**
-     * Get the configuration object.
+     * Get the configuration object, or a specific value from the configuration
+     * object.
      *
-     * @return SSHConfig
+     * @param string|null $key
+     *
+     * @return SSHConfig|mixed
      */
-    public function getConfig(): SSHConfigInterface
+    public function getConfig(?string $key = null)
     {
-        return $this->config;
+        return $key ? $this->config->get($key) : $this->config;
     }
 
     /**
@@ -107,7 +110,10 @@ class SSHCommander
     public function getConnection(): SSHConnectionInterface
     {
         if (!$this->connection) {
-            $this->setConnection(new SSHConnection($this));
+            $this->setConnection(new SSHConnection(
+                $this->getConfig(),
+                $this->getLogger()
+            ));
         }
 
         return $this->connection;
@@ -136,7 +142,7 @@ class SSHCommander
     public function getCommandRunner(): CommandRunnerInterface
     {
         if (!$this->commandRunner) {
-            $commandRunner = $this->config->isLocal()
+            $commandRunner = $this->getConfig()->isLocal()
                 ? new LocalCommandRunner($this)
                 : new RemoteCommandRunner($this);
 

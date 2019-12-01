@@ -10,6 +10,7 @@ use Neskodi\SSHCommander\Interfaces\SSHConfigInterface;
 use Neskodi\SSHCommander\Interfaces\CommandInterface;
 use Neskodi\SSHCommander\Traits\Loggable;
 use Neskodi\SSHCommander\Traits\Timer;
+use Psr\Log\LoggerInterface;
 use phpseclib\Crypt\RSA;
 use phpseclib\Net\SSH2;
 
@@ -47,19 +48,22 @@ class SSHConnection implements SSHConnectionInterface
     /**
      * SSHConnection constructor.
      *
-     * @param SSHCommander $commander
+     * @param SSHConfigInterface   $config
+     * @param LoggerInterface|null $logger
      *
      * @throws AuthenticationException
      */
-    public function __construct(SSHCommander $commander)
-    {
-        $this->setConfig($commander->getConfig());
+    public function __construct(
+        SSHConfigInterface $config,
+        ?LoggerInterface $logger = null
+    ) {
+        $this->setConfig($config);
 
-        if ($logger = $commander->getLogger()) {
+        if ($logger) {
             $this->setLogger($logger);
         }
 
-        if ($this->getConfig()->get('autologin')) {
+        if ($this->getConfig('autologin')) {
             $this->authenticate();
         }
     }
@@ -87,9 +91,7 @@ class SSHConnection implements SSHConnectionInterface
      */
     protected function setTimeoutFromConfig(string $configKey): SSHConnectionInterface
     {
-        // TODO: log a notice if this operation fails
-
-        if ($timeout = $this->getConfig()->get($configKey)) {
+        if ($timeout = $this->getConfig($configKey)) {
             $timeout = (int)$timeout;
             $this->setTimeout($timeout);
         }
@@ -149,13 +151,16 @@ class SSHConnection implements SSHConnectionInterface
     }
 
     /**
-     * Get the SSHConfig object used by this connection.
+     * Get the SSHConfig object used by this connection, or a specific key from
+     * that config object.
+     *
+     * @param string|null $key
      *
      * @return SSHConfigInterface
      */
-    public function getConfig(): SSHConfigInterface
+    public function getConfig(?string $key = null)
     {
-        return $this->config;
+        return $key ? $this->config->get($key) : $this->config;
     }
 
     /**
@@ -463,7 +468,7 @@ class SSHConnection implements SSHConnectionInterface
         if ($this->getSSH2()->isTimeout()) {
             $message = sprintf(
                 'Timed out after %d seconds',
-                $this->getConfig()->get('timeout_connect')
+                $this->getConfig('timeout_connect')
             );
         } else {
             $errorText = error_get_last();
@@ -517,5 +522,16 @@ class SSHConnection implements SSHConnectionInterface
 
         // log the entire command output (debug level only)
         $result->logResult();
+    }
+
+    /**
+     * Return true is this connection has successfully passed authentication
+     * with the remote host, false otherwise.
+     *
+     * @return bool
+     */
+    public function isAuthenticated(): bool
+    {
+        return (bool)$this->authenticated;
     }
 }

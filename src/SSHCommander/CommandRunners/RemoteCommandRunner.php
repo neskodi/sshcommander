@@ -20,8 +20,8 @@ class RemoteCommandRunner extends BaseCommandRunner implements CommandRunnerInte
      */
     public function run(CommandInterface $command): CommandResultInterface
     {
-        $conn   = $this->commander->getConnection();
-        $delim  = $this->commander->getConfig()->get('delimiter_join_output');
+        $conn   = $this->getCommander()->getConnection();
+        $delim  = $this->getCommander()->getConfig('delimiter_join_output');
 
         $result = $conn->exec($command);
         $result->setOutputDelimiter($delim);

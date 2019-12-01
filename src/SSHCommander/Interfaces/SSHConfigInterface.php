@@ -33,4 +33,6 @@ interface SSHConfigInterface
     public static function setConfigFileLocation(string $location): void;
 
     public static function getConfigFileLocation(): ?string;
+
+    public static function getDefaultConfigFileLocation(): string;
 }

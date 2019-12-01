@@ -1,9 +1,14 @@
-<?php /** @noinspection PhpUnhandledExceptionInspection */
+<?php /** @noinspection ALL */
 
-namespace Tests\Integration;
+/** @noinspection PhpUnhandledExceptionInspection */
 
+namespace Neskodi\SSHCommander\Tests\Integration;
+
+use Neskodi\SSHCommander\Exceptions\AuthenticationException;
+use Neskodi\SSHCommander\SSHConfig;
+use Neskodi\SSHCommander\Tests\TestCase;
 use Neskodi\SSHCommander\SSHCommander;
-use PHPUnit\Framework\TestCase;
+use RuntimeException;
 
 class SSHCommanderTest extends TestCase
 {
@@ -31,7 +36,7 @@ class SSHCommanderTest extends TestCase
             return;
         }
 
-        $target = explode(':', $_ENV['ssh_host']);
+        $target           = explode(':', $_ENV['ssh_host']);
         $this->sshOptions = ['host' => $target[0]];
         if (count($target) > 1) {
             $this->sshOptions['port'] = (int)$target[1];
@@ -46,66 +51,246 @@ class SSHCommanderTest extends TestCase
 
     public function testFailedConnectionIsProperlyReported()
     {
+        $this->expectException(AuthenticationException::class);
 
+        $commander = new SSHCommander([
+            'host'            => 'example.com',
+            'user'            => '*',
+            'timeout_connect' => 2,
+        ]);
+        $commander->run('pwd');
     }
 
     public function testFailedAuthenticationIsProperlyReported()
     {
+        $this->expectException(AuthenticationException::class);
 
+        $options = array_merge($this->sshOptions, [
+            'user' => '****',
+        ]);
+
+        $commander = new SSHCommander($options);
+        $commander->run('pwd');
     }
 
     public function testFailedCommandIsProperlyReported()
     {
+        try {
+            $this->requireUser();
+            $this->requireAuthCredential();
+        } catch (RuntimeException $e) {
+            return $this->markTestSkipped($e->getMessage());
+        }
 
+        $commander = new SSHCommander($this->sshOptions);
+        $result    = $commander->run('cd /no!/such!/directory!');
+
+        $this->assertTrue($result->isError());
+        $this->assertStringContainsStringIgnoringCase('no such', $result);
     }
 
     public function testCommandCanBeRunSuccessfully()
     {
-        $basedir = '/var/www/vhosts';
+        try {
+            $this->requireUser();
+            $this->requireAuthCredential();
+        } catch (RuntimeException $e) {
+            return $this->markTestSkipped($e->getMessage());
+        }
+
+        $basedir = '/tmp';
 
         $options = array_merge($this->sshOptions, [
             'basedir' => $basedir,
         ]);
 
-        $host = new SSHCommander($options);
+        $commander = new SSHCommander($options);
 
-        $result = $host->run('pwd');
+        $result = $commander->run('pwd');
 
-        $this->assertSame('/var/www/vhosts', (string)$result);
+        $this->assertSame($basedir, (string)$result);
     }
 
     public function testLoginWithPublicKeyWorks()
     {
+        try {
+            $this->requireKeyfile();
+            $this->requireUser();
+        } catch (RuntimeException $e) {
+            return $this->markTestSkipped($e->getMessage());
+        }
 
+        $options = [
+            'host' => $this->sshOptions['host'],
+            'port' => $this->sshOptions['port'] ?? 22,
+            'user' => $this->sshOptions['user'],
+            'key'  => file_get_contents($this->sshOptions['keyfile']),
+
+            'autologin' => true,
+        ];
+
+        $commander = new SSHCommander($options);
+
+        $connection = $commander->getConnection();
+
+        $this->assertTrue($connection->isAuthenticated());
     }
 
     public function testLoginWithPublicKeyfileWorks()
     {
+        try {
+            $this->requireKeyfile();
+            $this->requireUser();
+        } catch (RuntimeException $e) {
+            return $this->markTestSkipped($e->getMessage());
+        }
 
+        $options = [
+            'host'    => $this->sshOptions['host'],
+            'port'    => $this->sshOptions['port'] ?? 22,
+            'user'    => $this->sshOptions['user'],
+            'keyfile' => $this->sshOptions['keyfile'],
+
+            'autologin' => true,
+        ];
+
+        $commander = new SSHCommander($options);
+
+        $connection = $commander->getConnection();
+
+        $this->assertTrue($connection->isAuthenticated());
     }
 
     public function testLoginWithPasswordWorks()
     {
+        try {
+            $this->requirePassword();
+            $this->requireUser();
+        } catch (RuntimeException $e) {
+            return $this->markTestSkipped($e->getMessage());
+        }
 
-    }
+        $options = [
+            'host'     => $this->sshOptions['host'],
+            'port'     => $this->sshOptions['port'] ?? 22,
+            'user'     => $this->sshOptions['user'],
+            'password' => $this->sshOptions['password'],
 
-    public function testCommandFailed()
-    {
+            'autologin' => true,
+        ];
 
+        $commander = new SSHCommander($options);
+
+        $connection = $commander->getConnection();
+
+        $this->assertTrue($connection->isAuthenticated());
     }
 
     public function testDefaultConfigurationIsUsedByDefault()
     {
+        $defaultConfig = (array)include(SSHConfig::getDefaultConfigFileLocation());
+        $extra         = ['host' => '127.0.0.1'];
+        $defaultConfig = array_merge($defaultConfig, $extra);
 
+        $commander = new SSHCommander(['host' => '127.0.0.1']);
+
+        $resultConfig = $commander->getConfig()->all();
+
+        $this->assertEquals($defaultConfig, $resultConfig);
     }
 
     public function testUserCanSetConfigurationAsFile()
     {
+        SSHCommander::setConfigFile($this->getTestConfigFile());
+        $extra      = [
+            'host' => '********',
+            'user' => '********',
+        ];
+        $testConfig = $this->getTestConfigAsArray();
+        $testConfig = array_merge($testConfig, $extra);
 
+        $commander = new SSHCommander($extra);
+
+        $resultConfig = $commander->getConfig()->all();
+        $this->assertEquals($testConfig, $resultConfig);
+
+        // reset for further tests
+        SSHConfig::resetConfigFileLocation();
     }
 
     public function testUserCanSetConfigurationAsArgument()
     {
+        $testConfig = $this->getTestConfigAsArray();
+        $extra      = [
+            'host' => '********',
+            'user' => '********',
+        ];
+        $testConfig = array_merge($testConfig, $extra);
 
+        $commander = new SSHCommander($testConfig);
+
+        $resultConfig = $commander->getConfig()->all();
+
+        $this->assertEquals($testConfig, $resultConfig);
+    }
+
+    protected function requireKeyfile()
+    {
+        if (
+            !isset($this->sshOptions['keyfile']) ||
+            empty($this->sshOptions['keyfile'])
+        ) {
+            throw new RuntimeException(
+                'Cannot test login with public key: ' .
+                'no public key is set in phpunit xml configuration'
+            );
+        }
+    }
+
+    protected function requirePassword()
+    {
+        if (
+            !isset($this->sshOptions['password']) ||
+            empty($this->sshOptions['password'])
+        ) {
+            throw new RuntimeException(
+                'Cannot test login with password: ' .
+                'no password is set in phpunit xml configuration'
+            );
+        }
+    }
+
+    protected function requireUser()
+    {
+        if (
+            !isset($this->sshOptions['user']) ||
+            empty($this->sshOptions['user'])
+        ) {
+            throw new RuntimeException(
+                'Cannot test login: ssh username is not set ' .
+                'in phpunit xml configuration'
+            );
+        }
+    }
+
+    protected function requireAuthCredential()
+    {
+        // require either keyfile or password
+        $passwordMissing = (
+            !isset($this->sshOptions['password']) ||
+            empty($this->sshOptions['password'])
+        );
+
+        $keyfileMissing = (
+            !isset($this->sshOptions['keyfile']) ||
+            empty($this->sshOptions['keyfile'])
+        );
+
+        if ($passwordMissing && $keyfileMissing) {
+            throw new RuntimeException(
+                'Cannot run tests: either keyfile or password must be set ' .
+                'in phpunit xml configuration'
+            );
+        }
     }
 }

@@ -16,7 +16,8 @@
   },
   "autoload": {
     "psr-4": {
-      "Neskodi\\SSHCommander\\": "src/SSHCommander/"
+      "Neskodi\\SSHCommander\\": "src/SSHCommander/",
+      "Neskodi\\SSHCommander\\Tests\\": "tests/"
     }
   },
   "require-dev": {

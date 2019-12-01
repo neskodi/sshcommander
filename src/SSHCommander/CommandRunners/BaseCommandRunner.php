@@ -29,5 +29,10 @@ abstract class BaseCommandRunner
         }
     }
 
+    public function getCommander(): SSHCommander
+    {
+        return $this->commander;
+    }
+
     abstract public function run(CommandInterface $command);
 }

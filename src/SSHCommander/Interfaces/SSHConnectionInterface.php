@@ -13,11 +13,13 @@ interface SSHConnectionInterface
 
     public function setTimeout(int $timeout): SSHConnectionInterface;
 
-    public function getConfig(): SSHConfigInterface;
+    public function getConfig();
 
     public function getSSH2(): SSH2;
 
     public function exec(CommandInterface $command): CommandResultInterface;
+
+    public function isAuthenticated(): bool;
 
     public function setLogger(LoggerInterface $logger);
 
