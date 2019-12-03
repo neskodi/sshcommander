@@ -17,11 +17,21 @@ interface SSHConnectionInterface
 
     public function getSSH2(): SSH2;
 
-    public function exec(CommandInterface $command): CommandResultInterface;
+    public function exec(CommandInterface $command): SSHConnectionInterface;
 
     public function isAuthenticated(): bool;
 
     public function setLogger(LoggerInterface $logger);
 
     public function getLogger(): ?LoggerInterface;
+
+    public function getStdOutLines(): array;
+
+    public function getStdErrLines(): array;
+
+    public function getLastExitCode(): ?int;
+
+    public function reset(): void;
+
+    public function resetTimeout(): SSHConnectionInterface;
 }

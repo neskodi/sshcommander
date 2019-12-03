@@ -3,9 +3,7 @@
 namespace Neskodi\SSHCommander;
 
 use Neskodi\SSHCommander\Exceptions\AuthenticationException;
-use Neskodi\SSHCommander\Interfaces\CommandResultInterface;
 use Neskodi\SSHCommander\Interfaces\SSHConnectionInterface;
-use Neskodi\SSHCommander\Exceptions\CommandRunException;
 use Neskodi\SSHCommander\Interfaces\SSHConfigInterface;
 use Neskodi\SSHCommander\Interfaces\CommandInterface;
 use Neskodi\SSHCommander\Traits\Loggable;
@@ -38,7 +36,17 @@ class SSHConnection implements SSHConnectionInterface
     /**
      * @var array
      */
-    protected $outputLines = [];
+    protected $stdoutLines = [];
+
+    /**
+     * @var array
+     */
+    protected $stderrLines = [];
+
+    /**
+     * @var int
+     */
+    protected $lastExitCode;
 
     /**
      * @var CommandInterface
@@ -83,23 +91,6 @@ class SSHConnection implements SSHConnectionInterface
     }
 
     /**
-     * Set timeout automatically based on the relevant configuration value.
-     *
-     * @param string $configKey the config key to read the timeout from (in seconds)
-     *
-     * @return $this
-     */
-    protected function setTimeoutFromConfig(string $configKey): SSHConnectionInterface
-    {
-        if ($timeout = $this->getConfig($configKey)) {
-            $timeout = (int)$timeout;
-            $this->setTimeout($timeout);
-        }
-
-        return $this;
-    }
-
-    /**
      * Reset the timeout to its default value.
      *
      * @return $this
@@ -131,6 +122,23 @@ class SSHConnection implements SSHConnectionInterface
     protected function setLoginTimeout(): SSHConnectionInterface
     {
         $this->setTimeoutFromConfig('timeout_connect');
+
+        return $this;
+    }
+
+    /**
+     * Set timeout automatically based on the relevant configuration value.
+     *
+     * @param string $configKey the config key to read the timeout from (in seconds)
+     *
+     * @return $this
+     */
+    protected function setTimeoutFromConfig(string $configKey): SSHConnectionInterface
+    {
+        if ($timeout = $this->getConfig($configKey)) {
+            $timeout = (int)$timeout;
+            $this->setTimeout($timeout);
+        }
 
         return $this;
     }
@@ -304,62 +312,17 @@ class SSHConnection implements SSHConnectionInterface
      * @param CommandInterface $command  the command to execute, or multiple
      *                                   commands separated by newline.
      *
-     * @return CommandResultInterface
-     *
-     * @throws CommandRunException
+     * @return SSHConnectionInterface
      *
      * @throws AuthenticationException
      */
-    public function exec(CommandInterface $command): CommandResultInterface
+    public function exec(CommandInterface $command): SSHConnectionInterface
     {
         if (!$this->authenticated) {
             $this->authenticate();
         }
 
-        $result = $this->setCommand($command)
-                       ->prepare()
-                       ->run()
-                       ->collectResult();
-
-        $this->logResult($result);
-
-        return $result;
-    }
-
-    /**
-     * Set the command to execute.
-     *
-     * @param CommandInterface $command
-     *
-     * @return $this
-     */
-    protected function setCommand(CommandInterface $command): SSHConnectionInterface
-    {
-        $this->command = $command;
-
-        return $this;
-    }
-
-    /**
-     * Prepare to execute by setting additional options to the ssh2 object.
-     *
-     * @return $this
-     *
-     * @throws CommandRunException
-     */
-    protected function prepare(): SSHConnectionInterface
-    {
-        // safety net for people extending this class
-        $this->requireCommand();
-
-        // if user wants stderr as separate stream or wants to suppress it
-        // altogether, tell phpseclib about it
-        if (
-            $this->command->getOption('separate_stderr') ||
-            $this->command->getOption('suppress_stderr')
-        ) {
-            $this->getSSH2()->enableQuietMode();
-        }
+        $this->run($command);
 
         return $this;
     }
@@ -367,94 +330,43 @@ class SSHConnection implements SSHConnectionInterface
     /**
      * Execute the command using the ssh2 object.
      *
-     * @return $this
-     *
-     * @throws CommandRunException
+     * @param CommandInterface $command
      */
-    protected function run(): SSHConnectionInterface
+    protected function run(CommandInterface $command): void
     {
-        // safety net for people extending this class
-        $this->requireCommand();
-
         // the delimiter used to split output lines, by default \n
-        $delim = $this->command->getOption('delimiter_split_output');
-
-        // reset the output lines
-        $this->outputLines = [];
+        $delim = $command->getOption('delimiter_split_output');
 
         $this->setCommandTimeout();
+        $ssh = $this->getSSH2();
 
-        $this->info(sprintf(
-                'Running command: %s',
-                $this->command->toLoggableString())
-        );
+        // clean all data from previous commands
+        $this->reset();
+
+        $this->logCommandStart($command);
+        $this->startTimer();
 
         // execute the command via phpseclib and collect the returned lines
         // into an array
-        $ssh = $this->getSSH2();
-
-        $this->startTimer();
-
-        $ssh->exec((string)$this->command, function ($str) use ($delim) {
-            $this->outputLines = array_merge(
-                $this->outputLines,
+        $ssh->exec((string)$command, function ($str) use ($delim) {
+            $this->stdoutLines = array_merge(
+                $this->stdoutLines,
                 explode($delim, $str)
             );
         });
 
-        $this->info('Command completed in {seconds} seconds', [
-            'seconds' => $this->endTimer(),
-        ]);
+        // stop the timer and log command end
+        $this->logCommandEnd($this->endTimer());
+
+        // remember the exit code
+        $this->lastExitCode = (int)$ssh->getExitStatus();
+
+        // don't forget to collect the error stream too
+        if ($command->getOption('separate_stderr')) {
+            $this->stderrLines = explode($delim, $ssh->getStdError());
+        }
 
         $this->resetTimeout();
-
-        return $this;
-    }
-
-    /**
-     * Collect the execution result into the result object.
-     *
-     * @return CommandResultInterface
-     *
-     * @throws CommandRunException
-     */
-    protected function collectResult(): CommandResultInterface
-    {
-        // safety net for people extending this class
-        $this->requireCommand();
-
-        // the delimiter used to split output lines, by default \n
-        $delim = $this->command->getOption('delimiter_split_output');
-        $ssh   = $this->getSSH2();
-
-        // structure the result
-        $result = new CommandResult($this->command);
-
-        if ($logger = $this->getLogger()) {
-            $result->setLogger($logger);
-        }
-
-        $result->setExitCode((int)$ssh->getExitStatus())
-               ->setOutput($this->outputLines);
-
-        // get the error stream separately, if we were asked to
-        if ($this->command->getOption('separate_stderr')) {
-            $result->setErrorOutput(explode($delim, $ssh->getStdError()));
-        }
-
-        return $result;
-    }
-
-    /**
-     * Throw an exception when trying to run a command before setting it.
-     *
-     * @throws CommandRunException
-     */
-    protected function requireCommand()
-    {
-        if (!$this->command instanceof CommandInterface) {
-            throw new CommandRunException('Command is not set');
-        }
     }
 
     /**
@@ -496,32 +408,13 @@ class SSHConnection implements SSHConnectionInterface
     }
 
     /**
-     * Log command exit code and output:
-     * - notice / info: only exit code in case of error
-     * - debug: any exit code and entire output
-     *
-     * @param CommandResultInterface $result
+     * Clear all traces of previous commands.
      */
-    protected function logResult(CommandResultInterface $result): void
+    public function reset(): void
     {
-        $status = $result->getStatus();
-        $code   = $result->getExitCode();
-        if ($result->isError()) {
-            // error is logged on the notice level
-            $this->notice(
-                'Command returned error status: {status}',
-                ['status' => $result->getExitCode()]
-            );
-        } else {
-            // success is logged on the debug level only
-            $this->debug(
-                'Command returned exit status: {status} (code {code})',
-                compact('status', 'code')
-            );
-        }
+        $this->stdoutLines = $this->stderrLines = [];
 
-        // log the entire command output (debug level only)
-        $result->logResult();
+        $this->lastExitCode = null;
     }
 
     /**
@@ -533,5 +426,60 @@ class SSHConnection implements SSHConnectionInterface
     public function isAuthenticated(): bool
     {
         return (bool)$this->authenticated;
+    }
+
+    /**
+     * Get the array of output lines returned by last command.
+     *
+     * @return array
+     */
+    public function getStdOutLines(): array
+    {
+        return $this->stdoutLines;
+    }
+
+    /**
+     * Get the array of error lines returned by last command.
+     *
+     * @return array
+     */
+    public function getStdErrLines(): array
+    {
+        return $this->stderrLines;
+    }
+
+    /**
+     * Get the exit code of the last command, if any.
+     *
+     * @return int|null
+     */
+    public function getLastExitCode(): ?int
+    {
+        return $this->lastExitCode;
+    }
+
+    /**
+     * Log the event of running the command.
+     *
+     * @param CommandInterface $command
+     */
+    protected function logCommandStart(CommandInterface $command): void
+    {
+        $this->info(sprintf(
+                'Running command: %s',
+                $command->toLoggableString())
+        );
+    }
+
+    /**
+     * Log command completion along with the time it took to run.
+     *
+     * @param float $seconds
+     */
+    protected function logCommandEnd(float $seconds): void
+    {
+        $this->info('Command completed in {seconds} seconds', [
+            'seconds' => $seconds,
+        ]);
     }
 }
