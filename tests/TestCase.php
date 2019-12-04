@@ -4,6 +4,7 @@ namespace Neskodi\SSHCommander\Tests;
 
 use PHPUnit\Framework\TestCase as PHPUnitTestCase;
 use Neskodi\SSHCommander\SSHConfig;
+use RuntimeException;
 
 class TestCase extends PHPUnitTestCase
 {
@@ -19,6 +20,11 @@ class TestCase extends PHPUnitTestCase
     const CONFIG_FULL            = '*';
     const CONFIG_CONNECTION_ONLY = 'connection';
     const CONFIG_SECONDARY_ONLY  = 'other';
+
+    /**
+     * @var array
+     */
+    protected $sshOptions = [];
 
     public function getTestConfigFile()
     {
@@ -59,5 +65,84 @@ class TestCase extends PHPUnitTestCase
         array $override = []
     ) {
         return new SSHConfig($this->getTestConfigAsArray($type, $override));
+    }
+
+    protected function buildSshOptions()
+    {
+        if (!isset($_ENV['ssh_host']) || empty($_ENV['ssh_host'])) {
+            return;
+        }
+
+        $target           = explode(':', $_ENV['ssh_host']);
+        $this->sshOptions = ['host' => $target[0]];
+        if (count($target) > 1) {
+            $this->sshOptions['port'] = (int)$target[1];
+        }
+
+        foreach (['ssh_user', 'ssh_keyfile', 'ssh_password'] as $op) {
+            if (isset($_ENV[$op])) {
+                $this->sshOptions[substr($op, 4)] = $_ENV[$op];
+            }
+        }
+    }
+
+    protected function requireAuthCredential()
+    {
+        // require either keyfile or password
+        $passwordMissing = (
+            !isset($this->sshOptions['password']) ||
+            empty($this->sshOptions['password'])
+        );
+
+        $keyfileMissing = (
+            !isset($this->sshOptions['keyfile']) ||
+            empty($this->sshOptions['keyfile'])
+        );
+
+        if ($passwordMissing && $keyfileMissing) {
+            throw new RuntimeException(
+                'Cannot run tests: either keyfile or password must be set ' .
+                'in phpunit xml configuration'
+            );
+        }
+    }
+
+    protected function requireUser()
+    {
+        if (
+            !isset($this->sshOptions['user']) ||
+            empty($this->sshOptions['user'])
+        ) {
+            throw new RuntimeException(
+                'Cannot test login: ssh username is not set ' .
+                'in phpunit xml configuration'
+            );
+        }
+    }
+
+    protected function requireKeyfile()
+    {
+        if (
+            !isset($this->sshOptions['keyfile']) ||
+            empty($this->sshOptions['keyfile'])
+        ) {
+            throw new RuntimeException(
+                'Cannot test login with public key: ' .
+                'no public key is set in phpunit xml configuration'
+            );
+        }
+    }
+
+    protected function requirePassword()
+    {
+        if (
+            !isset($this->sshOptions['password']) ||
+            empty($this->sshOptions['password'])
+        ) {
+            throw new RuntimeException(
+                'Cannot test login with password: ' .
+                'no password is set in phpunit xml configuration'
+            );
+        }
     }
 }

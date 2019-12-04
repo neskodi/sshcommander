@@ -49,7 +49,11 @@ class LoggerFactory
 
         $processors = static::getProcessors($config);
 
-        $logChannelName = $config->get('log_channel_name', static::LOG_CHANNEL_NAME);
+        $logChannelName = $config->get(
+            'log_channel_name',
+            static::LOG_CHANNEL_NAME
+        );
+
         $logger = new Logger($logChannelName);
 
         foreach ($handlers as $handler) {
@@ -115,7 +119,7 @@ class LoggerFactory
      *
      * @return FormatterInterface
      */
-    protected static function getStreamLineFormatter(SSHConfigInterface $config): FormatterInterface
+    public static function getStreamLineFormatter(SSHConfigInterface $config): FormatterInterface
     {
         // remove the 'context' and 'extra' elements from the standard format
         $output = '[%datetime%] %channel%.%level_name%: %message%' . PHP_EOL;
