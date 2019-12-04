@@ -7,6 +7,7 @@ use Monolog\Processor\PsrLogMessageProcessor;
 use Monolog\Formatter\FormatterInterface;
 use Monolog\Formatter\LineFormatter;
 use Monolog\Handler\StreamHandler;
+use Neskodi\SSHCommander\Utils;
 use Psr\Log\LoggerInterface;
 use Psr\Log\LogLevel;
 use Monolog\Logger;
@@ -137,14 +138,11 @@ class LoggerFactory
             return null;
         }
 
-        if (
-            is_writable($file) ||
-            (!file_exists($file) && is_writable(dirname($file)))
-        ) {
-            return $file;
+        if (!Utils::isWritableOrCreatable($file)) {
+            return null;
         }
 
-        return null;
+        return $file;
     }
 
     /**

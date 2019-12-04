@@ -23,5 +23,7 @@
         <env name="ssh_user" value=""/>
         <env name="ssh_keyfile" value=""/>
         <env name="ssh_password" value=""/>
+
+        <env name="ssh_log_file" value="/tmp/sshcommander.log"/>
     </php>
 </phpunit>

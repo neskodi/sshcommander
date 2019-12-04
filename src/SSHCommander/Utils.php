@@ -33,4 +33,12 @@ class Utils
 
         return implode('', array_map('ucfirst', $arr));
     }
+
+    public static function isWritableOrCreatable($file): bool
+    {
+        return (
+            (!file_exists($file) && is_writable(dirname($file))) ||
+            is_writable($file)
+        );
+    }
 }
