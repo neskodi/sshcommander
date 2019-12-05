@@ -388,7 +388,7 @@ class SSHConnection implements SSHConnectionInterface
         }
 
         $exception = new AuthenticationException($message);
-        $this->error($message, ['exception' => $exception]);
+        $this->error($exception->getMessage(), ['exception' => $exception]);
 
         throw $exception;
     }

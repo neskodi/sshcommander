@@ -1,7 +1,10 @@
-<?php /** @noinspection PhpUnhandledExceptionInspection */
+<?php /** @noinspection PhpRedundantCatchClauseInspection */
+
+/** @noinspection PhpUnhandledExceptionInspection */
 
 namespace Neskodi\SSHCommander\Tests\integration;
 
+use Neskodi\SSHCommander\Exceptions\AuthenticationException;
 use Neskodi\SSHCommander\Interfaces\CommandInterface;
 use Neskodi\SSHCommander\Factories\LoggerFactory;
 use Monolog\Processor\PsrLogMessageProcessor;
@@ -16,6 +19,8 @@ use Monolog\Logger;
 class LoggingTest extends TestCase
 {
     const TEST_OUTPUT_STRING = 'quick brown fox jumps over the lazy dog';
+
+    const COMMAND_COMPLETION_REGEX = '/Command completed in \d+(\.\d+)? seconds/';
 
     /**
      * @var SSHCommander
@@ -58,7 +63,7 @@ class LoggingTest extends TestCase
         }
     }
 
-    protected function getSuccessfulCommand()
+    protected function getSuccessfulCommand(): string
     {
         if (!$this->successfulCommand) {
             $this->successfulCommand = sprintf(
@@ -70,7 +75,7 @@ class LoggingTest extends TestCase
         return $this->successfulCommand;
     }
 
-    protected function getUnsuccessfulCommand()
+    protected function getUnsuccessfulCommand(): string
     {
         if (!$this->unsuccessfulCommand) {
             $this->unsuccessfulCommand = 'cd /n0/such/d!r3ct0ry';
@@ -79,7 +84,7 @@ class LoggingTest extends TestCase
         return $this->unsuccessfulCommand;
     }
 
-    protected function getCommander()
+    protected function getCommander(): SSHCommander
     {
         if (!$this->commander) {
             $this->commander = new SSHCommander($this->sshOptions);
@@ -117,7 +122,10 @@ class LoggingTest extends TestCase
         $this->getCommander()->run($command);
     }
 
-    protected function getCommandLogRecords(string $level, string $outcome): TestHandler
+    protected function getCommandLogRecords(
+        string $level,
+        string $outcome
+    ): TestHandler
     {
         $key = "$outcome-$level";
 
@@ -133,86 +141,236 @@ class LoggingTest extends TestCase
         return $this->logRecords[$key];
     }
 
-    public function testCommandOutputIsLoggedOnDebugLevel()
+    /**
+     * @param string $prefix
+     *
+     * @return string
+     */
+    protected function getTestOutputStringRegex(
+        string $prefix = 'Running command:'
+    ): string {
+        $regex = '%s.+?%s';
+        $regex = sprintf($regex, $prefix, self::TEST_OUTPUT_STRING);
+        $regex = "/$regex/si";
+
+        return $regex;
+    }
+
+    protected function getAuthFailedCommander(string $level)
+    {
+        $options = array_merge($this->sshOptions, [
+            'user' => '****',
+        ]);
+
+        $commander = new SSHCommander($options);
+        $commander->setLogger($this->getLogger($level));
+
+        return $commander;
+    }
+
+    public function testCommandOutputIsLoggedOnDebugLevel(): void
     {
         $level = LogLevel::DEBUG;
 
         $handler = $this->getCommandLogRecords($level, 'success');
+
+        $this->assertEquals(Logger::DEBUG, $handler->getLevel());
 
         $this->assertTrue(
             $handler->hasRecordThatContains('Command returned:', $level)
         );
     }
 
-    public function testCommandOutputIsNotLoggedAboveDebugLevel()
+    public function testCommandOutputIsNotLoggedAboveDebugLevel(): void
     {
         $level = LogLevel::INFO;
 
         $handler = $this->getCommandLogRecords($level, 'success');
+
+        $this->assertEquals(Logger::INFO, $handler->getLevel());
 
         $this->assertFalse(
             $handler->hasRecordThatContains('Command returned:', $level)
         );
     }
 
-    public function testCommandSuccessIsLoggedOnDebugLevel()
+    public function testCommandSuccessIsLoggedOnDebugLevel(): void
+    {
+        $level = LogLevel::DEBUG;
+
+        $handler = $this->getCommandLogRecords($level, 'success');
+
+        $this->assertEquals(Logger::DEBUG, $handler->getLevel());
+
+        $this->assertTrue(
+            $handler->hasRecordThatContains(
+                'Command returned exit status: ok (code 0)',
+                $level
+            )
+        );
+    }
+
+    public function testCommandSuccessIsNotLoggedAboveDebugLevel(): void
+    {
+        $level = LogLevel::INFO;
+
+        $handler = $this->getCommandLogRecords($level, 'success');
+
+        $this->assertEquals(Logger::INFO, $handler->getLevel());
+
+        $this->assertFalse(
+            $handler->hasRecordThatContains(
+                'Command returned exit status: ok (code 0)',
+                $level
+            )
+        );
+    }
+
+    public function testConnectionStatusIsLoggedOnInfoLevel(): void
+    {
+        $level = LogLevel::INFO;
+
+        $handler = $this->getCommandLogRecords($level, 'success');
+
+        $this->assertEquals(Logger::INFO, $handler->getLevel());
+
+        $this->assertTrue(
+            $handler->hasRecordThatContains('Authenticated', $level)
+        );
+    }
+
+    public function testConnectionStatusIsNotLoggedAboveInfoLevel(): void
+    {
+        $level = LogLevel::NOTICE;
+
+        $handler = $this->getCommandLogRecords($level, 'success');
+
+        $this->assertEquals(Logger::NOTICE, $handler->getLevel());
+
+        $this->assertFalse(
+            $handler->hasRecordThatContains('Authenticated', $level)
+        );
+    }
+
+    public function testCommandIsLoggedOnInfoLevel(): void
+    {
+        $level = LogLevel::INFO;
+
+        $handler = $this->getCommandLogRecords($level, 'success');
+
+        $this->assertEquals(Logger::INFO, $handler->getLevel());
+
+        $regex = $this->getTestOutputStringRegex('Running command:');
+
+        $this->assertTrue(
+            $handler->hasRecordThatMatches($regex, $level)
+        );
+    }
+
+    public function testCommandIsNotLoggedAboveInfoLevel(): void
+    {
+        $level = LogLevel::NOTICE;
+
+        $handler = $this->getCommandLogRecords($level, 'success');
+
+        $this->assertEquals(Logger::NOTICE, $handler->getLevel());
+
+        $regex = $this->getTestOutputStringRegex('Running command:');
+
+        $this->assertFalse(
+            $handler->hasRecordThatMatches($regex, $level)
+        );
+    }
+
+    public function testCommandCompletionIsLoggedOnInfoLevel(): void
+    {
+        $level = LogLevel::INFO;
+
+        $handler = $this->getCommandLogRecords($level, 'success');
+
+        $this->assertEquals(Logger::INFO, $handler->getLevel());
+
+        $this->assertTrue(
+            $handler->hasRecordThatMatches(static::COMMAND_COMPLETION_REGEX, $level)
+        );
+    }
+
+    public function testCommandCompletionIsNotLoggedAboveInfoLevel(): void
+    {
+        $level = LogLevel::NOTICE;
+
+        $handler = $this->getCommandLogRecords($level, 'success');
+
+        $this->assertEquals(Logger::NOTICE, $handler->getLevel());
+
+        $this->assertFalse(
+            $handler->hasRecordThatMatches(static::COMMAND_COMPLETION_REGEX, $level)
+        );
+    }
+
+    public function testCommandErrorLoggedOnNoticeLevel(): void
+    {
+        $level = LogLevel::NOTICE;
+
+        $handler = $this->getCommandLogRecords($level, 'failure');
+
+        $this->assertEquals(Logger::NOTICE, $handler->getLevel());
+
+        $this->assertTrue(
+            $handler->hasRecordThatContains('Command returned error status:', $level)
+        );
+    }
+
+    public function testCommandErrorIsNotLoggedAboveNoticeLevel(): void
+    {
+        $level = LogLevel::ERROR;
+
+        $handler = $this->getCommandLogRecords($level, 'failure');
+
+        $this->assertEquals(Logger::ERROR, $handler->getLevel());
+
+        $this->assertFalse(
+            $handler->hasRecordThatContains('Command returned error status:', $level)
+        );
+    }
+
+    public function testLoginErrorLoggedOnErrorLevel(): void
+    {
+        $level = LogLevel::ERROR;
+
+        $commander = $this->getAuthFailedCommander($level);
+
+        try {
+            $command = $this->getSuccessfulCommand();
+            $commander->run($command);
+        } catch (AuthenticationException $e) {
+            /** @var TestHandler $handler */
+            $handler = $commander->getLogger()->popHandler();
+            $this->assertTrue($handler->hasRecordThatContains(
+                'Failed to authenticate to remote host',
+                $level
+            ));
+        }
+    }
+
+    public function testLoginErrorIsNotLoggedAboveErrorLevel(): void
+    {
+        $level = LogLevel::CRITICAL;
+
+        $commander = $this->getAuthFailedCommander($level);
+
+        try {
+            $command = $this->getSuccessfulCommand();
+            $commander->run($command);
+        } catch (AuthenticationException $e) {
+            /** @var TestHandler $handler */
+            $handler = $commander->getLogger()->popHandler();
+            $this->assertSame(0, count($handler->getRecords()));
+        }
+    }
+
+    public function testSeparateStdErrIsLoggedOnDebugLevel()
     {
 
     }
-
-    public function testCommandSuccessIsNotLoggedAboveDebugLevel()
-    {
-
-    }
-
-    public function testConnectionStatusIsLoggedOnInfoLevel()
-    {
-
-    }
-
-    public function testConnectionStatusIsNotLoggedAboveInfoLevel()
-    {
-
-    }
-
-    public function testCommandIsLoggedOnInfoLevel()
-    {
-
-    }
-
-    public function testCommandIsNotLoggedAboveInfoLevel()
-    {
-
-    }
-
-    public function testCommandCompletionIsLoggedOnInfoLevel()
-    {
-
-    }
-
-    public function testCommandCompletionIsNotLoggedAboveInfoLevel()
-    {
-
-    }
-
-    public function testCommandErrorLoggedOnNoticeLevel()
-    {
-
-    }
-
-    public function testCommandErrorIsNotLoggedAboveNoticeLevel()
-    {
-
-    }
-
-    public function testLoginErrorLoggedOnErrorLevel()
-    {
-
-    }
-
-    public function testLoginErrorIsNotLoggedAboveErrorLevel()
-    {
-
-    }
-
 }
