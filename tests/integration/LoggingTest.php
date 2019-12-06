@@ -476,8 +476,6 @@ class LoggingTest extends TestCase
         /** @var TestHandler $handler */
         $handler = $this->getCommander()->getLogger()->popHandler();
 
-        var_dump($handler->getRecords());
-
         $this->assertTrue(
             $handler->hasRecordThatContains(
                 self::COMMAND_STDERR_MARKER,

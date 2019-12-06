@@ -26,4 +26,10 @@
 
         <env name="ssh_log_file" value="/tmp/sshcommander.log"/>
     </php>
+
+    <filter>
+        <whitelist processUncoveredFilesFromWhitelist="true">
+            <directory suffix=".php">src</directory>
+        </whitelist>
+    </filter>
 </phpunit>
