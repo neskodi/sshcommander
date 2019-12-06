@@ -6,12 +6,9 @@ namespace Neskodi\SSHCommander\Tests\integration;
 
 use Neskodi\SSHCommander\Exceptions\AuthenticationException;
 use Neskodi\SSHCommander\Interfaces\SSHCommandInterface;
-use Neskodi\SSHCommander\Factories\LoggerFactory;
-use Monolog\Processor\PsrLogMessageProcessor;
 use Neskodi\SSHCommander\Tests\TestCase;
 use Neskodi\SSHCommander\SSHCommander;
 use Monolog\Handler\TestHandler;
-use Psr\Log\LoggerInterface;
 use Psr\Log\LogLevel;
 use RuntimeException;
 use Monolog\Logger;
@@ -120,30 +117,6 @@ class LoggingTest extends TestCase
     }
 
     /**
-     * Get an instance of logger with specific logging level.
-     *
-     * @param string $level
-     *
-     * @return LoggerInterface
-     * @throws Exception
-     */
-    protected function getLogger(string $level): LoggerInterface
-    {
-        $logger = new Logger('test-ssh-commander-log');
-        $logger->pushProcessor(new PsrLogMessageProcessor);
-
-        $handler = new TestHandler($level);
-        $handler->setFormatter(
-            LoggerFactory::getStreamLineFormatter(
-                $this->getCommander()->getConfig()
-            )
-        );
-        $logger->pushHandler($handler);
-
-        return $logger;
-    }
-
-    /**
      * Run the successful / unsuccessful command, using a logger of the
      * specified level.
      *
@@ -163,7 +136,7 @@ class LoggingTest extends TestCase
             : $this->getUnsuccessfulCommand();
 
         // get a fresh logger instance for each command
-        $this->getCommander()->setLogger($this->getLogger($level));
+        $this->getCommander()->setLogger($this->getTestLogger($level));
 
         // run the command to collect log output
         $this->getCommander()->run($command, $options);
@@ -236,7 +209,7 @@ class LoggingTest extends TestCase
         );
 
         $commander = new SSHCommander($options);
-        $commander->setLogger($this->getLogger($level));
+        $commander->setLogger($this->getTestLogger($level));
 
         return $commander;
     }

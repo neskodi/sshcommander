@@ -10,7 +10,7 @@ class SSHCommandResult implements SSHCommandResultInterface
 {
     use Loggable;
 
-    const STATUS_OK    = 'ok';
+    const STATUS_OK = 'ok';
     const STATUS_ERROR = 'error';
 
     /**
@@ -246,12 +246,11 @@ class SSHCommandResult implements SSHCommandResultInterface
         $outputLines = $this->getOutput();
         $errorLines  = $this->getErrorOutput();
 
-        $this->logMultilineOutput(
-            empty($outputLines)
-                ? 'Command output was empty.'
-                : 'Command returned:',
-            $outputLines
-        );
+        $headline = empty($outputLines)
+            ? 'Command output was empty.'
+            : 'Command returned:';
+
+        $this->logMultilineOutput($headline, $outputLines);
 
         if (!empty($errorLines)) {
             $this->logMultilineOutput('Command STDERR:', $errorLines);

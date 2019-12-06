@@ -2,6 +2,8 @@
 
 namespace Neskodi\SSHCommander\Interfaces;
 
+use Psr\Log\LoggerInterface;
+
 interface SSHCommandResultInterface
 {
     public function setExitCode(int $code): SSHCommandResultInterface;
@@ -31,4 +33,8 @@ interface SSHCommandResultInterface
     public function getCommand(): SSHCommandInterface;
 
     public function logResult(): void;
+
+    public function setLogger(LoggerInterface $logger);
+
+    public function getLogger(): ?LoggerInterface;
 }

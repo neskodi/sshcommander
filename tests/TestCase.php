@@ -3,8 +3,14 @@
 namespace Neskodi\SSHCommander\Tests;
 
 use PHPUnit\Framework\TestCase as PHPUnitTestCase;
+use Neskodi\SSHCommander\Factories\LoggerFactory;
+use Monolog\Processor\PsrLogMessageProcessor;
 use Neskodi\SSHCommander\SSHConfig;
+use Monolog\Handler\TestHandler;
+use Psr\Log\LoggerInterface;
 use RuntimeException;
+use Monolog\Logger;
+use Exception;
 
 class TestCase extends PHPUnitTestCase
 {
@@ -144,5 +150,29 @@ class TestCase extends PHPUnitTestCase
                 'no password is set in phpunit xml configuration'
             );
         }
+    }
+
+    /**
+     * Get an instance of logger with specific logging level.
+     *
+     * @param string $level
+     *
+     * @return LoggerInterface
+     * @throws Exception
+     */
+    protected function getTestLogger(string $level): LoggerInterface
+    {
+        $logger = new Logger('test-ssh-commander-log');
+        $logger->pushProcessor(new PsrLogMessageProcessor);
+
+        $handler = new TestHandler($level);
+        $handler->setFormatter(
+            LoggerFactory::getStreamLineFormatter(
+                $this->getTestConfigAsObject()
+            )
+        );
+        $logger->pushHandler($handler);
+
+        return $logger;
     }
 }
