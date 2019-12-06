@@ -2,19 +2,19 @@
 
 namespace Neskodi\SSHCommander;
 
-use Neskodi\SSHCommander\Interfaces\CommandResultInterface;
-use Neskodi\SSHCommander\Interfaces\CommandInterface;
+use Neskodi\SSHCommander\Interfaces\SSHCommandResultInterface;
+use Neskodi\SSHCommander\Interfaces\SSHCommandInterface;
 use Neskodi\SSHCommander\Traits\Loggable;
 
-class CommandResult implements CommandResultInterface
+class SSHCommandResult implements SSHCommandResultInterface
 {
     use Loggable;
 
-    const STATUS_OK = 'ok';
+    const STATUS_OK    = 'ok';
     const STATUS_ERROR = 'error';
 
     /**
-     * @var CommandInterface
+     * @var SSHCommandInterface
      */
     protected $command;
 
@@ -41,10 +41,10 @@ class CommandResult implements CommandResultInterface
     /**
      * CommandResult constructor.
      *
-     * @param CommandInterface $command the command that was run
-     * @param array            $result  ['exitcode', 'out', ?'err']
+     * @param SSHCommandInterface $command the command that was run
+     * @param array               $result  ['exitcode', 'out', ?'err']
      */
-    public function __construct(CommandInterface $command)
+    public function __construct(SSHCommandInterface $command)
     {
         $this->setCommand($command);
     }
@@ -52,12 +52,12 @@ class CommandResult implements CommandResultInterface
     /**
      * Fluent setter for the command object.
      *
-     * @param CommandInterface $command
+     * @param SSHCommandInterface $command
      *
-     * @return CommandResultInterface
+     * @return SSHCommandResultInterface
      */
-    public function setCommand(CommandInterface $command): CommandResultInterface
-    {
+    public function setCommand(SSHCommandInterface $command
+    ): SSHCommandResultInterface {
         $this->command = $command;
 
         return $this;
@@ -66,9 +66,9 @@ class CommandResult implements CommandResultInterface
     /**
      * Get the command object.
      *
-     * @return CommandInterface
+     * @return SSHCommandInterface
      */
-    public function getCommand(): CommandInterface
+    public function getCommand(): SSHCommandInterface
     {
         return $this->command;
     }
@@ -78,9 +78,9 @@ class CommandResult implements CommandResultInterface
      *
      * @param int $code
      *
-     * @return CommandResultInterface
+     * @return SSHCommandResultInterface
      */
-    public function setExitCode(int $code): CommandResultInterface
+    public function setExitCode(int $code): SSHCommandResultInterface
     {
         $this->exitCode = $code;
 
@@ -92,9 +92,9 @@ class CommandResult implements CommandResultInterface
      *
      * @param array $lines an array of output lines.
      *
-     * @return CommandResultInterface
+     * @return SSHCommandResultInterface
      */
-    public function setOutput(array $lines): CommandResultInterface
+    public function setOutput(array $lines): SSHCommandResultInterface
     {
         $this->sanitize($lines);
 
@@ -112,10 +112,11 @@ class CommandResult implements CommandResultInterface
     protected function sanitize(array &$lines)
     {
         // remove the last empty line of output
-        if ($this->getCommand()->getOption('output_trim_last_empty_line')) {
-            if (empty(trim(end($lines)))) {
-                array_pop($lines);
-            }
+        if (
+            $this->getCommand()->getOption('output_trim_last_empty_line') &&
+            empty(trim(end($lines)))
+        ) {
+            array_pop($lines);
         }
     }
 
@@ -124,9 +125,9 @@ class CommandResult implements CommandResultInterface
      *
      * @param array $lines an array of output lines.
      *
-     * @return CommandResultInterface
+     * @return SSHCommandResultInterface
      */
-    public function setErrorOutput(array $lines): CommandResultInterface
+    public function setErrorOutput(array $lines): SSHCommandResultInterface
     {
         // remove the last empty line of output
         if (empty(trim(end($lines)))) {
@@ -228,9 +229,9 @@ class CommandResult implements CommandResultInterface
      *
      * @param string $delim
      *
-     * @return CommandResultInterface
+     * @return SSHCommandResultInterface
      */
-    public function setOutputDelimiter(string $delim): CommandResultInterface
+    public function setOutputDelimiter(string $delim): SSHCommandResultInterface
     {
         $this->delimiter = $delim;
 

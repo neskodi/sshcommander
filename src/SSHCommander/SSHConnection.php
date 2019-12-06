@@ -4,8 +4,8 @@ namespace Neskodi\SSHCommander;
 
 use Neskodi\SSHCommander\Exceptions\AuthenticationException;
 use Neskodi\SSHCommander\Interfaces\SSHConnectionInterface;
+use Neskodi\SSHCommander\Interfaces\SSHCommandInterface;
 use Neskodi\SSHCommander\Interfaces\SSHConfigInterface;
-use Neskodi\SSHCommander\Interfaces\CommandInterface;
 use Neskodi\SSHCommander\Traits\Loggable;
 use Neskodi\SSHCommander\Traits\Timer;
 use Psr\Log\LoggerInterface;
@@ -49,7 +49,7 @@ class SSHConnection implements SSHConnectionInterface
     protected $lastExitCode;
 
     /**
-     * @var CommandInterface
+     * @var SSHCommandInterface
      */
     protected $command;
 
@@ -309,14 +309,14 @@ class SSHConnection implements SSHConnectionInterface
      * Execute a command or a series of commands. Proxy to phpseclib SSH2
      * exec() method.
      *
-     * @param CommandInterface $command  the command to execute, or multiple
+     * @param SSHCommandInterface $command the command to execute, or multiple
      *                                   commands separated by newline.
      *
      * @return SSHConnectionInterface
      *
      * @throws AuthenticationException
      */
-    public function exec(CommandInterface $command): SSHConnectionInterface
+    public function exec(SSHCommandInterface $command): SSHConnectionInterface
     {
         if (!$this->authenticated) {
             $this->authenticate();
@@ -330,9 +330,9 @@ class SSHConnection implements SSHConnectionInterface
     /**
      * Execute the command using the ssh2 object.
      *
-     * @param CommandInterface $command
+     * @param SSHCommandInterface $command
      */
-    protected function run(CommandInterface $command): void
+    protected function run(SSHCommandInterface $command): void
     {
         // the delimiter used to split output lines, by default \n
         $delim = $command->getOption('delimiter_split_output');
@@ -341,7 +341,7 @@ class SSHConnection implements SSHConnectionInterface
         $ssh = $this->getSSH2();
 
         // clean all data from previous commands
-        $this->reset();
+        $this->resetOutput();
 
         $this->logCommandStart($command);
         $this->startTimer();
@@ -410,7 +410,7 @@ class SSHConnection implements SSHConnectionInterface
     /**
      * Clear all traces of previous commands.
      */
-    public function reset(): void
+    public function resetOutput(): void
     {
         $this->stdoutLines = $this->stderrLines = [];
 
@@ -461,9 +461,9 @@ class SSHConnection implements SSHConnectionInterface
     /**
      * Log the event of running the command.
      *
-     * @param CommandInterface $command
+     * @param SSHCommandInterface $command
      */
-    protected function logCommandStart(CommandInterface $command): void
+    protected function logCommandStart(SSHCommandInterface $command): void
     {
         $this->info(sprintf(
                 'Running command: %s',

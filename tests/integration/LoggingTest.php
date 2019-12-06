@@ -5,7 +5,7 @@
 namespace Neskodi\SSHCommander\Tests\integration;
 
 use Neskodi\SSHCommander\Exceptions\AuthenticationException;
-use Neskodi\SSHCommander\Interfaces\CommandInterface;
+use Neskodi\SSHCommander\Interfaces\SSHCommandInterface;
 use Neskodi\SSHCommander\Factories\LoggerFactory;
 use Monolog\Processor\PsrLogMessageProcessor;
 use Neskodi\SSHCommander\Tests\TestCase;
@@ -36,12 +36,12 @@ class LoggingTest extends TestCase
     protected $commander;
 
     /**
-     * @var CommandInterface
+     * @var SSHCommandInterface
      */
     protected $successfulCommand;
 
     /**
-     * @var CommandInterface
+     * @var SSHCommandInterface
      */
     protected $unsuccessfulCommand;
 

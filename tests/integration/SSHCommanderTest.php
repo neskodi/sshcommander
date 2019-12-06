@@ -1,13 +1,13 @@
-<?php /** @noinspection ALL */
+<?php /** @noinspection PhpIncludeInspection */
 
 /** @noinspection PhpUnhandledExceptionInspection */
 
 namespace Neskodi\SSHCommander\Tests\Integration;
 
 use Neskodi\SSHCommander\Exceptions\AuthenticationException;
-use Neskodi\SSHCommander\SSHConfig;
 use Neskodi\SSHCommander\Tests\TestCase;
 use Neskodi\SSHCommander\SSHCommander;
+use Neskodi\SSHCommander\SSHConfig;
 use RuntimeException;
 
 class SSHCommanderTest extends TestCase
@@ -25,7 +25,7 @@ class SSHCommanderTest extends TestCase
         }
     }
 
-    public function testFailedConnectionIsProperlyReported()
+    public function testFailedConnectionIsProperlyReported(): void
     {
         $this->expectException(AuthenticationException::class);
 
@@ -37,7 +37,7 @@ class SSHCommanderTest extends TestCase
         $commander->run('pwd');
     }
 
-    public function testFailedAuthenticationIsProperlyReported()
+    public function testFailedAuthenticationIsProperlyReported(): void
     {
         $this->expectException(AuthenticationException::class);
 
@@ -49,13 +49,13 @@ class SSHCommanderTest extends TestCase
         $commander->run('pwd');
     }
 
-    public function testFailedCommandIsProperlyReported()
+    public function testFailedCommandIsProperlyReported(): void
     {
         try {
             $this->requireUser();
             $this->requireAuthCredential();
         } catch (RuntimeException $e) {
-            return $this->markTestSkipped($e->getMessage());
+            $this->markTestSkipped($e->getMessage());
         }
 
         $commander = new SSHCommander($this->sshOptions);
@@ -65,13 +65,13 @@ class SSHCommanderTest extends TestCase
         $this->assertStringContainsStringIgnoringCase('no such', $result);
     }
 
-    public function testCommandCanBeRunSuccessfully()
+    public function testCommandCanBeRunSuccessfully(): void
     {
         try {
             $this->requireUser();
             $this->requireAuthCredential();
         } catch (RuntimeException $e) {
-            return $this->markTestSkipped($e->getMessage());
+            $this->markTestSkipped($e->getMessage());
         }
 
         $basedir = '/tmp';
@@ -87,13 +87,13 @@ class SSHCommanderTest extends TestCase
         $this->assertSame($basedir, (string)$result);
     }
 
-    public function testLoginWithPublicKeyWorks()
+    public function testLoginWithPublicKeyWorks(): void
     {
         try {
             $this->requireKeyfile();
             $this->requireUser();
         } catch (RuntimeException $e) {
-            return $this->markTestSkipped($e->getMessage());
+            $this->markTestSkipped($e->getMessage());
         }
 
         $options = [
@@ -112,13 +112,13 @@ class SSHCommanderTest extends TestCase
         $this->assertTrue($connection->isAuthenticated());
     }
 
-    public function testLoginWithPublicKeyfileWorks()
+    public function testLoginWithPublicKeyfileWorks(): void
     {
         try {
             $this->requireKeyfile();
             $this->requireUser();
         } catch (RuntimeException $e) {
-            return $this->markTestSkipped($e->getMessage());
+            $this->markTestSkipped($e->getMessage());
         }
 
         $options = [
@@ -137,13 +137,13 @@ class SSHCommanderTest extends TestCase
         $this->assertTrue($connection->isAuthenticated());
     }
 
-    public function testLoginWithPasswordWorks()
+    public function testLoginWithPasswordWorks(): void
     {
         try {
             $this->requirePassword();
             $this->requireUser();
         } catch (RuntimeException $e) {
-            return $this->markTestSkipped($e->getMessage());
+            $this->markTestSkipped($e->getMessage());
         }
 
         $options = [
@@ -162,7 +162,7 @@ class SSHCommanderTest extends TestCase
         $this->assertTrue($connection->isAuthenticated());
     }
 
-    public function testDefaultConfigurationIsUsedByDefault()
+    public function testDefaultConfigurationIsUsedByDefault(): void
     {
         $defaultConfig = (array)include(SSHConfig::getDefaultConfigFileLocation());
         $extra         = ['host' => '127.0.0.1'];
@@ -175,7 +175,7 @@ class SSHCommanderTest extends TestCase
         $this->assertEquals($defaultConfig, $resultConfig);
     }
 
-    public function testUserCanSetConfigurationAsFile()
+    public function testUserCanSetConfigurationAsFile(): void
     {
         SSHCommander::setConfigFile($this->getTestConfigFile());
         $extra      = [
@@ -194,7 +194,7 @@ class SSHCommanderTest extends TestCase
         SSHConfig::resetConfigFileLocation();
     }
 
-    public function testUserCanSetConfigurationAsArgument()
+    public function testUserCanSetConfigurationAsArgument(): void
     {
         $testConfig = $this->getTestConfigAsArray();
         $extra      = [

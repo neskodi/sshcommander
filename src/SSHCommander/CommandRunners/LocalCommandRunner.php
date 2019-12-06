@@ -2,28 +2,28 @@
 
 namespace Neskodi\SSHCommander\CommandRunners;
 
-use Neskodi\SSHCommander\Interfaces\CommandResultInterface;
-use Neskodi\SSHCommander\Interfaces\CommandRunnerInterface;
-use Neskodi\SSHCommander\Interfaces\CommandInterface;
-use Neskodi\SSHCommander\CommandResult;
+use Neskodi\SSHCommander\Interfaces\SSHCommandResultInterface;
+use Neskodi\SSHCommander\Interfaces\SSHCommandRunnerInterface;
+use Neskodi\SSHCommander\Interfaces\SSHCommandInterface;
+use Neskodi\SSHCommander\SSHCommandResult;
 
-class LocalCommandRunner extends BaseCommandRunner implements CommandRunnerInterface
+class LocalCommandRunner extends BaseCommandRunner implements SSHCommandRunnerInterface
 {
     /**
      * Run the command.
      *
-     * @param CommandInterface $command the object containing the command to run
+     * @param SSHCommandInterface $command the object containing the command to run
      *
-     * @return CommandResultInterface
+     * @return SSHCommandResultInterface
      */
-    public function run(CommandInterface $command): CommandResultInterface
+    public function run(SSHCommandInterface $command): SSHCommandResultInterface
     {
         $output = [];
         $code   = 0;
 
         exec($command, $output, $code);
 
-        $result = new CommandResult($command);
+        $result = new SSHCommandResult($command);
         $result->setOutput($output)
                ->setExitCode($code);
 

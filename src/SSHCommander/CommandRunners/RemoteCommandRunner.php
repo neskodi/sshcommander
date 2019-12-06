@@ -2,15 +2,16 @@
 
 namespace Neskodi\SSHCommander\CommandRunners;
 
+use Neskodi\SSHCommander\Interfaces\SSHCommandResultInterface;
+use Neskodi\SSHCommander\Interfaces\SSHCommandRunnerInterface;
 use Neskodi\SSHCommander\Exceptions\AuthenticationException;
-use Neskodi\SSHCommander\Interfaces\CommandResultInterface;
-use Neskodi\SSHCommander\Interfaces\CommandRunnerInterface;
 use Neskodi\SSHCommander\Interfaces\SSHConnectionInterface;
 use Neskodi\SSHCommander\Exceptions\CommandRunException;
-use Neskodi\SSHCommander\Interfaces\CommandInterface;
-use Neskodi\SSHCommander\CommandResult;
+use Neskodi\SSHCommander\Interfaces\SSHCommandInterface;
+use Neskodi\SSHCommander\SSHCommandResult;
 
-class RemoteCommandRunner extends BaseCommandRunner implements CommandRunnerInterface
+class RemoteCommandRunner extends BaseCommandRunner
+    implements SSHCommandRunnerInterface
 {
     /**
      * @var SSHConnectionInterface
@@ -20,14 +21,15 @@ class RemoteCommandRunner extends BaseCommandRunner implements CommandRunnerInte
     /**
      * Run the command.
      *
-     * @param CommandInterface $command the object containing the command to run
+     * @param SSHCommandInterface $command the object containing the command to
+     *                                     run
      *
-     * @return CommandResultInterface
+     * @return SSHCommandResultInterface
      *
      * @throws CommandRunException
      * @throws AuthenticationException
      */
-    public function run(CommandInterface $command): CommandResultInterface
+    public function run(SSHCommandInterface $command): SSHCommandResultInterface
     {
         // retrieve and set a connection instance if it's not yet there
         // configure it to respect specific command settings
@@ -67,8 +69,8 @@ class RemoteCommandRunner extends BaseCommandRunner implements CommandRunnerInte
      *
      * @return $this
      */
-    public function setConnection(SSHConnectionInterface $connection): CommandRunnerInterface
-    {
+    public function setConnection(SSHConnectionInterface $connection
+    ): SSHCommandRunnerInterface {
         $this->connection = $connection;
 
         return $this;
@@ -77,14 +79,14 @@ class RemoteCommandRunner extends BaseCommandRunner implements CommandRunnerInte
     /**
      * Fluently prepare the connection according to command config.
      *
-     * @param CommandInterface $command
+     * @param SSHCommandInterface $command
      *
      * @return $this
      *
      * @throws AuthenticationException
      */
-    protected function prepareConnection(CommandInterface $command): CommandRunnerInterface
-    {
+    protected function prepareConnection(SSHCommandInterface $command
+    ): SSHCommandRunnerInterface {
         // if user wants stderr as separate stream or wants to suppress it
         // altogether, tell phpseclib about it
         if (
@@ -100,29 +102,30 @@ class RemoteCommandRunner extends BaseCommandRunner implements CommandRunnerInte
     /**
      * Collect the execution result into the result object.
      *
-     * @param CommandInterface $command
+     * @param SSHCommandInterface $command
      *
-     * @return CommandResultInterface
+     * @return SSHCommandResultInterface
      *
      * @throws AuthenticationException
      */
-    protected function collectResult(CommandInterface $command): CommandResultInterface
-    {
-        $connection = $this->getConnection();
+    protected function collectResult(
+        SSHCommandInterface $command
+    ): SSHCommandResultInterface {
+        $conn = $this->getConnection();
 
         // structure the result
-        $result = new CommandResult($command);
+        $result = new SSHCommandResult($command);
 
         if ($logger = $this->getLogger()) {
             $result->setLogger($logger);
         }
 
-        $result->setExitCode($connection->getLastExitCode())
-               ->setOutput($connection->getStdOutLines());
+        $result->setExitCode($conn->getLastExitCode())
+               ->setOutput($conn->getStdOutLines());
 
         // get the error stream separately, if we were asked to
         if ($command->getOption('separate_stderr')) {
-            $result->setErrorOutput($connection->getStdErrLines());
+            $result->setErrorOutput($conn->getStdErrLines());
         }
 
         return $result;
@@ -133,9 +136,9 @@ class RemoteCommandRunner extends BaseCommandRunner implements CommandRunnerInte
      * - notice / info: only exit code in case of error
      * - debug: any exit code and entire output
      *
-     * @param CommandResultInterface $result
+     * @param SSHCommandResultInterface $result
      */
-    protected function logResult(CommandResultInterface $result): void
+    protected function logResult(SSHCommandResultInterface $result): void
     {
         $status = $result->getStatus();
         $code   = $result->getExitCode();

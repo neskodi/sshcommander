@@ -1,4 +1,6 @@
-<?php /** @noinspection ALL */
+<?php /** @noinspection PhpUndefinedMethodInspection */
+
+/** @noinspection PhpUnhandledExceptionInspection */
 /** @noinspection PhpUnusedLocalVariableInspection */
 /** @noinspection PhpIncludeInspection */
 

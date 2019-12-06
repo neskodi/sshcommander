@@ -2,19 +2,20 @@
 
 namespace Neskodi\SSHCommander;
 
+use Neskodi\SSHCommander\Interfaces\SSHCommandResultInterface;
+use Neskodi\SSHCommander\Interfaces\SSHCommandRunnerInterface;
 use Neskodi\SSHCommander\CommandRunners\RemoteCommandRunner;
 use Neskodi\SSHCommander\CommandRunners\LocalCommandRunner;
 use Neskodi\SSHCommander\Exceptions\InvalidConfigException;
-use Neskodi\SSHCommander\Interfaces\CommandResultInterface;
-use Neskodi\SSHCommander\Interfaces\CommandRunnerInterface;
 use Neskodi\SSHCommander\Interfaces\SSHConnectionInterface;
+use Neskodi\SSHCommander\Interfaces\SSHCommanderInterface;
+use Neskodi\SSHCommander\Interfaces\SSHCommandInterface;
 use Neskodi\SSHCommander\Interfaces\SSHConfigInterface;
-use Neskodi\SSHCommander\Interfaces\CommandInterface;
 use Neskodi\SSHCommander\Factories\LoggerFactory;
 use Neskodi\SSHCommander\Traits\Loggable;
 use Exception;
 
-class SSHCommander
+class SSHCommander implements SSHCommanderInterface
 {
     use Loggable;
 
@@ -29,7 +30,7 @@ class SSHCommander
     protected $connection;
 
     /**
-     * @var CommandRunnerInterface
+     * @var SSHCommandRunnerInterface
      */
     protected $commandRunner;
 
@@ -55,9 +56,9 @@ class SSHCommander
      *
      * @param array|SSHConfigInterface $config
      *
-     * @return SSHCommander
+     * @return SSHCommanderInterface
      */
-    public function setConfig($config): SSHCommander
+    public function setConfig($config): SSHCommanderInterface
     {
         if (is_array($config)) {
             $configObject = new SSHConfig($config);
@@ -91,10 +92,11 @@ class SSHCommander
      *
      * @param SSHConnectionInterface $connection
      *
-     * @return SSHCommander
+     * @return SSHCommanderInterface
      */
-    public function setConnection(SSHConnectionInterface $connection): SSHCommander
-    {
+    public function setConnection(
+        SSHConnectionInterface $connection
+    ): SSHCommanderInterface {
         $this->connection = $connection;
 
         return $this;
@@ -110,10 +112,9 @@ class SSHCommander
     public function getConnection(): SSHConnectionInterface
     {
         if (!$this->connection) {
-            $this->setConnection(new SSHConnection(
-                $this->getConfig(),
-                $this->getLogger()
-            ));
+            $this->setConnection(
+                new SSHConnection($this->getConfig(), $this->getLogger())
+            );
         }
 
         return $this->connection;
@@ -123,12 +124,12 @@ class SSHCommander
      * Fluent setter for the command runner object, in case you need to override
      * the default one.
      *
-     * @param CommandRunnerInterface $commandRunner
+     * @param SSHCommandRunnerInterface $commandRunner
      *
-     * @return SSHCommander
+     * @return SSHCommanderInterface
      */
-    public function setCommandRunner(CommandRunnerInterface $commandRunner): SSHCommander
-    {
+    public function setCommandRunner(SSHCommandRunnerInterface $commandRunner
+    ): SSHCommanderInterface {
         $this->commandRunner = $commandRunner;
 
         return $this;
@@ -137,9 +138,9 @@ class SSHCommander
     /**
      * Get the command runner object.
      *
-     * @return CommandRunnerInterface
+     * @return SSHCommandRunnerInterface
      */
-    public function getCommandRunner(): CommandRunnerInterface
+    public function getCommandRunner(): SSHCommandRunnerInterface
     {
         if (!$this->commandRunner) {
             $commandRunner = $this->getConfig()->isLocal()
@@ -156,21 +157,24 @@ class SSHCommander
      * Create a command object from the provided string or array of commands.
      * If a Command object was already provided, short circuit.
      *
-     * @param string|array|CommandInterface $command
-     * @param array                         $options optional command parameters,
-     *                                               such as break_on_error
+     * @param string|array|SSHCommandInterface $command
+     * @param array                            $options optional command
+     *                                                  parameters, such as
+     *                                                  break_on_error
      *
-     * @return CommandInterface
+     * @return SSHCommandInterface
      */
-    public function createCommand($command, array $options = []): CommandInterface
-    {
-        if ($command instanceof CommandInterface) {
+    public function createCommand(
+        $command,
+        array $options = []
+    ): SSHCommandInterface {
+        if ($command instanceof SSHCommandInterface) {
             return $command;
         }
 
         $this->setDefaultCommandOptions($options);
 
-        return new Command($command, $options);
+        return new SSHCommand($command, $options);
     }
 
     /**
@@ -189,13 +193,15 @@ class SSHCommander
     /**
      * Run a command or a series of commands.
      *
-     * @param string|array|CommandInterface $command the command to run
-     * @param array                         $options optional parameters
+     * @param string|array|SSHCommandInterface $command the command to run
+     * @param array                            $options optional parameters
      *
-     * @return CommandResultInterface
+     * @return SSHCommandResultInterface
      */
-    public function run($command, array $options = []): CommandResultInterface
-    {
+    public function run(
+        $command,
+        array $options = []
+    ): SSHCommandResultInterface {
         $commandRunner = $this->getCommandRunner();
 
         $commandObject = $this->createCommand($command, $options);

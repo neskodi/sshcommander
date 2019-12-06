@@ -1,11 +1,11 @@
-<?php
+<?php /** @noinspection PhpUnusedLocalVariableInspection */
 
 namespace Neskodi\SSHCommander;
 
 use Neskodi\SSHCommander\Exceptions\InvalidCommandException;
-use Neskodi\SSHCommander\Interfaces\CommandInterface;
+use Neskodi\SSHCommander\Interfaces\SSHCommandInterface;
 
-class Command implements CommandInterface
+class SSHCommand implements SSHCommandInterface
 {
     /**
      * One command object may hold multiple commands to execute in one run.
@@ -44,9 +44,9 @@ class Command implements CommandInterface
      *                              newline
      *                              - multiple commands as array
      *
-     * @return CommandInterface
+     * @return SSHCommandInterface
      */
-    public function setCommand($command): CommandInterface
+    public function setCommand($command): SSHCommandInterface
     {
         $this->commands = $this->sanitizeInput($command);
 
@@ -73,9 +73,9 @@ class Command implements CommandInterface
      */
     public function toLoggableString($delimiter = ';'): string
     {
-        $commands = $this->getPreparedCommands();
+        $preparedCommands = $this->getPreparedCommands();
 
-        return PHP_EOL . implode($delimiter, $commands);
+        return PHP_EOL . implode($delimiter, $preparedCommands);
     }
 
     /**
@@ -106,9 +106,9 @@ class Command implements CommandInterface
      *
      * @param array $options command options
      *
-     * @return CommandInterface
+     * @return SSHCommandInterface
      */
-    public function setOptions(array $options = []): CommandInterface
+    public function setOptions(array $options = []): SSHCommandInterface
     {
         $this->options = $options;
 
@@ -121,9 +121,9 @@ class Command implements CommandInterface
      * @param string $key   the name of the option to set.
      * @param mixed  $value the value of the option.
      *
-     * @return CommandInterface
+     * @return SSHCommandInterface
      */
-    public function setOption(string $key, $value): CommandInterface
+    public function setOption(string $key, $value): SSHCommandInterface
     {
         $this->options[$key] = $value;
 
@@ -161,7 +161,7 @@ class Command implements CommandInterface
      *
      * @return $this
      */
-    public function appendCommand($command): CommandInterface
+    public function appendCommand($command): SSHCommandInterface
     {
         $commands = $this->sanitizeInput($command);
 
@@ -177,7 +177,7 @@ class Command implements CommandInterface
      *
      * @return $this
      */
-    public function prependCommand($command): CommandInterface
+    public function prependCommand($command): SSHCommandInterface
     {
         $commands = $this->sanitizeInput($command);
 
@@ -196,7 +196,7 @@ class Command implements CommandInterface
      */
     protected function sanitizeInput($command): array
     {
-        if ($command instanceof CommandInterface) {
+        if ($command instanceof SSHCommandInterface) {
             return $command->getCommands(false);
         }
 

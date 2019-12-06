@@ -2,25 +2,25 @@
 
 namespace Neskodi\SSHCommander\CommandRunners;
 
-use Neskodi\SSHCommander\Interfaces\CommandInterface;
+use Neskodi\SSHCommander\Interfaces\SSHCommanderInterface;
+use Neskodi\SSHCommander\Interfaces\SSHCommandInterface;
 use Neskodi\SSHCommander\Traits\Loggable;
-use Neskodi\SSHCommander\SSHCommander;
 
 abstract class BaseCommandRunner
 {
     use Loggable;
 
     /**
-     * @var SSHCommander
+     * @var SSHCommanderInterface
      */
     protected $commander;
 
     /**
      * BaseCommandRunner constructor.
      *
-     * @param SSHCommander $commander
+     * @param SSHCommanderInterface $commander
      */
-    public function __construct(SSHCommander $commander)
+    public function __construct(SSHCommanderInterface $commander)
     {
         $this->commander = $commander;
 
@@ -29,10 +29,10 @@ abstract class BaseCommandRunner
         }
     }
 
-    public function getCommander(): SSHCommander
+    public function getCommander(): SSHCommanderInterface
     {
         return $this->commander;
     }
 
-    abstract public function run(CommandInterface $command);
+    abstract public function run(SSHCommandInterface $command);
 }
