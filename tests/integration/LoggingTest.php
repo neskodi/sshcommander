@@ -15,12 +15,20 @@ use Psr\Log\LoggerInterface;
 use Psr\Log\LogLevel;
 use RuntimeException;
 use Monolog\Logger;
+use Exception;
 
 class LoggingTest extends TestCase
 {
-    const TEST_OUTPUT_STRING = 'quick brown fox jumps over the lazy dog';
+    const TEST_OUTPUT_STRING       = 'quick brown fox jumps over the lazy dog';
 
+    const LOGIN_SUCCESS_MARKER     = 'Authenticated';
+    const LOGIN_FAILED_MARKER      = 'Failed to authenticate to remote host';
+    const COMMAND_RUNNING_MARKER   = 'Running command:';
     const COMMAND_COMPLETION_REGEX = '/Command completed in \d+(\.\d+)? seconds/';
+    const COMMAND_OUTPUT_MARKER    = 'Command returned:';
+    const COMMAND_STDERR_MARKER    = 'Command STDERR:';
+    const COMMAND_SUCCESS_MARKER   = 'Command returned exit status: ok (code 0)';
+    const COMMAND_ERROR_MARKER     = 'Command returned error status:';
 
     /**
      * @var SSHCommander
@@ -51,7 +59,8 @@ class LoggingTest extends TestCase
             $this->markTestSkipped(
                 'SSHCommander needs a working SSH connection ' .
                 'to run integration tests. Please set the connection ' .
-                'information in phpunit.xml.');
+                'information in phpunit.xml.'
+            );
         }
 
         try {
@@ -63,6 +72,11 @@ class LoggingTest extends TestCase
         }
     }
 
+    /**
+     * Get a command that is guaranteed to succeed on any system.
+     *
+     * @return string
+     */
     protected function getSuccessfulCommand(): string
     {
         if (!$this->successfulCommand) {
@@ -75,15 +89,27 @@ class LoggingTest extends TestCase
         return $this->successfulCommand;
     }
 
+    /**
+     * Get a command that is guaranteed to produce an error output.
+     *
+     * @return string
+     */
     protected function getUnsuccessfulCommand(): string
     {
         if (!$this->unsuccessfulCommand) {
-            $this->unsuccessfulCommand = 'cd /n0/such/d!r3ct0ry';
+            $this->unsuccessfulCommand = 'cd /no/such/directory!';
         }
 
         return $this->unsuccessfulCommand;
     }
 
+    /**
+     * Get the singleton instance of SSHCommander (will be used for most
+     * commands in this test).
+     *
+     * @return SSHCommander
+     * @throws Exception
+     */
     protected function getCommander(): SSHCommander
     {
         if (!$this->commander) {
@@ -93,6 +119,14 @@ class LoggingTest extends TestCase
         return $this->commander;
     }
 
+    /**
+     * Get an instance of logger with specific logging level.
+     *
+     * @param string $level
+     *
+     * @return LoggerInterface
+     * @throws Exception
+     */
     protected function getLogger(string $level): LoggerInterface
     {
         $logger = new Logger('test-ssh-commander-log');
@@ -109,8 +143,21 @@ class LoggingTest extends TestCase
         return $logger;
     }
 
-    protected function runCommand(string $level, bool $successful): void
-    {
+    /**
+     * Run the successful / unsuccessful command, using a logger of the
+     * specified level.
+     *
+     * @param string $level      the level of logger to use
+     * @param bool   $successful whether to target success or error output
+     * @param array  $options    any additional options to run with
+     *
+     * @throws Exception
+     */
+    protected function runCommand(
+        string $level,
+        bool $successful,
+        array $options = []
+    ): void {
         $command = $successful
             ? $this->getSuccessfulCommand()
             : $this->getUnsuccessfulCommand();
@@ -119,14 +166,25 @@ class LoggingTest extends TestCase
         $this->getCommander()->setLogger($this->getLogger($level));
 
         // run the command to collect log output
-        $this->getCommander()->run($command);
+        $this->getCommander()->run($command, $options);
     }
 
+    /**
+     * Get log records from the run of command with specified outcome and
+     * logging level. The same outcome/level combo may be used in multiple tests
+     * but the command is run only once and then the logging output from this
+     * combo is cached and reused.
+     *
+     * @param string $level   the required logging level
+     * @param string $outcome the required command outcome
+     *
+     * @return TestHandler
+     * @throws Exception
+     */
     protected function getCommandLogRecords(
         string $level,
         string $outcome
-    ): TestHandler
-    {
+    ): TestHandler {
         $key = "$outcome-$level";
 
         if (!isset($this->logRecords[$key])) {
@@ -142,12 +200,15 @@ class LoggingTest extends TestCase
     }
 
     /**
-     * @param string $prefix
+     * Build a regular expression to test the presence of test output string
+     * in command log.
+     *
+     * @param string $prefix what the log string should begin with
      *
      * @return string
      */
     protected function getTestOutputStringRegex(
-        string $prefix = 'Running command:'
+        string $prefix = self::COMMAND_RUNNING_MARKER
     ): string {
         $regex = '%s.+?%s';
         $regex = sprintf($regex, $prefix, self::TEST_OUTPUT_STRING);
@@ -156,11 +217,23 @@ class LoggingTest extends TestCase
         return $regex;
     }
 
+    /**
+     * Get a separate instance of the commander with failed authentication
+     * to inspect its log.
+     *
+     * @param string $level the logging level to use.
+     *
+     * @return SSHCommander
+     * @throws Exception
+     */
     protected function getAuthFailedCommander(string $level)
     {
-        $options = array_merge($this->sshOptions, [
-            'user' => '****',
-        ]);
+        $options = array_merge(
+            $this->sshOptions,
+            [
+                'user' => '****',
+            ]
+        );
 
         $commander = new SSHCommander($options);
         $commander->setLogger($this->getLogger($level));
@@ -177,7 +250,7 @@ class LoggingTest extends TestCase
         $this->assertEquals(Logger::DEBUG, $handler->getLevel());
 
         $this->assertTrue(
-            $handler->hasRecordThatContains('Command returned:', $level)
+            $handler->hasRecordThatContains(self::COMMAND_OUTPUT_MARKER, $level)
         );
     }
 
@@ -190,7 +263,7 @@ class LoggingTest extends TestCase
         $this->assertEquals(Logger::INFO, $handler->getLevel());
 
         $this->assertFalse(
-            $handler->hasRecordThatContains('Command returned:', $level)
+            $handler->hasRecordThatContains(self::COMMAND_OUTPUT_MARKER, $level)
         );
     }
 
@@ -204,7 +277,7 @@ class LoggingTest extends TestCase
 
         $this->assertTrue(
             $handler->hasRecordThatContains(
-                'Command returned exit status: ok (code 0)',
+                self::COMMAND_SUCCESS_MARKER,
                 $level
             )
         );
@@ -220,7 +293,7 @@ class LoggingTest extends TestCase
 
         $this->assertFalse(
             $handler->hasRecordThatContains(
-                'Command returned exit status: ok (code 0)',
+                self::COMMAND_SUCCESS_MARKER,
                 $level
             )
         );
@@ -235,7 +308,10 @@ class LoggingTest extends TestCase
         $this->assertEquals(Logger::INFO, $handler->getLevel());
 
         $this->assertTrue(
-            $handler->hasRecordThatContains('Authenticated', $level)
+            $handler->hasRecordThatContains(
+                self::LOGIN_SUCCESS_MARKER,
+                $level
+            )
         );
     }
 
@@ -248,7 +324,10 @@ class LoggingTest extends TestCase
         $this->assertEquals(Logger::NOTICE, $handler->getLevel());
 
         $this->assertFalse(
-            $handler->hasRecordThatContains('Authenticated', $level)
+            $handler->hasRecordThatContains(
+                self::LOGIN_SUCCESS_MARKER,
+                $level
+            )
         );
     }
 
@@ -260,7 +339,7 @@ class LoggingTest extends TestCase
 
         $this->assertEquals(Logger::INFO, $handler->getLevel());
 
-        $regex = $this->getTestOutputStringRegex('Running command:');
+        $regex = $this->getTestOutputStringRegex(self::COMMAND_RUNNING_MARKER);
 
         $this->assertTrue(
             $handler->hasRecordThatMatches($regex, $level)
@@ -275,7 +354,7 @@ class LoggingTest extends TestCase
 
         $this->assertEquals(Logger::NOTICE, $handler->getLevel());
 
-        $regex = $this->getTestOutputStringRegex('Running command:');
+        $regex = $this->getTestOutputStringRegex(self::COMMAND_RUNNING_MARKER);
 
         $this->assertFalse(
             $handler->hasRecordThatMatches($regex, $level)
@@ -291,7 +370,10 @@ class LoggingTest extends TestCase
         $this->assertEquals(Logger::INFO, $handler->getLevel());
 
         $this->assertTrue(
-            $handler->hasRecordThatMatches(static::COMMAND_COMPLETION_REGEX, $level)
+            $handler->hasRecordThatMatches(
+                static::COMMAND_COMPLETION_REGEX,
+                $level
+            )
         );
     }
 
@@ -304,7 +386,10 @@ class LoggingTest extends TestCase
         $this->assertEquals(Logger::NOTICE, $handler->getLevel());
 
         $this->assertFalse(
-            $handler->hasRecordThatMatches(static::COMMAND_COMPLETION_REGEX, $level)
+            $handler->hasRecordThatMatches(
+                static::COMMAND_COMPLETION_REGEX,
+                $level
+            )
         );
     }
 
@@ -317,7 +402,10 @@ class LoggingTest extends TestCase
         $this->assertEquals(Logger::NOTICE, $handler->getLevel());
 
         $this->assertTrue(
-            $handler->hasRecordThatContains('Command returned error status:', $level)
+            $handler->hasRecordThatContains(
+                self::COMMAND_ERROR_MARKER,
+                $level
+            )
         );
     }
 
@@ -330,7 +418,10 @@ class LoggingTest extends TestCase
         $this->assertEquals(Logger::ERROR, $handler->getLevel());
 
         $this->assertFalse(
-            $handler->hasRecordThatContains('Command returned error status:', $level)
+            $handler->hasRecordThatContains(
+                self::COMMAND_ERROR_MARKER,
+                $level
+            )
         );
     }
 
@@ -346,10 +437,12 @@ class LoggingTest extends TestCase
         } catch (AuthenticationException $e) {
             /** @var TestHandler $handler */
             $handler = $commander->getLogger()->popHandler();
-            $this->assertTrue($handler->hasRecordThatContains(
-                'Failed to authenticate to remote host',
-                $level
-            ));
+            $this->assertTrue(
+                $handler->hasRecordThatContains(
+                    self::LOGIN_FAILED_MARKER,
+                    $level
+                )
+            );
         }
     }
 
@@ -365,12 +458,31 @@ class LoggingTest extends TestCase
         } catch (AuthenticationException $e) {
             /** @var TestHandler $handler */
             $handler = $commander->getLogger()->popHandler();
-            $this->assertSame(0, count($handler->getRecords()));
+            $this->assertFalse(
+                $handler->hasRecordThatContains(
+                    self::LOGIN_FAILED_MARKER,
+                    $level
+                )
+            );
         }
     }
 
     public function testSeparateStdErrIsLoggedOnDebugLevel()
     {
+        $level = LogLevel::DEBUG;
 
+        $this->runCommand($level, false, ['separate_stderr' => true]);
+
+        /** @var TestHandler $handler */
+        $handler = $this->getCommander()->getLogger()->popHandler();
+
+        var_dump($handler->getRecords());
+
+        $this->assertTrue(
+            $handler->hasRecordThatContains(
+                self::COMMAND_STDERR_MARKER,
+                $level
+            )
+        );
     }
 }
