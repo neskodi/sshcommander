@@ -1,4 +1,6 @@
-<?php /** @noinspection PhpUnusedLocalVariableInspection */
+<?php /** @noinspection PhpUndefinedVariableInspection */
+
+/** @noinspection PhpUnusedLocalVariableInspection */
 
 namespace Neskodi\SSHCommander;
 
@@ -39,10 +41,10 @@ class SSHCommand implements SSHCommandInterface
     /**
      * Fluent setter for the command to execute.
      *
-     * @param array|string $command - single command as string
-     *                              - multiple commands as strings separated by
-     *                              newline
-     *                              - multiple commands as array
+     * @param array|string|SSHCommandInterface $command
+     *   - single command as string
+     *   - multiple commands as strings separated by delimiter_split_input
+     *   - multiple commands as array
      *
      * @return SSHCommandInterface
      */
@@ -75,7 +77,7 @@ class SSHCommand implements SSHCommandInterface
     {
         $preparedCommands = $this->getPreparedCommands();
 
-        return PHP_EOL . implode($delimiter, $preparedCommands);
+        return implode($delimiter, $preparedCommands);
     }
 
     /**
@@ -196,21 +198,31 @@ class SSHCommand implements SSHCommandInterface
      */
     protected function sanitizeInput($command): array
     {
+        if (
+            !is_array($command) &&
+            !is_string($command) &&
+            !$command instanceof SSHCommandInterface
+        ) {
+            throw new InvalidCommandException(gettype($command));
+        }
+
         if ($command instanceof SSHCommandInterface) {
-            return $command->getCommands(false);
+            $arrayCommands = $command->getCommands(false, false);
         }
 
         if (is_array($command)) {
-            return $command;
+            $arrayCommands = $command;
         }
 
         if (is_string($command)) {
             $delimiter = $this->getOption('delimiter_split_input');
 
-            return explode($delimiter, $command);
+            $arrayCommands = explode($delimiter, $command);
         }
 
-        throw new InvalidCommandException(gettype($command));
+        $arrayCommands = array_map('trim', $arrayCommands);
+
+        return $arrayCommands;
     }
 
     /**

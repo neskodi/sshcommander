@@ -14,7 +14,7 @@ use Neskodi\SSHCommander\SSHConfig;
 
 class SSHCommanderTest extends TestCase
 {
-    public function testConstructor()
+    public function testConstructor(): void
     {
         $testConfig = $this->getTestConfigAsArray();
 
@@ -24,7 +24,7 @@ class SSHCommanderTest extends TestCase
         $this->assertEquals($testConfig, $resultConfig);
     }
 
-    public function testSetConnection()
+    public function testSetConnection(): void
     {
         $testConfigConn = $this->getTestConfigAsArray();
         $testConfigComm = $this->getTestConfigAsArray(
@@ -50,7 +50,7 @@ class SSHCommanderTest extends TestCase
         );
     }
 
-    public function testSetCommandRunner()
+    public function testSetCommandRunner(): void
     {
         $testConfigA = $this->getTestConfigAsArray(
             TestCase::CONFIG_FULL,
@@ -76,7 +76,7 @@ class SSHCommanderTest extends TestCase
         $this->assertEquals($host, 'hostA');
     }
 
-    public function testSetConfig()
+    public function testSetConfig(): void
     {
         $testHost = '********';
 
@@ -91,7 +91,7 @@ class SSHCommanderTest extends TestCase
         $this->assertEquals($commander->getConfig('host'), $testHost);
     }
 
-    public function testSetConfigFile()
+    public function testSetConfigFile(): void
     {
         SSHCommander::setConfigFile($this->getTestConfigFile());
         $testConfig = $this->getTestConfigAsArray();
@@ -110,7 +110,7 @@ class SSHCommanderTest extends TestCase
         SSHConfig::resetConfigFileLocation();
     }
 
-    public function testCreateCommand()
+    public function testCreateCommand(): void
     {
         $testConfig = $this->getTestConfigAsArray();
         $strcmd     = 'pwd';

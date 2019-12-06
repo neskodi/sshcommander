@@ -467,7 +467,7 @@ class LoggingTest extends TestCase
         }
     }
 
-    public function testSeparateStdErrIsLoggedOnDebugLevel()
+    public function testSeparateStdErrIsLoggedOnDebugLevel(): void
     {
         $level = LogLevel::DEBUG;
 

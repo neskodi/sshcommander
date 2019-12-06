@@ -10,8 +10,7 @@ use Psr\Log\LoggerInterface;
 
 class LoggerFactoryTest extends TestCase
 {
-
-    public function testMakeLoggerShouldFailWithMissingPath()
+    public function testMakeLoggerShouldFailWithMissingPath(): void
     {
         $config = $this->getTestConfigAsArray(self::CONFIG_CONNECTION_ONLY);
 
@@ -21,7 +20,7 @@ class LoggerFactoryTest extends TestCase
     }
 
 
-    public function testMakeLoggerShouldFailWithNonWritablePath()
+    public function testMakeLoggerShouldFailWithNonWritablePath(): void
     {
         $file    = '/no/such/file/2983149208p348-10';
 
@@ -34,7 +33,7 @@ class LoggerFactoryTest extends TestCase
         $this->assertNull(LoggerFactory::makeLogger(new SSHConfig($config)));
     }
 
-    public function testMakeLoggerSuccessful()
+    public function testMakeLoggerSuccessful(): void
     {
         $file = $_ENV['ssh_log_file'];
 

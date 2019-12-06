@@ -4,7 +4,7 @@ namespace Neskodi\SSHCommander\Interfaces;
 
 interface SSHCommandInterface
 {
-    public function setCommand(string $command): SSHCommandInterface;
+    public function setCommand($command): SSHCommandInterface;
 
     public function getCommands(bool $asString = true, bool $prepared = true);
 
