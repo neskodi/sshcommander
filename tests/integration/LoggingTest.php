@@ -2,7 +2,7 @@
 
 /** @noinspection PhpUnhandledExceptionInspection */
 
-namespace Neskodi\SSHCommander\Tests\integration;
+namespace Neskodi\SSHCommander\Tests\Integration;
 
 use Neskodi\SSHCommander\Exceptions\AuthenticationException;
 use Neskodi\SSHCommander\Interfaces\SSHCommandInterface;
@@ -203,9 +203,7 @@ class LoggingTest extends TestCase
     {
         $options = array_merge(
             $this->sshOptions,
-            [
-                'user' => '****',
-            ]
+            ['user' => '****']
         );
 
         $commander = new SSHCommander($options);

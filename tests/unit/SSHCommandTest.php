@@ -1,6 +1,6 @@
 <?php
 
-namespace Neskodi\SSHCommander\Tests\unit;
+namespace Neskodi\SSHCommander\Tests\Unit;
 
 use Neskodi\SSHCommander\Exceptions\InvalidCommandException;
 use Neskodi\SSHCommander\Interfaces\SSHCommandInterface;

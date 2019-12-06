@@ -2,7 +2,7 @@
 
 /** @noinspection PhpUnhandledExceptionInspection */
 
-namespace Neskodi\SSHCommander\Tests\unit;
+namespace Neskodi\SSHCommander\Tests\Unit;
 
 use Neskodi\SSHCommander\Interfaces\SSHCommandResultInterface;
 use Neskodi\SSHCommander\SSHCommandResult;

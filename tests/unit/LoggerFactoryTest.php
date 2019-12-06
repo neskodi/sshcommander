@@ -1,6 +1,6 @@
 <?php /** @noinspection PhpUnhandledExceptionInspection */
 
-namespace Neskodi\SSHCommander\Tests\unit;
+namespace Neskodi\SSHCommander\Tests\Unit;
 
 use Neskodi\SSHCommander\Factories\LoggerFactory;
 use Neskodi\SSHCommander\Tests\TestCase;

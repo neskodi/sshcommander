@@ -377,15 +377,8 @@ class SSHConnection implements SSHConnectionInterface
      */
     protected function processLoginError(): void
     {
-        if ($this->getSSH2()->isTimeout()) {
-            $message = sprintf(
-                'Timed out after %d seconds',
-                $this->getConfig('timeout_connect')
-            );
-        } else {
-            $errorText = error_get_last();
-            $message   = $errorText ? $errorText['message'] : '';
-        }
+        $errorText = error_get_last();
+        $message   = $errorText ? $errorText['message'] : '';
 
         $exception = new AuthenticationException($message);
         $this->error($exception->getMessage(), ['exception' => $exception]);
