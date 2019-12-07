@@ -5,10 +5,15 @@
 namespace Neskodi\SSHCommander;
 
 use Neskodi\SSHCommander\Exceptions\InvalidCommandException;
+use Neskodi\SSHCommander\Interfaces\ConfigAwareInterface;
 use Neskodi\SSHCommander\Interfaces\SSHCommandInterface;
+use Neskodi\SSHCommander\Interfaces\SSHConfigInterface;
+use Neskodi\SSHCommander\Traits\ConfigAware;
 
-class SSHCommand implements SSHCommandInterface
+class SSHCommand implements SSHCommandInterface, ConfigAwareInterface
 {
+    use ConfigAware;
+
     /**
      * One command object may hold multiple commands to execute in one run.
      * Hence an array.
@@ -18,23 +23,16 @@ class SSHCommand implements SSHCommandInterface
     protected $commands = [];
 
     /**
-     * You may pass any additional options necessary to build the command.
-     *
-     * @var array
-     */
-    protected $options = [];
-
-    /**
      * Command constructor.
      *
-     * @param string|array $command - single command as string
-     *                              - multiple commands as strings separated by newlone
-     *                              - multiple commands as array
-     * @param array        $options any additional options
+     * @param string|array             $command - single command as string
+     *                                          - multiple commands as strings separated by newlone
+     *                                          - multiple commands as array
+     * @param array|SSHConfigInterface $config
      */
-    public function __construct($command, array $options = [])
+    public function __construct($command, $config)
     {
-        $this->setOptions($options)
+        $this->setConfig($config)
              ->setCommand($command);
     }
 
@@ -98,23 +96,8 @@ class SSHCommand implements SSHCommandInterface
             : $this->commands;
 
         return $asString
-            ? implode($this->getOption('delimiter_join_input'), $commands)
+            ? implode($this->getConfig('delimiter_join_input'), $commands)
             : $commands;
-    }
-
-    /**
-     * Set all command options as an array in one function.
-     * Deletes and rewrites all options set previously.
-     *
-     * @param array $options command options
-     *
-     * @return SSHCommandInterface
-     */
-    public function setOptions(array $options = []): SSHCommandInterface
-    {
-        $this->options = $options;
-
-        return $this;
     }
 
     /**
@@ -127,33 +110,25 @@ class SSHCommand implements SSHCommandInterface
      */
     public function setOption(string $key, $value): SSHCommandInterface
     {
-        $this->options[$key] = $value;
+        $this->config->set($key, $value);
 
         return $this;
     }
 
     /**
-     * Get all additional options that were passed to the command.
+     * Set a specific option.
      *
-     * @return array
+     * @param array $options
+     *
+     * @return SSHCommandInterface
      */
-    public function getOptions(): array
+    public function setOptions(array $options = []): SSHCommandInterface
     {
-        return $this->options;
-    }
+        foreach ($options as $key => $value) {
+            $this->config->set($key, $value);
+        }
 
-    /**
-     * Get a specific option from the array of additional options.
-     *
-     * @param string $key option name.
-     *
-     * @return mixed|null
-     */
-    public function getOption(string $key)
-    {
-        return array_key_exists($key, $this->options)
-            ? $this->options[$key]
-            : null;
+        return $this;
     }
 
     /**
@@ -215,7 +190,7 @@ class SSHCommand implements SSHCommandInterface
         }
 
         if (is_string($command)) {
-            $delimiter = $this->getOption('delimiter_split_input');
+            $delimiter = $this->getConfig('delimiter_split_input');
 
             $arrayCommands = explode($delimiter, $command);
         }
@@ -235,11 +210,11 @@ class SSHCommand implements SSHCommandInterface
     {
         $commands = $this->commands;
 
-        if ($basedir = $this->getOption('basedir')) {
+        if ($basedir = $this->getConfig('basedir')) {
             array_unshift($commands, 'cd ' . $basedir);
         }
 
-        if ($this->getOption('break_on_error')) {
+        if ($this->getConfig('break_on_error')) {
             array_unshift($commands, 'set -e');
         }
 

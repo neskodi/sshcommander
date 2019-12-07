@@ -19,7 +19,6 @@ class LoggerFactoryTest extends TestCase
         $this->assertNull(LoggerFactory::makeLogger(new SSHConfig($config)));
     }
 
-
     public function testMakeLoggerShouldFailWithNonWritablePath(): void
     {
         $file    = '/no/such/file/2983149208p348-10';

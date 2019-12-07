@@ -162,55 +162,17 @@ class SSHCommanderTest extends TestCase
         $this->assertTrue($connection->isAuthenticated());
     }
 
-    public function testDefaultConfigurationIsUsedByDefault(): void
+    public function testLazyAuthentication()
     {
-        $defaultConfig = (array)include(SSHConfig::getDefaultConfigFileLocation());
-        $extra         = [
-            'host' => 'example.com',
-            'user' => 'foo',
-        ];
-        $defaultConfig = array_merge($defaultConfig, $extra);
+        $config = new SSHConfig($this->sshOptions);
+        $config->set('autologin', false);
 
-        $commander = new SSHCommander($extra);
+        $commander = new SSHCommander($config);
 
-        $resultConfig = $commander->getConfig()->all();
+        $this->assertFalse($commander->getConnection()->isAuthenticated());
 
-        $this->assertEquals($defaultConfig, $resultConfig);
+        $commander->run('ls');
+
+        $this->assertTrue($commander->getConnection()->isAuthenticated());
     }
-
-    public function testUserCanSetConfigurationAsFile(): void
-    {
-        SSHCommander::setConfigFile($this->getTestConfigFile());
-        $extra      = [
-            'host' => '********',
-            'user' => '********',
-        ];
-        $testConfig = $this->getTestConfigAsArray();
-        $testConfig = array_merge($testConfig, $extra);
-
-        $commander = new SSHCommander($extra);
-
-        $resultConfig = $commander->getConfig()->all();
-        $this->assertEquals($testConfig, $resultConfig);
-
-        // reset for further tests
-        SSHConfig::resetConfigFileLocation();
-    }
-
-    public function testUserCanSetConfigurationAsArgument(): void
-    {
-        $testConfig = $this->getTestConfigAsArray();
-        $extra      = [
-            'host' => '********',
-            'user' => '********',
-        ];
-        $testConfig = array_merge($testConfig, $extra);
-
-        $commander = new SSHCommander($testConfig);
-
-        $resultConfig = $commander->getConfig()->all();
-
-        $this->assertEquals($testConfig, $resultConfig);
-    }
-
 }

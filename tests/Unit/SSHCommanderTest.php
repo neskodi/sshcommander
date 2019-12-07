@@ -1,4 +1,5 @@
-<?php /** @noinspection PhpUndefinedMethodInspection */
+<?php /** @noinspection PhpParamsInspection */
+/** @noinspection PhpUndefinedMethodInspection */
 
 /** @noinspection PhpUnhandledExceptionInspection */
 /** @noinspection PhpUnusedLocalVariableInspection */
@@ -7,10 +8,12 @@
 namespace Neskodi\SSHCommander\Tests\Unit;
 
 use Neskodi\SSHCommander\CommandRunners\RemoteCommandRunner;
+use Neskodi\SSHCommander\Exceptions\InvalidConfigException;
 use Neskodi\SSHCommander\Tests\TestCase;
 use Neskodi\SSHCommander\SSHConnection;
 use Neskodi\SSHCommander\SSHCommander;
 use Neskodi\SSHCommander\SSHConfig;
+use stdClass;
 
 class SSHCommanderTest extends TestCase
 {
@@ -22,6 +25,13 @@ class SSHCommanderTest extends TestCase
         $resultConfig = $commander->getConfig()->all();
 
         $this->assertEquals($testConfig, $resultConfig);
+    }
+
+    public function testConstructorWithInvalidConfig(): void
+    {
+        $this->expectException(InvalidConfigException::class);
+
+        $commander = new SSHCommander(new stdClass);
     }
 
     public function testSetConnection(): void
@@ -119,8 +129,62 @@ class SSHCommanderTest extends TestCase
 
         $command = $commander->createCommand('pwd', ['timeout_command' => 120]);
 
-        $this->assertEquals($command->getOption('timeout_command'), 120);
-        $this->assertEquals($command->getOption('host'), $testConfig['host']);
+        $this->assertEquals($command->getConfig('timeout_command'), 120);
+        $this->assertEquals($command->getConfig('host'), $testConfig['host']);
         $this->assertEquals($command->getCommands(true, false), $strcmd);
+    }
+
+    public function testDefaultConfigurationIsUsedByDefault(): void
+    {
+        $defaultConfig = (array)include(SSHConfig::getDefaultConfigFileLocation());
+        $extra         = [
+            'host'      => 'example.com',
+            'user'      => 'foo',
+            'autologin' => false,
+        ];
+        $defaultConfig = array_merge($defaultConfig, $extra);
+
+        $commander = new SSHCommander($extra);
+
+        $resultConfig = $commander->getConfig()->all();
+
+        $this->assertEquals($defaultConfig, $resultConfig);
+    }
+
+    public function testUserCanSetConfigurationAsFile(): void
+    {
+        SSHCommander::setConfigFile($this->getTestConfigFile());
+        $extra      = [
+            'host'      => '********',
+            'user'      => '********',
+            'autologin' => false,
+        ];
+        $testConfig = $this->getTestConfigAsArray();
+        $testConfig = array_merge($testConfig, $extra);
+
+        $commander = new SSHCommander($extra);
+
+        $resultConfig = $commander->getConfig()->all();
+        $this->assertEquals($testConfig, $resultConfig);
+
+        // reset for further tests
+        SSHConfig::resetConfigFileLocation();
+    }
+
+    public function testUserCanSetConfigurationAsArgument(): void
+    {
+        $testConfig = $this->getTestConfigAsArray();
+        $extra      = [
+            'host'      => '********',
+            'user'      => '********',
+            'autologin' => false,
+        ];
+        $testConfig = array_merge($testConfig, $extra);
+
+        $commander = new SSHCommander($testConfig);
+
+        $resultConfig = $commander->getConfig()->all();
+
+        $this->assertEquals($testConfig, $resultConfig);
     }
 }

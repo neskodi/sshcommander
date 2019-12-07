@@ -1,13 +1,17 @@
-<?php /** @noinspection PhpIncludeInspection */
+<?php /** @noinspection PhpUnhandledExceptionInspection */
+
+/** @noinspection PhpIncludeInspection */
 
 namespace Neskodi\SSHCommander\Tests;
 
+use Neskodi\SSHCommander\Interfaces\SSHConnectionInterface;
 use PHPUnit\Framework\TestCase as PHPUnitTestCase;
 use Neskodi\SSHCommander\Factories\LoggerFactory;
 use Monolog\Processor\PsrLogMessageProcessor;
 use Neskodi\SSHCommander\SSHConfig;
 use Monolog\Handler\TestHandler;
 use Psr\Log\LoggerInterface;
+use Psr\Log\LogLevel;
 use RuntimeException;
 use Monolog\Logger;
 use Exception;
@@ -174,5 +178,13 @@ class TestCase extends PHPUnitTestCase
         $logger->pushHandler($handler);
 
         return $logger;
+    }
+
+    protected function getMockConnection(): SSHConnectionInterface
+    {
+        $config = $this->getTestConfigAsObject();
+        $logger = $this->getTestLogger(LogLevel::DEBUG);
+
+        return new MockSSHConnection($config, $logger);
     }
 }

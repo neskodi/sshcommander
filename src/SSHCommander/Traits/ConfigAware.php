@@ -39,7 +39,7 @@ trait ConfigAware
      *
      * @param string|null $param
      *
-     * @return SSHConfigInterface
+     * @return string|SSHConfigInterface
      */
     public function getConfig(?string $param = null)
     {

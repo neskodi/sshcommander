@@ -1,4 +1,4 @@
-<?php
+<?php /** @noinspection PhpUndefinedMethodInspection */
 
 namespace Neskodi\SSHCommander\CommandRunners;
 
@@ -10,7 +10,6 @@ use Neskodi\SSHCommander\Interfaces\SSHConnectionInterface;
 use Neskodi\SSHCommander\Interfaces\SSHCommandInterface;
 use Neskodi\SSHCommander\SSHCommandResult;
 use Neskodi\SSHCommander\SSHConnection;
-use Neskodi\SSHCommander\SSHConfig;
 
 class RemoteCommandRunner
     extends BaseCommandRunner
@@ -98,9 +97,7 @@ class RemoteCommandRunner
     protected function createConnectionFromCommand(
         SSHCommandInterface $command
     ): SSHConnectionInterface {
-        $config = new SSHConfig($command->getOptions());
-
-        return new SSHConnection($config);
+        return new SSHConnection($command->getConfig());
     }
 
     /**
@@ -118,8 +115,8 @@ class RemoteCommandRunner
         // if user wants stderr as separate stream or wants to suppress it
         // altogether, tell phpseclib about it
         if (
-            $command->getOption('separate_stderr') ||
-            $command->getOption('suppress_stderr')
+            $command->getConfig('separate_stderr') ||
+            $command->getConfig('suppress_stderr')
         ) {
             $this->getConnection($command)->getSSH2()->enableQuietMode();
         }
@@ -152,7 +149,7 @@ class RemoteCommandRunner
                ->setOutput($conn->getStdOutLines());
 
         // get the error stream separately, if we were asked to
-        if ($command->getOption('separate_stderr')) {
+        if ($command->getConfig('separate_stderr')) {
             $result->setErrorOutput($conn->getStdErrLines());
         }
 

@@ -8,13 +8,9 @@ interface SSHCommandInterface
 
     public function getCommands(bool $asString = true, bool $prepared = true);
 
-    public function setOptions(array $options = []): SSHCommandInterface;
-
     public function setOption(string $key, $value): SSHCommandInterface;
 
-    public function getOptions(): array;
-
-    public function getOption(string $key);
+    public function setOptions(array $options = []): SSHCommandInterface;
 
     public function appendCommand($command): SSHCommandInterface;
 

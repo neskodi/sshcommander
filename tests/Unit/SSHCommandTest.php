@@ -1,4 +1,4 @@
-<?php
+<?php /** @noinspection PhpUndefinedMethodInspection */
 
 namespace Neskodi\SSHCommander\Tests\Unit;
 
@@ -22,12 +22,12 @@ class SSHCommandTest extends TestCase
     {
         $command = $this->createCommand('ls');
 
-        $options = ['basedir' => '/test', 'timeout_command' => 10];
+        $options = ['basedir' => '/test', 'timeout_command' => 12];
         $command->setOptions($options);
-        $options = $command->getOptions();
+        $options = $command->getConfig();
 
-        $this->assertEquals($options['basedir'], '/test');
-        $this->assertEquals($options['timeout_command'], 10);
+        $this->assertEquals($options->get('basedir'), '/test');
+        $this->assertEquals($options->get('timeout_command'), 12);
     }
 
     public function testSetOption(): void
@@ -35,7 +35,7 @@ class SSHCommandTest extends TestCase
         $command = $this->createCommand('ls');
 
         $command->setOption('basedir', '/test');
-        $option = $command->getOption('basedir');
+        $option = $command->getConfig('basedir');
 
         $this->assertEquals($option, '/test');
     }
@@ -305,7 +305,9 @@ class SSHCommandTest extends TestCase
     {
         $this->expectException(InvalidCommandException::class);
 
-        new SSHCommand(new stdClass);
+        $config = $this->getTestConfigAsArray();
+
+        new SSHCommand(new stdClass, $config);
     }
 
     public function testToLoggableString(): void

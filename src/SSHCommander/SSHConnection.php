@@ -1,4 +1,4 @@
-<?php
+<?php /** @noinspection PhpUndefinedMethodInspection */
 
 namespace Neskodi\SSHCommander;
 
@@ -310,7 +310,7 @@ class SSHConnection implements
     protected function run(SSHCommandInterface $command): void
     {
         // the delimiter used to split output lines, by default \n
-        $delim = $command->getOption('delimiter_split_output');
+        $delim = $command->getConfig('delimiter_split_output');
 
         $this->setCommandTimeout();
         $ssh = $this->getSSH2();
@@ -337,7 +337,7 @@ class SSHConnection implements
         $this->lastExitCode = (int)$ssh->getExitStatus();
 
         // don't forget to collect the error stream too
-        if ($command->getOption('separate_stderr')) {
+        if ($command->getConfig('separate_stderr')) {
             $this->stderrLines = explode($delim, $ssh->getStdError());
         }
 

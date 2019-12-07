@@ -1,4 +1,4 @@
-<?php
+<?php /** @noinspection PhpUndefinedMethodInspection */
 
 namespace Neskodi\SSHCommander;
 
@@ -135,7 +135,7 @@ class SSHCommandResult implements
     {
         // remove the last empty line of output
         if (
-            $this->getCommand()->getOption('output_trim_last_empty_line') &&
+            $this->getCommand()->getConfig('output_trim_last_empty_line') &&
             empty(trim(end($lines)))
         ) {
             array_pop($lines);
