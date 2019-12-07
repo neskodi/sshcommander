@@ -34,9 +34,9 @@ class MockSSHConnection extends SSHConnection implements
 
     public static function expect(string $resultType): void
     {
-        if (self::RESULT_ERROR === $resultType) {
-            static::$expectedResult = self::RESULT_ERROR;
-        }
+        static::$expectedResult = (self::RESULT_ERROR === $resultType)
+            ? self::RESULT_ERROR
+            : self::RESULT_SUCCESS;
     }
 
     public static function expects(?string $resultType = null)
@@ -69,8 +69,8 @@ class MockSSHConnection extends SSHConnection implements
         $this->logCommandStart($command);
         $this->startTimer();
 
+        usleep(rand(100000, 200000));
         $this->populateRunInfo($command);
-        usleep(rand(100, 200));
 
         $this->logCommandEnd($this->endTimer());
 

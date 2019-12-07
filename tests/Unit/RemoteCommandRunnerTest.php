@@ -4,10 +4,11 @@
 
 namespace Neskodi\SSHCommander\Tests\Unit;
 
-use Neskodi\SSHCommander\CommandRunners\RemoteCommandRunner;
 use Neskodi\SSHCommander\Interfaces\SSHCommandResultInterface;
+use Neskodi\SSHCommander\CommandRunners\RemoteCommandRunner;
 use Neskodi\SSHCommander\Interfaces\SSHConnectionInterface;
 use Neskodi\SSHCommander\Interfaces\SSHConfigInterface;
+use Neskodi\SSHCommander\Tests\MockSSHConnection;
 use Neskodi\SSHCommander\Tests\TestCase;
 use Neskodi\SSHCommander\SSHConnection;
 use Neskodi\SSHCommander\SSHCommand;
@@ -71,7 +72,7 @@ class RemoteCommandRunnerTest extends TestCase
         );
     }
 
-    public function testRun(): void
+    public function testRunSuccess(): void
     {
         $config     = $this->getTestConfigAsObject();
         $logger     = $this->getTestLogger(LogLevel::DEBUG);
@@ -83,5 +84,25 @@ class RemoteCommandRunnerTest extends TestCase
         $result = $runner->run(new SSHCommand('ls', $config));
 
         $this->assertInstanceOf(SSHCommandResultInterface::class, $result);
+        $this->assertTrue($result->isOk());
+    }
+
+    public function testRunError(): void
+    {
+        $config     = $this->getTestConfigAsObject();
+        $logger     = $this->getTestLogger(LogLevel::DEBUG);
+        $connection = $this->getMockConnection();
+
+        MockSSHConnection::expect(MockSSHConnection::RESULT_ERROR);
+
+        $runner = new RemoteCommandRunner($config, $logger);
+        $runner->setConnection($connection);
+
+        $result = $runner->run(new SSHCommand('ls', $config));
+
+        $this->assertInstanceOf(SSHCommandResultInterface::class, $result);
+        $this->assertTrue($result->isError());
+
+        MockSSHConnection::expect(MockSSHConnection::RESULT_SUCCESS);
     }
 }

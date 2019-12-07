@@ -13,6 +13,7 @@ use Neskodi\SSHCommander\Interfaces\SSHCommandInterface;
 use Neskodi\SSHCommander\Factories\LoggerFactory;
 use Neskodi\SSHCommander\Traits\ConfigAware;
 use Neskodi\SSHCommander\Traits\Loggable;
+use Psr\Log\LoggerInterface;
 use Exception;
 
 class SSHCommander implements
@@ -35,15 +36,19 @@ class SSHCommander implements
     /**
      * SSHCommander constructor.
      *
-     * @param array|SSHConfig $config
+     * @param array|SSHConfig      $config
+     *
+     * @param LoggerInterface|null $logger
      *
      * @throws Exception
      */
-    public function __construct($config)
+    public function __construct($config, ?LoggerInterface $logger = null)
     {
         $this->setConfig($config);
 
-        if ($logger = LoggerFactory::makeLogger($this->config)) {
+        if ($logger instanceof LoggerInterface) {
+            $this->setLogger($logger);
+        } elseif ($logger = LoggerFactory::makeLogger($this->config)) {
             $this->setLogger($logger);
         }
     }

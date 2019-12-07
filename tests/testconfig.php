@@ -21,7 +21,7 @@ return [
     'delimiter_join_output'       => ';',
     'separate_stderr'             => true,
     'suppress_stderr'             => true,
-    'log_file'                    => '/tmp/sshcommanderlog.txt',
+    'log_file'                    => '/no/such/path/sshcommanderlog.txt',
     'log_level'                   => 'debug',
     'output_trim_last_empty_line' => true,
 ];

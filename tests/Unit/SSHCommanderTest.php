@@ -7,8 +7,10 @@
 
 namespace Neskodi\SSHCommander\Tests\Unit;
 
+use Neskodi\SSHCommander\Interfaces\SSHCommandResultInterface;
 use Neskodi\SSHCommander\CommandRunners\RemoteCommandRunner;
 use Neskodi\SSHCommander\Exceptions\InvalidConfigException;
+use Neskodi\SSHCommander\Interfaces\SSHConnectionInterface;
 use Neskodi\SSHCommander\Tests\TestCase;
 use Neskodi\SSHCommander\SSHConnection;
 use Neskodi\SSHCommander\SSHCommander;
@@ -50,7 +52,8 @@ class SSHCommanderTest extends TestCase
 
         // create a commander using invalid host
         $testConfigComm['host'] = '********';
-        $commander              = new SSHCommander($testConfigComm);
+
+        $commander = new SSHCommander($testConfigComm);
 
         // inject valid connection object to the commander
         $commander->setConnection($connection);
@@ -62,6 +65,20 @@ class SSHCommanderTest extends TestCase
             $testConfigConn['host'],
             $resultConfig->getHost()
         );
+    }
+
+    public function testGetConnection()
+    {
+        $testConfigComm = $this->getTestConfigAsArray(
+            self::CONFIG_CONNECTION_ONLY,
+            ['autologin' => false]
+        );
+
+        $commander = new SSHCommander($testConfigComm);
+
+        $connection = $commander->getConnection();
+
+        $this->assertInstanceOf(SSHConnectionInterface::class, $connection);
     }
 
     public function testSetCommandRunner(): void
@@ -186,5 +203,18 @@ class SSHCommanderTest extends TestCase
         $resultConfig = $commander->getConfig()->all();
 
         $this->assertEquals($testConfig, $resultConfig);
+    }
+
+    public function testRunCommand()
+    {
+        $config    = $this->getTestConfigAsArray();
+        $commander = new SSHCommander($config);
+
+        $commander->setConnection($this->getMockConnection());
+
+        $result = $commander->run('ls');
+
+        $this->assertInstanceOf(SSHCommandResultInterface::class, $result);
+        $this->assertTrue($result->isOk());
     }
 }

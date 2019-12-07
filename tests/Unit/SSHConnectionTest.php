@@ -5,6 +5,7 @@
 namespace Neskodi\SSHCommander\Tests\Unit;
 
 use Neskodi\SSHCommander\Interfaces\SSHConfigInterface;
+use Neskodi\SSHCommander\Tests\MockSSHConnection;
 use Neskodi\SSHCommander\Tests\TestCase;
 use Neskodi\SSHCommander\SSHConnection;
 use Neskodi\SSHCommander\SSHCommand;
@@ -31,6 +32,7 @@ class SSHConnectionTest extends TestCase
         $config->set('log_level', LogLevel::DEBUG);
 
         $connection = $this->getMockConnection();
+        MockSSHConnection::expect(MockSSHConnection::RESULT_SUCCESS);
         $precision  = 3;
         $connection->setTimerPrecision($precision);
 
