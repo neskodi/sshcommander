@@ -2,18 +2,8 @@
 
 namespace Neskodi\SSHCommander\Interfaces;
 
-use Psr\Log\LoggerInterface;
-
 interface SSHCommanderInterface
 {
-    public function setConfig($config): SSHCommanderInterface;
-
-    public function getConfig(?string $key = null);
-
-    public function setLogger(LoggerInterface $logger);
-
-    public function getLogger(): ?LoggerInterface;
-
     public function setConnection(
         SSHConnectionInterface $connection
     ): SSHCommanderInterface;

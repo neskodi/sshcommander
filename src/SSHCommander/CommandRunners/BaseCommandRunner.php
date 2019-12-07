@@ -2,36 +2,35 @@
 
 namespace Neskodi\SSHCommander\CommandRunners;
 
-use Neskodi\SSHCommander\Interfaces\SSHCommanderInterface;
+use Neskodi\SSHCommander\Interfaces\ConfigAwareInterface;
+use Neskodi\SSHCommander\Interfaces\LoggerAwareInterface;
 use Neskodi\SSHCommander\Interfaces\SSHCommandInterface;
+use Neskodi\SSHCommander\Interfaces\SSHConfigInterface;
+use Neskodi\SSHCommander\Traits\ConfigAware;
 use Neskodi\SSHCommander\Traits\Loggable;
+use Psr\Log\LoggerInterface;
 
-abstract class BaseCommandRunner
+abstract class BaseCommandRunner implements
+    LoggerAwareInterface,
+    ConfigAwareInterface
 {
-    use Loggable;
-
-    /**
-     * @var SSHCommanderInterface
-     */
-    protected $commander;
+    use Loggable, ConfigAware;
 
     /**
      * BaseCommandRunner constructor.
      *
-     * @param SSHCommanderInterface $commander
+     * @param array|SSHConfigInterface $config
+     * @param LoggerInterface|null     $logger
      */
-    public function __construct(SSHCommanderInterface $commander)
-    {
-        $this->commander = $commander;
+    public function __construct(
+        $config,
+        ?LoggerInterface $logger = null
+    ) {
+        $this->setConfig($config);
 
-        if ($logger = $commander->getLogger()) {
+        if ($logger instanceof LoggerInterface) {
             $this->setLogger($logger);
         }
-    }
-
-    public function getCommander(): SSHCommanderInterface
-    {
-        return $this->commander;
     }
 
     abstract public function run(SSHCommandInterface $command);

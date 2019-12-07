@@ -6,9 +6,9 @@ class Utils
 {
     /**
      * Convert a camel-cased string to underscore-separated, e.g.
-     * LocalAddresses => local_addresses
+     * TimeoutConnect => timeout_connect
      *
-     * @param $string
+     * @param string $string
      *
      * @return string
      */
@@ -21,9 +21,9 @@ class Utils
 
     /**
      * Convert an underscore-delimited string to camelCase,
-     * e.g. local_addresses => LocalAddresses
+     * e.g. connect_timeout => ConnectTimeout
      *
-     * @param $string
+     * @param string $string
      *
      * @return string
      */

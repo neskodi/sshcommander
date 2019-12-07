@@ -3,10 +3,13 @@
 namespace Neskodi\SSHCommander;
 
 use Neskodi\SSHCommander\Interfaces\SSHCommandResultInterface;
+use Neskodi\SSHCommander\Interfaces\LoggerAwareInterface;
 use Neskodi\SSHCommander\Interfaces\SSHCommandInterface;
 use Neskodi\SSHCommander\Traits\Loggable;
 
-class SSHCommandResult implements SSHCommandResultInterface
+class SSHCommandResult implements
+    SSHCommandResultInterface,
+    LoggerAwareInterface
 {
     use Loggable;
 
@@ -31,22 +34,40 @@ class SSHCommandResult implements SSHCommandResultInterface
     /**
      * @var array
      */
-    protected $outputLines = [];
+    protected $outputLines;
 
     /**
      * @var array
      */
-    protected $errorLines = [];
+    protected $errorLines;
 
     /**
      * CommandResult constructor.
      *
-     * @param SSHCommandInterface $command the command that was run
-     * @param array               $result  ['exitcode', 'out', ?'err']
+     * @param SSHCommandInterface $command     the command that was run
+     * @param int|null            $exitCode    the exit code of the command
+     * @param array|null          $outputLines the output lines
+     * @param array|null          $errorLines  the error lines, if separate
      */
-    public function __construct(SSHCommandInterface $command)
-    {
+    public function __construct(
+        SSHCommandInterface $command,
+        ?int $exitCode = null,
+        ?array $outputLines = null,
+        ?array $errorLines = null
+    ) {
         $this->setCommand($command);
+
+        if (!is_null($exitCode)) {
+            $this->setExitCode($exitCode);
+        }
+
+        if (!is_null($outputLines)) {
+            $this->setOutput($outputLines);
+        }
+
+        if (!is_null($errorLines)) {
+            $this->setErrorOutput($errorLines);
+        }
     }
 
     /**
@@ -56,7 +77,8 @@ class SSHCommandResult implements SSHCommandResultInterface
      *
      * @return SSHCommandResultInterface
      */
-    public function setCommand(SSHCommandInterface $command
+    public function setCommand(
+        SSHCommandInterface $command
     ): SSHCommandResultInterface {
         $this->command = $command;
 
@@ -130,9 +152,7 @@ class SSHCommandResult implements SSHCommandResultInterface
     public function setErrorOutput(array $lines): SSHCommandResultInterface
     {
         // remove the last empty line of output
-        if (empty(trim(end($lines)))) {
-            array_pop($lines);
-        }
+        $this->sanitize($lines);
 
         $this->errorLines = $lines;
 
@@ -144,8 +164,12 @@ class SSHCommandResult implements SSHCommandResultInterface
      *
      * @return string
      */
-    public function getStatus(): string
+    public function getStatus(): ?string
     {
+        if (is_null($this->exitCode)) {
+            return null;
+        }
+
         if (0 === $this->exitCode) {
             return static::STATUS_OK;
         }
@@ -158,8 +182,12 @@ class SSHCommandResult implements SSHCommandResultInterface
      *
      * @return int
      */
-    public function getExitCode(): int
+    public function getExitCode(): ?int
     {
+        if (is_null($this->exitCode)) {
+            return null;
+        }
+
         return (int)$this->exitCode;
     }
 
@@ -172,6 +200,10 @@ class SSHCommandResult implements SSHCommandResultInterface
      */
     public function getOutput(bool $asString = false)
     {
+        if (is_null($this->outputLines)) {
+            return null;
+        }
+
         return $asString
             ? implode($this->delimiter, $this->outputLines)
             : $this->outputLines;
@@ -186,6 +218,10 @@ class SSHCommandResult implements SSHCommandResultInterface
      */
     public function getErrorOutput(bool $asString = false)
     {
+        if (is_null($this->errorLines)) {
+            return null;
+        }
+
         return $asString
             ? implode($this->delimiter, $this->errorLines)
             : $this->errorLines;
@@ -208,8 +244,12 @@ class SSHCommandResult implements SSHCommandResultInterface
      *
      * @return bool
      */
-    public function isOk(): bool
+    public function isOk(): ?bool
     {
+        if (is_null($this->getStatus())) {
+            return null;
+        }
+
         return static::STATUS_OK === $this->getStatus();
     }
 
@@ -218,8 +258,12 @@ class SSHCommandResult implements SSHCommandResultInterface
      *
      * @return bool
      */
-    public function isError(): bool
+    public function isError(): ?bool
     {
+        if (is_null($this->getStatus())) {
+            return null;
+        }
+
         return static::STATUS_ERROR === $this->getStatus();
     }
 

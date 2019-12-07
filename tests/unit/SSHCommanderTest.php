@@ -26,9 +26,13 @@ class SSHCommanderTest extends TestCase
 
     public function testSetConnection(): void
     {
-        $testConfigConn = $this->getTestConfigAsArray();
+        $testConfigConn = $this->getTestConfigAsArray(
+            self::CONFIG_FULL,
+            ['autologin' => false]
+        );
         $testConfigComm = $this->getTestConfigAsArray(
-            TestCase::CONFIG_CONNECTION_ONLY
+            self::CONFIG_CONNECTION_ONLY,
+            ['autologin' => false]
         );
 
         // create a connection with valid host
@@ -38,7 +42,7 @@ class SSHCommanderTest extends TestCase
         $testConfigComm['host'] = '********';
         $commander              = new SSHCommander($testConfigComm);
 
-        // inject connection object to the commander
+        // inject valid connection object to the commander
         $commander->setConnection($connection);
 
         // test that commander's connection has valid config
@@ -62,18 +66,14 @@ class SSHCommanderTest extends TestCase
             ['host' => 'hostB']
         );
 
-        $commanderA = new SSHCommander($testConfigA);
-        $commanderB = new SSHCommander($testConfigB);
+        $commander = new SSHCommander($testConfigA);
+        $runner    = new RemoteCommandRunner($testConfigB);
 
-        $runnerA = new RemoteCommandRunner($commanderA);
-        $runnerB = new RemoteCommandRunner($commanderB);
+        $commander->setCommandRunner($runner);
 
-        $commanderB->setCommandRunner($runnerA);
-        $host = $commanderB->getCommandRunner()
-                           ->getCommander()
-                           ->getConfig('host');
+        $host = $commander->getCommandRunner()->getConfig('host');
 
-        $this->assertEquals($host, 'hostA');
+        $this->assertEquals($host, 'hostB');
     }
 
     public function testSetConfig(): void

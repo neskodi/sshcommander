@@ -2,16 +2,19 @@
 
 namespace Neskodi\SSHCommander\CommandRunners;
 
+use Neskodi\SSHCommander\Interfaces\SSHRemoteCommandRunnerInterface;
 use Neskodi\SSHCommander\Interfaces\SSHCommandResultInterface;
 use Neskodi\SSHCommander\Interfaces\SSHCommandRunnerInterface;
 use Neskodi\SSHCommander\Exceptions\AuthenticationException;
 use Neskodi\SSHCommander\Interfaces\SSHConnectionInterface;
-use Neskodi\SSHCommander\Exceptions\CommandRunException;
 use Neskodi\SSHCommander\Interfaces\SSHCommandInterface;
 use Neskodi\SSHCommander\SSHCommandResult;
+use Neskodi\SSHCommander\SSHConnection;
+use Neskodi\SSHCommander\SSHConfig;
 
-class RemoteCommandRunner extends BaseCommandRunner
-    implements SSHCommandRunnerInterface
+class RemoteCommandRunner
+    extends BaseCommandRunner
+    implements SSHRemoteCommandRunnerInterface
 {
     /**
      * @var SSHConnectionInterface
@@ -26,7 +29,6 @@ class RemoteCommandRunner extends BaseCommandRunner
      *
      * @return SSHCommandResultInterface
      *
-     * @throws CommandRunException
      * @throws AuthenticationException
      */
     public function run(SSHCommandInterface $command): SSHCommandResultInterface
@@ -47,19 +49,26 @@ class RemoteCommandRunner extends BaseCommandRunner
     /**
      * Get the SSH Connection instance used by this command runner.
      *
+     * @param SSHCommandInterface|null $command
+     *
      * @return SSHConnectionInterface
      *
      * @throws AuthenticationException
      */
-    public function getConnection(): SSHConnectionInterface
-    {
-        // if user hasn't injected their own connection instance until now,
-        // ask the commander for one
-        if (!$this->connection) {
-            $this->setConnection($this->getCommander()->getConnection());
+    public function getConnection(
+        ?SSHCommandInterface $command = null
+    ): ?SSHConnectionInterface {
+        if ($this->connection instanceof SSHConnectionInterface) {
+            return $this->connection;
         }
 
-        return $this->connection;
+        if ($command instanceof SSHCommandInterface) {
+            $this->setConnection($this->createConnectionFromCommand($command));
+
+            return $this->connection;
+        }
+
+        return null;
     }
 
     /**
@@ -69,11 +78,29 @@ class RemoteCommandRunner extends BaseCommandRunner
      *
      * @return $this
      */
-    public function setConnection(SSHConnectionInterface $connection
-    ): SSHCommandRunnerInterface {
+    public function setConnection(
+        SSHConnectionInterface $connection
+    ): SSHRemoteCommandRunnerInterface {
         $this->connection = $connection;
 
         return $this;
+    }
+
+    /**
+     * Create a new connection instance using config taken from the command.
+     *
+     * @param SSHCommandInterface $command
+     *
+     * @return SSHConnectionInterface
+     *
+     * @throws AuthenticationException
+     */
+    protected function createConnectionFromCommand(
+        SSHCommandInterface $command
+    ): SSHConnectionInterface {
+        $config = new SSHConfig($command->getOptions());
+
+        return new SSHConnection($config);
     }
 
     /**
@@ -85,7 +112,8 @@ class RemoteCommandRunner extends BaseCommandRunner
      *
      * @throws AuthenticationException
      */
-    protected function prepareConnection(SSHCommandInterface $command
+    protected function prepareConnection(
+        SSHCommandInterface $command
     ): SSHCommandRunnerInterface {
         // if user wants stderr as separate stream or wants to suppress it
         // altogether, tell phpseclib about it
@@ -93,7 +121,7 @@ class RemoteCommandRunner extends BaseCommandRunner
             $command->getOption('separate_stderr') ||
             $command->getOption('suppress_stderr')
         ) {
-            $this->getConnection()->getSSH2()->enableQuietMode();
+            $this->getConnection($command)->getSSH2()->enableQuietMode();
         }
 
         return $this;

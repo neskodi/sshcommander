@@ -12,8 +12,6 @@ interface SSHConfigInterface
 
     public function all(): array;
 
-    public function isLocal(): bool;
-
     public function validate(array $config): SSHConfigInterface;
 
     public function getHost(): ?string;
@@ -27,8 +25,6 @@ interface SSHConfigInterface
     public function getUser(): ?string;
 
     public function getPassword(): ?string;
-
-    public function getLocalAddresses(): ?array;
 
     public static function setConfigFileLocation(string $location): void;
 

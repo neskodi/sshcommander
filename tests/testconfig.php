@@ -10,7 +10,6 @@ return [
     'key'      => 'ssh-rsa secret',
     'keyfile'  => __FILE__,
 
-    'local_addresses'             => ['127.0.0.1', '::1'],
     'autologin'                   => false,
     'break_on_error'              => false,
     'basedir'                     => '/tmp',

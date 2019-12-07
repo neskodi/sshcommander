@@ -5,6 +5,7 @@
 namespace Neskodi\SSHCommander\Tests\Unit;
 
 use Neskodi\SSHCommander\Interfaces\SSHCommandResultInterface;
+use Neskodi\SSHCommander\Interfaces\SSHCommandInterface;
 use Neskodi\SSHCommander\SSHCommandResult;
 use Neskodi\SSHCommander\Tests\TestCase;
 use Neskodi\SSHCommander\SSHCommand;
@@ -12,13 +13,35 @@ use Psr\Log\LogLevel;
 
 class SSHCommandResultTest extends TestCase
 {
-    protected function createCommandResult(string $command = 'ls'): SSHCommandResultInterface
+    protected function createCommandResult(
+        string $command = 'ls'
+    ): SSHCommandResultInterface {
+        return new SSHCommandResult($this->getCommand($command));
+    }
+
+    protected function getCommand(string $command = 'ls'): SSHCommandInterface
     {
         $defaultConfig = $this->getTestConfigAsArray();
         $command       = new SSHCommand($command, $defaultConfig);
-        $result        = new SSHCommandResult($command);
 
-        return $result;
+        return $command;
+    }
+
+    protected function getExpectedDebugOutput(
+        array $output,
+        array $error
+    ): array {
+        $acc     = ['Command returned:'];
+        $errhead = 'Command STDERR:';
+        $delim   = '---';
+
+        array_push($acc, ...$output);
+        array_push($acc, $delim);
+        array_push($acc, $errhead);
+        array_push($acc, ...$error);
+        array_push($acc, $delim);
+
+        return $acc;
     }
 
     public function testConstructor()
@@ -26,6 +49,101 @@ class SSHCommandResultTest extends TestCase
         $result = $this->createCommandResult();
 
         $this->assertInstanceOf(SSHCommandResultInterface::class, $result);
+
+        $this->assertNull($result->getExitCode());
+        $this->assertNull($result->getStatus());
+        $this->assertNull($result->isError());
+        $this->assertNull($result->isOk());
+        $this->assertNull($result->getOutput());
+        $this->assertNull($result->getErrorOutput());
+    }
+
+    public function testConstructorWithSuccessfulExitCode()
+    {
+        $command = $this->getCommand();
+        $result = new SSHCommandResult($command, 0);
+
+        $this->assertSame(0, $result->getExitCode());
+        $this->assertSame(SSHCommandResult::STATUS_OK, $result->getStatus());
+        $this->assertFalse($result->isError());
+        $this->assertTrue($result->isOk());
+        $this->assertNull($result->getOutput());
+        $this->assertNull($result->getErrorOutput());
+    }
+
+    public function testConstructorWithErrorExitCode()
+    {
+        $command = $this->getCommand();
+        $result = new SSHCommandResult($command, 255);
+
+        $this->assertSame(255, $result->getExitCode());
+        $this->assertSame(SSHCommandResult::STATUS_ERROR, $result->getStatus());
+        $this->assertTrue($result->isError());
+        $this->assertFalse($result->isOk());
+        $this->assertNull($result->getOutput());
+        $this->assertNull($result->getErrorOutput());
+    }
+
+    public function testConstructorWithStdout()
+    {
+        $command = $this->getCommand();
+        $result = new SSHCommandResult($command, null, ['test']);
+
+        $this->assertNull($result->getExitCode());
+        $this->assertNull($result->getStatus());
+        $this->assertNull($result->isError());
+        $this->assertNull($result->isOk());
+        $this->assertEquals(['test'], $result->getOutput());
+        $this->assertNull($result->getErrorOutput());
+    }
+
+    public function testConstructorWithStderr()
+    {
+        $command = $this->getCommand();
+        $result = new SSHCommandResult($command, null, null, ['test']);
+
+        $this->assertNull($result->getExitCode());
+        $this->assertNull($result->getStatus());
+        $this->assertNull($result->isError());
+        $this->assertNull($result->isOk());
+        $this->assertNull($result->getOutput());
+        $this->assertEquals(['test'], $result->getErrorOutput());
+    }
+
+    public function testRemoveLastEmptyLine()
+    {
+        $defaultConfig = $this->getTestConfigAsArray();
+        $defaultConfig['output_trim_last_empty_line'] = true;
+
+        $command       = new SSHCommand('ls', $defaultConfig);
+
+        $result = new SSHCommandResult(
+            $command,
+            0,
+            ['test out', ''],
+            ['test err', '']
+        );
+
+        $this->assertEquals(['test out'], $result->getOutput());
+        $this->assertEquals(['test err'], $result->getErrorOutput());
+    }
+
+    public function testLeaveLastEmptyLine()
+    {
+        $defaultConfig = $this->getTestConfigAsArray();
+        $defaultConfig['output_trim_last_empty_line'] = false;
+
+        $command       = new SSHCommand('ls', $defaultConfig);
+
+        $result = new SSHCommandResult(
+            $command,
+            0,
+            ['test out', ''],
+            ['test err', '']
+        );
+
+        $this->assertEquals(['test out', ''], $result->getOutput());
+        $this->assertEquals(['test err', ''], $result->getErrorOutput());
     }
 
     public function test__toString()
@@ -194,21 +312,6 @@ class SSHCommandResultTest extends TestCase
             SSHCommandResult::STATUS_ERROR,
             $result->getStatus()
         );
-    }
-
-    protected function getExpectedDebugOutput(array $output, array $error): array
-    {
-        $acc     = ['Command returned:'];
-        $errhead = 'Command STDERR:';
-        $delim   = '---';
-
-        array_push($acc, ...$output);
-        array_push($acc, $delim);
-        array_push($acc, $errhead);
-        array_push($acc, ...$error);
-        array_push($acc, $delim);
-
-        return $acc;
     }
 }
 

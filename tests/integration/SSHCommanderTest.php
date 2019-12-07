@@ -165,10 +165,13 @@ class SSHCommanderTest extends TestCase
     public function testDefaultConfigurationIsUsedByDefault(): void
     {
         $defaultConfig = (array)include(SSHConfig::getDefaultConfigFileLocation());
-        $extra         = ['host' => '127.0.0.1'];
+        $extra         = [
+            'host' => 'example.com',
+            'user' => 'foo',
+        ];
         $defaultConfig = array_merge($defaultConfig, $extra);
 
-        $commander = new SSHCommander(['host' => '127.0.0.1']);
+        $commander = new SSHCommander($extra);
 
         $resultConfig = $commander->getConfig()->all();
 

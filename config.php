@@ -4,11 +4,6 @@ return [
     // SSH port
     'port' => 22,
 
-    // Addresses that are considered local. For these addresses, SSH connection
-    // is not established, instead commands are run via "exec" directly on
-    // command line.
-    'local_addresses' => ['127.0.0.1', 'localhost'],
-
     // Whether to login automatically after establishing an SSH connection.
     'autologin' => true,
 

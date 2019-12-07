@@ -212,15 +212,6 @@ class SSHConfig implements SSHConfigInterface
      */
     protected function validateUser(array $config): SSHConfigInterface
     {
-        // host was already validated previously
-        if (
-            array_key_exists('host', $config) &&
-            $this->isLocal($config['host'])
-        ) {
-            // we don't need username in this case
-            return $this;
-        }
-
         $error = null;
 
         if (!array_key_exists('user', $config)) {
@@ -272,26 +263,6 @@ class SSHConfig implements SSHConfigInterface
         }
 
         return $this;
-    }
-
-    /**
-     * Whether the host mentioned in config belongs to addresses that are
-     * considered local. For the default list of local addresses,
-     * see config.php.
-     *
-     * @param string|null $host the host to check. If not provided, we'll try
-     *                          getting it from current config. LocalAddresses
-     *                          will always be set from the beginning, because
-     *                          they should be loaded from the default config
-     *                          file.
-     *
-     * @return bool
-     */
-    public function isLocal(?string $host = null): bool
-    {
-        $host = $host ?: $this->getHost();
-
-        return in_array($host, $this->getLocalAddresses(), true);
     }
 
     /**
@@ -478,22 +449,5 @@ class SSHConfig implements SSHConfigInterface
     public function getPassword(): ?string
     {
         return $this->config['password'] ?? null;
-    }
-
-    /**
-     * Get the list of addresses considered local (for them, LocalCommandRunner
-     * will be used instead of RemoteCommandRunner).
-     *
-     * @return array|null
-     */
-    public function getLocalAddresses(): ?array
-    {
-        $addresses = $this->config['local_addresses'];
-
-        if (!is_array($addresses)) {
-            return null;
-        }
-
-        return $addresses;
     }
 }

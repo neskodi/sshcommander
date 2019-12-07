@@ -4,24 +4,27 @@ namespace Neskodi\SSHCommander;
 
 use Neskodi\SSHCommander\Exceptions\AuthenticationException;
 use Neskodi\SSHCommander\Interfaces\SSHConnectionInterface;
+use Neskodi\SSHCommander\Interfaces\ConfigAwareInterface;
+use Neskodi\SSHCommander\Interfaces\LoggerAwareInterface;
 use Neskodi\SSHCommander\Interfaces\SSHCommandInterface;
 use Neskodi\SSHCommander\Interfaces\SSHConfigInterface;
+use Neskodi\SSHCommander\Interfaces\TimerInterface;
+use Neskodi\SSHCommander\Traits\ConfigAware;
 use Neskodi\SSHCommander\Traits\Loggable;
 use Neskodi\SSHCommander\Traits\Timer;
 use Psr\Log\LoggerInterface;
 use phpseclib\Crypt\RSA;
 use phpseclib\Net\SSH2;
 
-class SSHConnection implements SSHConnectionInterface
+class SSHConnection implements
+    SSHConnectionInterface,
+    LoggerAwareInterface,
+    ConfigAwareInterface,
+    TimerInterface
 {
-    use Loggable, Timer;
+    use Loggable, Timer, ConfigAware;
 
     const DEFAULT_TIMEOUT = 10;
-
-    /**
-     * @var SSHConfigInterface
-     */
-    protected $config;
 
     /**
      * @var SSH2
@@ -141,34 +144,6 @@ class SSHConnection implements SSHConnectionInterface
         }
 
         return $this;
-    }
-
-    /**
-     * Fluent setter for SSHConfig object that contains credentials used for
-     * connection.
-     *
-     * @param SSHConfigInterface $config
-     *
-     * @return SSHConfigInterface
-     */
-    public function setConfig(SSHConfigInterface $config): SSHConnectionInterface
-    {
-        $this->config = $config;
-
-        return $this;
-    }
-
-    /**
-     * Get the SSHConfig object used by this connection, or a specific key from
-     * that config object.
-     *
-     * @param string|null $key
-     *
-     * @return SSHConfigInterface
-     */
-    public function getConfig(?string $key = null)
-    {
-        return $key ? $this->config->get($key) : $this->config;
     }
 
     /**

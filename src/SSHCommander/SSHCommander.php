@@ -5,24 +5,22 @@ namespace Neskodi\SSHCommander;
 use Neskodi\SSHCommander\Interfaces\SSHCommandResultInterface;
 use Neskodi\SSHCommander\Interfaces\SSHCommandRunnerInterface;
 use Neskodi\SSHCommander\CommandRunners\RemoteCommandRunner;
-use Neskodi\SSHCommander\CommandRunners\LocalCommandRunner;
-use Neskodi\SSHCommander\Exceptions\InvalidConfigException;
 use Neskodi\SSHCommander\Interfaces\SSHConnectionInterface;
 use Neskodi\SSHCommander\Interfaces\SSHCommanderInterface;
+use Neskodi\SSHCommander\Interfaces\ConfigAwareInterface;
+use Neskodi\SSHCommander\Interfaces\LoggerAwareInterface;
 use Neskodi\SSHCommander\Interfaces\SSHCommandInterface;
-use Neskodi\SSHCommander\Interfaces\SSHConfigInterface;
 use Neskodi\SSHCommander\Factories\LoggerFactory;
+use Neskodi\SSHCommander\Traits\ConfigAware;
 use Neskodi\SSHCommander\Traits\Loggable;
 use Exception;
 
-class SSHCommander implements SSHCommanderInterface
+class SSHCommander implements
+    SSHCommanderInterface,
+    LoggerAwareInterface,
+    ConfigAwareInterface
 {
-    use Loggable;
-
-    /**
-     * @var SSHConfigInterface
-     */
-    protected $config;
+    use Loggable, ConfigAware;
 
     /**
      * @var SSHConnectionInterface
@@ -48,42 +46,6 @@ class SSHCommander implements SSHCommanderInterface
         if ($logger = LoggerFactory::makeLogger($this->config)) {
             $this->setLogger($logger);
         }
-    }
-
-    /**
-     * Fluent setter for the SSHConfig object, in case you need to override the
-     * default one.
-     *
-     * @param array|SSHConfigInterface $config
-     *
-     * @return SSHCommanderInterface
-     */
-    public function setConfig($config): SSHCommanderInterface
-    {
-        if (is_array($config)) {
-            $configObject = new SSHConfig($config);
-        } elseif ($config instanceof SSHConfig) {
-            $configObject = $config;
-        } else {
-            throw new InvalidConfigException(gettype($config));
-        }
-
-        $this->config = $configObject;
-
-        return $this;
-    }
-
-    /**
-     * Get the configuration object, or a specific value from the configuration
-     * object.
-     *
-     * @param string|null $key
-     *
-     * @return SSHConfig|mixed
-     */
-    public function getConfig(?string $key = null)
-    {
-        return $key ? $this->config->get($key) : $this->config;
     }
 
     /**
@@ -113,7 +75,10 @@ class SSHCommander implements SSHCommanderInterface
     {
         if (!$this->connection) {
             $this->setConnection(
-                new SSHConnection($this->getConfig(), $this->getLogger())
+                new SSHConnection(
+                    $this->getConfig(),
+                    $this->getLogger()
+                )
             );
         }
 
@@ -139,13 +104,18 @@ class SSHCommander implements SSHCommanderInterface
      * Get the command runner object.
      *
      * @return SSHCommandRunnerInterface
+     *
+     * @throws Exceptions\AuthenticationException
      */
     public function getCommandRunner(): SSHCommandRunnerInterface
     {
         if (!$this->commandRunner) {
-            $commandRunner = $this->getConfig()->isLocal()
-                ? new LocalCommandRunner($this)
-                : new RemoteCommandRunner($this);
+            $commandRunner = new RemoteCommandRunner(
+                $this->getConfig(),
+                $this->getLogger()
+            );
+
+            $commandRunner->setConnection($this->getConnection());
 
             $this->setCommandRunner($commandRunner);
         }
@@ -197,6 +167,8 @@ class SSHCommander implements SSHCommanderInterface
      * @param array                            $options optional parameters
      *
      * @return SSHCommandResultInterface
+     *
+     * @throws Exceptions\AuthenticationException
      */
     public function run(
         $command,
