@@ -14,7 +14,11 @@ use Neskodi\SSHCommander\Interfaces\SSHConnectionInterface;
 use Neskodi\SSHCommander\Tests\TestCase;
 use Neskodi\SSHCommander\SSHConnection;
 use Neskodi\SSHCommander\SSHCommander;
+use Neskodi\SSHCommander\SSHCommand;
 use Neskodi\SSHCommander\SSHConfig;
+use Neskodi\SSHCommander\Utils;
+use Psr\Log\LoggerInterface;
+use Psr\Log\LogLevel;
 use stdClass;
 
 class SSHCommanderTest extends TestCase
@@ -34,6 +38,29 @@ class SSHCommanderTest extends TestCase
         $this->expectException(InvalidConfigException::class);
 
         $commander = new SSHCommander(new stdClass);
+    }
+
+    public function testConstructorWithLogger()
+    {
+        $config = $this->getTestConfigAsArray();
+        $logger = $this->getTestLogger(LogLevel::DEBUG);
+
+        $commander = new SSHCommander($config, $logger);
+
+        $this->assertInstanceOf(LoggerInterface::class, $commander->getLogger());
+    }
+
+    public function testConstructorConfigWithWriteableLogFile()
+    {
+        $file = $_ENV['ssh_log_file'];
+        $this->assertTrue(Utils::isWritableOrCreatable($file));
+        $config = $this->getTestConfigAsArray(self::CONFIG_FULL, [
+            'log_file' => $file,
+        ]);
+
+        $commander = new SSHCommander($config);
+
+        $this->assertInstanceOf(LoggerInterface::class, $commander->getLogger());
     }
 
     public function testSetConnection(): void
@@ -149,6 +176,22 @@ class SSHCommanderTest extends TestCase
         $this->assertEquals($command->getConfig('timeout_command'), 120);
         $this->assertEquals($command->getConfig('host'), $testConfig['host']);
         $this->assertEquals($command->getCommands(true, false), $strcmd);
+    }
+
+    public function testCreateCommandFromCommand()
+    {
+        $config = $this->getTestConfigAsArray();
+        $strcmd = 'pwd';
+
+        $commander = new SSHCommander($config);
+        $commandA  = new SSHCommand($strcmd, ['timeout_command' => 120]);
+        $commandB  = $commander->createCommand($commandA);
+
+        // test that config options from commandA and default config were
+        // properly merged
+        $this->assertEquals($commandB->getConfig('timeout_command'), 120);
+        $this->assertEquals($commandB->getConfig('host'), $config['host']);
+        $this->assertEquals($commandB->getCommands(true, false), $strcmd);
     }
 
     public function testDefaultConfigurationIsUsedByDefault(): void

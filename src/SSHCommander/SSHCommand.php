@@ -1,4 +1,5 @@
-<?php /** @noinspection PhpUndefinedVariableInspection */
+<?php /** @noinspection PhpUndefinedMethodInspection */
+/** @noinspection PhpUndefinedVariableInspection */
 
 /** @noinspection PhpUnusedLocalVariableInspection */
 
@@ -32,7 +33,7 @@ class SSHCommand implements SSHCommandInterface, ConfigAwareInterface
      */
     public function __construct($command, $config)
     {
-        $this->setConfig($config)
+        $this->setConfig($config, false)
              ->setCommand($command);
     }
 

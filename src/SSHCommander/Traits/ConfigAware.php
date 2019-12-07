@@ -17,11 +17,14 @@ trait ConfigAware
      * Fluent setter for SSHConfig object.
      *
      * @param array|SSHConfigInterface $config
+     * @param bool                     $validateForConnection
+     *
+     * @return ConfigAware
      */
-    public function setConfig($config)
+    public function setConfig($config, bool $validateForConnection = true)
     {
         if (is_array($config)) {
-            $configObject = new SSHConfig($config);
+            $configObject = new SSHConfig($config, $validateForConnection);
         } elseif ($config instanceof SSHConfigInterface) {
             $configObject = $config;
         } else {

@@ -144,12 +144,15 @@ class SSHCommander implements
         array $options = []
     ): SSHCommandInterface {
         if ($command instanceof SSHCommandInterface) {
-            return $command;
+            $options = $command->getConfig()->all();
+            $this->addDefaultCommandOptions($options);
+            $command->setOptions($options);
+        } else {
+            $this->addDefaultCommandOptions($options);
+            $command = new SSHCommand($command, $options);
         }
 
-        $this->setDefaultCommandOptions($options);
-
-        return new SSHCommand($command, $options);
+        return $command;
     }
 
     /**
@@ -158,7 +161,7 @@ class SSHCommander implements
      *
      * @param array $options
      */
-    protected function setDefaultCommandOptions(array &$options)
+    protected function addDefaultCommandOptions(array &$options)
     {
         $config = $this->getConfig()->all();
 

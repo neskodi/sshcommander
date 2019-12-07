@@ -34,12 +34,19 @@ class SSHConfig implements SSHConfigInterface
      * are always present.
      *
      * @param array $config
+     * @param bool $validateForConnection Whether to require connection
+     *                                    information such as host, user etc
      */
-    public function __construct(array $config = [])
-    {
+    public function __construct(
+        array $config = [],
+        bool $validateForConnection = true
+    ) {
+        if ($validateForConnection) {
+            $this->validate($config);
+        }
+
         $this->loadDefaultConfigFile()
              ->loadUserConfigFile()
-             ->validate($config)
              ->setFromArray($config);
     }
 
@@ -114,8 +121,8 @@ class SSHConfig implements SSHConfigInterface
      * @return SSHConfigInterface
      * @throws ConfigValidationException
      */
-    public function validate(array $config = []): SSHConfigInterface
-    {
+    public function validate(array $config = []): SSHConfigInterface {
+
         $this->validateHost($config)
              ->validatePort($config)
              ->validateUser($config)
