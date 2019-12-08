@@ -6,7 +6,7 @@ return [
     'host'     => '127.0.0.1',
     'port'     => '2222',
     'user'     => 'foo',
-    'password' => 'bar',
+    'password' => 'secret',
     'key'      => 'ssh-rsa secret',
     'keyfile'  => __FILE__,
 

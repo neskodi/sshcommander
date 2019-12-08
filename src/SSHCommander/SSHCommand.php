@@ -33,7 +33,7 @@ class SSHCommand implements SSHCommandInterface, ConfigAwareInterface
      */
     public function __construct($command, $config)
     {
-        $this->setConfig($config, false)
+        $this->setConfig($config)
              ->setCommand($command);
     }
 
@@ -220,5 +220,17 @@ class SSHCommand implements SSHCommandInterface, ConfigAwareInterface
         }
 
         return $commands;
+    }
+
+    /**
+     * Config passed to command is not required to contain valid
+     * or any at all connection information, so ask SSHConfig to skip
+     * validation.
+     *
+     * @return bool
+     */
+    protected function validatesConnectionInfo(): bool
+    {
+        return false;
     }
 }

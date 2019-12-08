@@ -89,10 +89,17 @@ class RemoteCommandRunnerTest extends TestCase
 
     public function testRunError(): void
     {
-        $config     = $this->getTestConfigAsObject();
+        $config     = $this->getTestConfigAsObject(
+            self::CONFIG_FULL,
+            ['autologin' => true]
+        );
         $logger     = $this->getTestLogger(LogLevel::DEBUG);
-        $connection = $this->getMockConnection();
 
+        // expect success for authentication
+        MockSSHConnection::expect(MockSSHConnection::RESULT_SUCCESS);
+        $connection = $this->getMockConnection($config);
+
+        // but expect failure when running command
         MockSSHConnection::expect(MockSSHConnection::RESULT_ERROR);
 
         $runner = new RemoteCommandRunner($config, $logger);
@@ -102,7 +109,5 @@ class RemoteCommandRunnerTest extends TestCase
 
         $this->assertInstanceOf(SSHCommandResultInterface::class, $result);
         $this->assertTrue($result->isError());
-
-        MockSSHConnection::expect(MockSSHConnection::RESULT_SUCCESS);
     }
 }

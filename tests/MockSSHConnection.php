@@ -48,7 +48,7 @@ class MockSSHConnection extends SSHConnection implements
         return static::$expectedResult === $resultType;
     }
 
-    public function authenticate(): bool
+    protected function sshLogin(string $username, $credential): bool
     {
         $result = static::expects(self::RESULT_ERROR)
             ? false
@@ -59,41 +59,38 @@ class MockSSHConnection extends SSHConnection implements
         return $result;
     }
 
-    protected function run(SSHCommandInterface $command): void
+    protected function sshExec(SSHCommandInterface $command, string $delim): void
     {
-        $this->setCommandTimeout();
-
-        // clean all data from previous commands
-        $this->resetOutput();
-
-        $this->logCommandStart($command);
-        $this->startTimer();
-
         usleep(rand(100000, 200000));
-        $this->populateRunInfo($command);
-
-        $this->logCommandEnd($this->endTimer());
-
-        $this->resetTimeout();
+        $this->populateOutput();
     }
 
-    protected function populateRunInfo(SSHCommandInterface $command): void
-    {
+    protected function collectAdditionalResults(
+        SSHCommandInterface $command,
+        string $delim
+    ): void {
         $this->lastExitCode = static::expects(self::RESULT_ERROR)
             ? 255
             : 0;
 
-        $this->stdoutLines = static::LINES_STDOUT;
-
         if (static::expects(self::RESULT_ERROR)) {
             if ($command->getConfig('separate_stderr')) {
-                $this->stderrLines   = static::LINES_STDERR;
-                $this->stderrLines[] = '';
+                $this->populateStderr();
             } else {
                 array_push($this->stdoutLines, ...static::LINES_STDERR);
             }
         }
+    }
 
+    protected function populateStderr(): void
+    {
+        $this->stderrLines   = static::LINES_STDERR;
+        $this->stderrLines[] = '';
+    }
+
+    protected function populateOutput(): void
+    {
+        $this->stdoutLines = static::LINES_STDOUT;
         $this->stdoutLines[] = '';
     }
 }

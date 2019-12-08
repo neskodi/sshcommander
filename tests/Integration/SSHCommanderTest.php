@@ -32,8 +32,10 @@ class SSHCommanderTest extends TestCase
         $commander = new SSHCommander([
             'host'            => 'example.com',
             'user'            => '*',
+            'password'        => '*',
             'timeout_connect' => 2,
         ]);
+
         $commander->run('pwd');
     }
 

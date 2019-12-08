@@ -5,6 +5,8 @@
 namespace Neskodi\SSHCommander\Tests;
 
 use Neskodi\SSHCommander\Interfaces\SSHConnectionInterface;
+use Neskodi\SSHCommander\Interfaces\SSHConfigInterface;
+use Neskodi\SSHCommander\Tests\Unit\SSHConnectionTest;
 use PHPUnit\Framework\TestCase as PHPUnitTestCase;
 use Neskodi\SSHCommander\Factories\LoggerFactory;
 use Monolog\Processor\PsrLogMessageProcessor;
@@ -24,7 +26,7 @@ class TestCase extends PHPUnitTestCase
         'user',
         'password',
         'key',
-        'keyfile'
+        'keyfile',
     ];
 
     const CONFIG_FULL            = '*';
@@ -46,7 +48,7 @@ class TestCase extends PHPUnitTestCase
         array $override = []
     ) {
         $testConfigFile = $this->getTestConfigFile();
-        $values = (array)include($testConfigFile);
+        $values         = (array)include($testConfigFile);
 
         switch ($type) {
             case self::CONFIG_CONNECTION_ONLY:
@@ -180,11 +182,92 @@ class TestCase extends PHPUnitTestCase
         return $logger;
     }
 
-    protected function getMockConnection(): SSHConnectionInterface
-    {
-        $config = $this->getTestConfigAsObject();
+    protected function getMockConnection(
+        ?SSHConfigInterface $config = null
+    ): SSHConnectionInterface {
+        $config = $config ?? $this->getTestConfigAsObject();
         $logger = $this->getTestLogger(LogLevel::DEBUG);
 
         return new MockSSHConnection($config, $logger);
+    }
+
+    protected function getUnprotectedPrivateKeyFile()
+    {
+        return $this->getKeyPath('testkey');
+    }
+
+    protected function getUnprotectedPrivateKeyContents()
+    {
+        return file_get_contents($this->getUnprotectedPrivateKeyFile());
+    }
+
+    protected function getProtectedPrivateKeyFile()
+    {
+        return $this->getKeyPath('testkey-protected');
+    }
+
+    protected function getProtectedPrivateKeyContents()
+    {
+        return file_get_contents($this->getProtectedPrivateKeyFile());
+    }
+
+    protected function getKeyPath(?string $file = null): string
+    {
+        $dir = dirname(__FILE__);
+
+        return $file
+            ? $dir . DIRECTORY_SEPARATOR . $file
+            : $dir;
+    }
+
+    protected function getConnectionConfig(
+        string $type,
+        string $passwd,
+        bool $autologin = true
+    ): array {
+        switch ($type) {
+            case SSHConnectionTest::AUTH_TYPE_PASSWORD:
+                return [
+                    'autologin' => $autologin,
+                    'password'  => $passwd,
+                    'key'       => null,
+                    'keyfile'   => null,
+                ];
+            case SSHConnectionTest::AUTH_TYPE_KEY:
+                return [
+                    'autologin' => $autologin,
+                    'password'  => null,
+                    'key'       => $this->getUnprotectedPrivateKeyContents(),
+                    'keyfile'   => null,
+                ];
+            case SSHConnectionTest::AUTH_TYPE_KEY_PROTECTED:
+                return [
+                    'autologin' => $autologin,
+                    'password'  => $passwd,
+                    'key'       => $this->getProtectedPrivateKeyContents(),
+                    'keyfile'   => null,
+                ];
+            case SSHConnectionTest::AUTH_TYPE_KEYFILE:
+                return [
+                    'autologin' => $autologin,
+                    'password'  => null,
+                    'key'       => null,
+                    'keyfile'   => $this->getProtectedPrivateKeyFile(),
+                ];
+            case SSHConnectionTest::AUTH_TYPE_KEYFILE_PROTECTED:
+                return [
+                    'autologin' => $autologin,
+                    'password'  => $passwd,
+                    'key'       => null,
+                    'keyfile'   => $this->getProtectedPrivateKeyFile(),
+                ];
+        }
+
+        return [
+            'autologin' => $autologin,
+            'password'  => $passwd,
+            'key'       => $this->getProtectedPrivateKeyContents(),
+            'keyfile'   => $this->getProtectedPrivateKeyFile(),
+        ];
     }
 }

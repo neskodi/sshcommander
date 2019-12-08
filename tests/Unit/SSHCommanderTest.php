@@ -11,6 +11,7 @@ use Neskodi\SSHCommander\Interfaces\SSHCommandResultInterface;
 use Neskodi\SSHCommander\CommandRunners\RemoteCommandRunner;
 use Neskodi\SSHCommander\Exceptions\InvalidConfigException;
 use Neskodi\SSHCommander\Interfaces\SSHConnectionInterface;
+use Neskodi\SSHCommander\Tests\MockSSHConnection;
 use Neskodi\SSHCommander\Tests\TestCase;
 use Neskodi\SSHCommander\SSHConnection;
 use Neskodi\SSHCommander\SSHCommander;
@@ -151,8 +152,9 @@ class SSHCommanderTest extends TestCase
         $testConfig = $this->getTestConfigAsArray();
 
         $commander = new SSHCommander([
-            'host' => '********',
-            'user' => '********',
+            'host'     => 'example.com',
+            'user'     => 'foo',
+            'password' => 'secret',
         ]);
 
         $this->assertEquals(
@@ -200,30 +202,37 @@ class SSHCommanderTest extends TestCase
         $extra         = [
             'host'      => 'example.com',
             'user'      => 'foo',
+            'password'  => 'secret',
             'autologin' => false,
         ];
         $defaultConfig = array_merge($defaultConfig, $extra);
 
+        // we are providing only extra to the commander
         $commander = new SSHCommander($extra);
 
         $resultConfig = $commander->getConfig()->all();
 
+        // and we expect the rest of values to be picked up
         $this->assertEquals($defaultConfig, $resultConfig);
     }
 
     public function testUserCanSetConfigurationAsFile(): void
     {
         SSHCommander::setConfigFile($this->getTestConfigFile());
-        $extra      = [
-            'host'      => '********',
-            'user'      => '********',
+        $extra         = [
+            'host'      => 'example.com',
+            'user'      => 'foo',
+            'password'  => 'secret',
             'autologin' => false,
         ];
+
         $testConfig = $this->getTestConfigAsArray();
         $testConfig = array_merge($testConfig, $extra);
 
+        // we are providing only extra to the commander
         $commander = new SSHCommander($extra);
 
+        // and we expect the rest of values to be picked up
         $resultConfig = $commander->getConfig()->all();
         $this->assertEquals($testConfig, $resultConfig);
 
@@ -235,8 +244,8 @@ class SSHCommanderTest extends TestCase
     {
         $testConfig = $this->getTestConfigAsArray();
         $extra      = [
-            'host'      => '********',
-            'user'      => '********',
+            'host'      => 'example.com',
+            'user'      => 'foo',
             'autologin' => false,
         ];
         $testConfig = array_merge($testConfig, $extra);
@@ -253,6 +262,7 @@ class SSHCommanderTest extends TestCase
         $config    = $this->getTestConfigAsArray();
         $commander = new SSHCommander($config);
 
+        MockSSHConnection::expect(MockSSHConnection::RESULT_SUCCESS);
         $commander->setConnection($this->getMockConnection());
 
         $result = $commander->run('ls');

@@ -31,4 +31,6 @@ interface SSHConfigInterface
     public static function getConfigFileLocation(): ?string;
 
     public static function getDefaultConfigFileLocation(): string;
+
+    public function selectCredential(?array $config = null): ?string;
 }

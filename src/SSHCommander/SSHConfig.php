@@ -4,11 +4,18 @@ namespace Neskodi\SSHCommander;
 
 use Neskodi\SSHCommander\Exceptions\ConfigFileMissingException;
 use Neskodi\SSHCommander\Exceptions\ConfigValidationException;
+use Neskodi\SSHCommander\Traits\ValidatesConnectionInfo;
 use Neskodi\SSHCommander\Interfaces\SSHConfigInterface;
 use BadMethodCallException;
 
 class SSHConfig implements SSHConfigInterface
 {
+    use ValidatesConnectionInfo;
+
+    const CREDENTIAL_KEY      = 'key';
+    const CREDENTIAL_KEYFILE  = 'keyfile';
+    const CREDENTIAL_PASSWORD = 'password';
+
     /**
      * Location of the config file.
      *
@@ -34,20 +41,23 @@ class SSHConfig implements SSHConfigInterface
      * are always present.
      *
      * @param array $config
-     * @param bool $validateForConnection Whether to require connection
-     *                                    information such as host, user etc
+     * @param bool  $validateConnectionInfo Whether to require connection
+     *                                      information such as host, user etc
      */
     public function __construct(
         array $config = [],
-        bool $validateForConnection = true
+        bool $validateConnectionInfo = true
     ) {
-        if ($validateForConnection) {
+        $this->loadDefaultConfigFile()
+             ->loadUserConfigFile();
+
+        // Now that the entire configuration is in place, we can validate
+        // connection information if necessary.
+        if ($validateConnectionInfo) {
             $this->validate($config);
         }
 
-        $this->loadDefaultConfigFile()
-             ->loadUserConfigFile()
-             ->setFromArray($config);
+        $this->setFromArray($config);
     }
 
     /**
@@ -121,12 +131,12 @@ class SSHConfig implements SSHConfigInterface
      * @return SSHConfigInterface
      * @throws ConfigValidationException
      */
-    public function validate(array $config = []): SSHConfigInterface {
-
+    public function validate(array $config = []): SSHConfigInterface
+    {
         $this->validateHost($config)
              ->validatePort($config)
              ->validateUser($config)
-             ->validateKeyfile($config);
+             ->validateLoginCredential($config);
 
         return $this;
     }
@@ -150,126 +160,61 @@ class SSHConfig implements SSHConfigInterface
     }
 
     /**
-     * Verify that the host address provided by the user is valid.
+     * Verify that at least one of authentication credentials is present and in
+     * good condition.
      *
-     * We don't check against IP address or domain name syntax here, we are just
-     * making sure it's present and not empty. Throw an exception otherwise.
+     * @param array $config
      *
-     * @param array $config the entire array - to know the validation context
-     *
-     * @return $this
-     *
-     * @throws ConfigValidationException
+     * @return SSHConfigInterface
      */
-    protected function validateHost(array $config): SSHConfigInterface
+    protected function validateLoginCredential(array $config): SSHConfigInterface
     {
-        $error = null;
+        $credential = $this->selectCredential($config);
 
-        if (!array_key_exists('host', $config)) {
-            $error = 'host is required for an SSH connection';
-        } elseif (!is_string($config['host'])) {
-            $error = 'host provided for SSH connection must be a string, %s given';
-            $error = sprintf($error, gettype($config['host']));
-        } elseif (empty(trim($config['host']))) {
-            $error = 'host is required for an SSH connection, empty string given';
-        }
-
-        if ($error) {
-            throw new ConfigValidationException($error);
+        switch ($credential) {
+            case self::CREDENTIAL_KEY:
+                $this->validateKey($config);
+                break;
+            case self::CREDENTIAL_KEYFILE:
+                $this->validateKeyfile($config);
+                break;
+            case self::CREDENTIAL_PASSWORD:
+                $this->validatePassword($config);
+                break;
+            default:
+                throw new ConfigValidationException(
+                    'No valid authentication credential is provided.'
+                );
         }
 
         return $this;
     }
 
     /**
-     * Verify that the port provided by the user (if any) is a valid numeric
-     * value. (It will be cast to integer later in the "prepare()" method).
-     * Throw an exception otherwise.
+     * Select which credential will be used for authentication.
+     * Priority order: key, key read from keyfile, password.
      *
-     * @param array $config the entire array - to know the validation context
+     * @param array|null $config
      *
-     * @return $this
-     *
-     * @throws ConfigValidationException
+     * @return string|null
      */
-    protected function validatePort(array $config): SSHConfigInterface
+    public function selectCredential(?array $config = null): ?string
     {
-        if (array_key_exists('port', $config) && !is_numeric($config['port'])) {
-            $message  = 'port must be an integer, %s given';
-            $provided = is_scalar($config['port'])
-                ? sprintf('"%s"', $config['port'])
-                : gettype($config['port']);
-            $message  = sprintf($message, $provided);
-            throw new ConfigValidationException($message);
+        $config = $config ?? $this->config;
+
+        if (isset($config['key']) && !empty($config['key'])) {
+            return self::CREDENTIAL_KEY;
         }
 
-        return $this;
-    }
-
-    /**
-     * Verify that the SSH username, if it is required for a remote connection,
-     * is present and not empty in the config array.
-     * Throw an exception otherwise.
-     *
-     * @param array $config the entire array - to know the validation context
-     *
-     * @return $this
-     *
-     * @throws ConfigValidationException
-     */
-    protected function validateUser(array $config): SSHConfigInterface
-    {
-        $error = null;
-
-        if (!array_key_exists('user', $config)) {
-            $error = 'SSH username is required for remote connections';
-        } elseif (!is_string($config['user'])) {
-            $error = 'SSH username provided must be a string, %s given';
-            $error = sprintf($error, gettype($config['user']));
-        } elseif (empty(trim($config['user']))) {
-            $error = 'SSH username is required for remote connections';
+        if (isset($config['keyfile']) && !empty($config['keyfile'])) {
+            return self::CREDENTIAL_KEYFILE;
         }
 
-        if ($error) {
-            throw new ConfigValidationException($error);
+        if (isset($config['password'])) {
+            return self::CREDENTIAL_PASSWORD;
         }
 
-        return $this;
-    }
-
-    /**
-     * Verify that keyfile, if present in the user-provided config, is an
-     * existing and readable file. Throw an exception otherwise.
-     *
-     * @param array $config the entire array - to know the validation context
-     *
-     * @return $this
-     *
-     * @throws ConfigValidationException
-     */
-    protected function validateKeyfile(array $config): SSHConfigInterface
-    {
-        $error = null;
-
-        if (!array_key_exists('keyfile', $config)) {
-            // keyfile isn't used, no need to validate
-            return $this;
-        }
-
-        if (!is_file($config['keyfile'])) {
-            $error = 'file "%s" (provided as the SSH key) does not exist.';
-            $error = sprintf($error, $config['keyfile']);
-        } elseif (!is_readable($config['keyfile'])) {
-            $error = 'file "%s" (provided as the SSH key) is not readable ' .
-                     '(permission issue?)';
-            $error = sprintf($error, $config['keyfile']);
-        }
-
-        if ($error) {
-            throw new ConfigValidationException($error);
-        }
-
-        return $this;
+        return null;
     }
 
     /**

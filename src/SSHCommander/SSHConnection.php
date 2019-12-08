@@ -181,22 +181,30 @@ class SSHConnection implements
 
         $this->logConnecting();
 
-        if ($keyContents = $this->getKeyContents()) {
-            @$result = $this->authenticateWithKey($keyContents);
-        } else {
-            @$result = $this->authenticateWithPassword();
+        $credential = $this->getConfig()->selectCredential();
+
+        switch ($credential) {
+            case SSHConfig::CREDENTIAL_KEY:
+            case SSHConfig::CREDENTIAL_KEYFILE:
+                $keyContents = $this->getKeyContents();
+                @$result = $this->authenticateWithKey($keyContents);
+                break;
+            default:
+                @$result = $this->authenticateWithPassword();
         }
 
         $this->resetTimeout();
 
+        // throws AuthenticationException
         if (!$result) {
             $this->processLoginError();
+        } else {
+            $this->info('Authenticated.');
+            $this->authenticated = true;
         }
 
-        $this->info('Authenticated.');
-
-        $this->authenticated = true;
-
+        // will only return true, because otherwise an Exception
+        // would be thrown earlier
         return $result;
     }
 
@@ -237,11 +245,11 @@ class SSHConnection implements
         $key      = $this->loadRSAKey($keyContents);
 
         $this->info(
-            'Authenticating as user "{user}" with a public key.',
+            'Authenticating as user "{user}" with a private key.',
             ['user' => $username]
         );
 
-        return $this->getSSH2()->login($username, $key);
+        return $this->sshLogin($username, $key);
     }
 
     /**
@@ -259,7 +267,12 @@ class SSHConnection implements
             ['user' => $username]
         );
 
-        return $this->getSSH2()->login($username, $password);
+        return $this->sshLogin($username, $password);
+    }
+
+    protected function sshLogin(string $username, $credential): bool
+    {
+        return $this->getSSH2()->login($username, $credential);
     }
 
     /**
@@ -313,7 +326,6 @@ class SSHConnection implements
         $delim = $command->getConfig('delimiter_split_output');
 
         $this->setCommandTimeout();
-        $ssh = $this->getSSH2();
 
         // clean all data from previous commands
         $this->resetOutput();
@@ -321,25 +333,13 @@ class SSHConnection implements
         $this->logCommandStart($command);
         $this->startTimer();
 
-        // execute the command via phpseclib and collect the returned lines
-        // into an array
-        $ssh->exec((string)$command, function ($str) use ($delim) {
-            $this->stdoutLines = array_merge(
-                $this->stdoutLines,
-                explode($delim, $str)
-            );
-        });
+        $this->sshExec($command, $delim);
 
         // stop the timer and log command end
         $this->logCommandEnd($this->endTimer());
 
-        // remember the exit code
-        $this->lastExitCode = (int)$ssh->getExitStatus();
-
-        // don't forget to collect the error stream too
-        if ($command->getConfig('separate_stderr')) {
-            $this->stderrLines = explode($delim, $ssh->getStdError());
-        }
+        // collect exit code and stdout from ssh2
+        $this->collectAdditionalResults($command, $delim);
 
         $this->resetTimeout();
     }
@@ -449,5 +449,42 @@ class SSHConnection implements
         $this->info('Command completed in {seconds} seconds', [
             'seconds' => $seconds,
         ]);
+    }
+
+    /**
+     * Execute the command via phpseclib and collect the returned lines
+     * into an array
+     *
+     * @param SSHCommandInterface $command
+     * @param string              $delim
+     */
+    protected function sshExec(SSHCommandInterface $command, string $delim): void
+    {
+        $ssh = $this->getSSH2();
+
+        $ssh->exec((string)$command, function ($str) use ($delim) {
+            $this->stdoutLines = array_merge(
+                $this->stdoutLines,
+                explode($delim, $str)
+            );
+        });
+    }
+
+    /**
+     * Collect stderr and exit code from ssh2 object.
+     *
+     * @param SSHCommandInterface $command
+     * @param string              $delim
+     */
+    protected function collectAdditionalResults(SSHCommandInterface $command, string $delim): void
+    {
+        $ssh = $this->getSSH2();
+
+        $this->lastExitCode = (int)$ssh->getExitStatus();
+
+        // don't forget to collect the error stream too
+        if ($command->getConfig('separate_stderr')) {
+            $this->stderrLines = explode($delim, $ssh->getStdError());
+        }
     }
 }
