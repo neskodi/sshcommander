@@ -88,6 +88,10 @@ trait ValidatesConnectionInfo
      */
     protected function validateKeyfile(array $config)
     {
+        if (!$this->needsToValidateKeyfile($config)) {
+            return $this;
+        }
+
         $error = null;
 
         if (!is_file($config['keyfile'])) {
@@ -117,6 +121,10 @@ trait ValidatesConnectionInfo
      */
     protected function validatePassword(array $config)
     {
+        if (!$this->needsToValidatePassword($config)) {
+            return $this;
+        }
+
         if (array_key_exists('password', $config)) {
             if (!is_string($config['password'])) {
                 $error = sprintf(
@@ -140,6 +148,10 @@ trait ValidatesConnectionInfo
      */
     protected function validateKey(array $config)
     {
+        if (!$this->needsToValidateKey($config)) {
+            return $this;
+        }
+
         $validationResult = $this->requireNonEmptyString($config, 'key');
 
         if (true !== $validationResult) {
@@ -185,5 +197,49 @@ trait ValidatesConnectionInfo
         }
 
         return $result;
+    }
+
+    protected function needsToValidateKey(array $context): bool
+    {
+        return (
+            !$this->contextHasValidPassword($context) &&
+            !$this->contextHasValidKeyfile($context)
+        );
+    }
+
+    protected function needsToValidateKeyfile(array $context): bool
+    {
+        return (
+            !$this->contextHasValidPassword($context) &&
+            !$this->contextHasValidKey($context)
+        );
+    }
+
+    protected function needsToValidatePassword(array $context): bool
+    {
+        return (
+            !$this->contextHasValidKey($context) &&
+            !$this->contextHasValidKeyfile($context)
+        );
+    }
+
+    protected function contextHasValidPassword(array $context): bool
+    {
+        return isset($context['password']) &&
+               is_string($context['password']);
+    }
+
+    protected function contextHasValidKey(array $context): bool
+    {
+        return isset($context['key']) &&
+               is_string($context['key']) &&
+               !empty(trim($context['key']));
+    }
+
+    protected function contextHasValidKeyfile(array $context): bool
+    {
+        return isset($context['keyfile']) &&
+               is_string($context['keyfile']) &&
+               !empty(trim($context['keyfile']));
     }
 }

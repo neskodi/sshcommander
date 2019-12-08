@@ -194,7 +194,7 @@ class TestCase extends PHPUnitTestCase
 
     protected function getUnprotectedPrivateKeyFile()
     {
-        return $this->getKeyPath('testkey');
+        return static::getKeyPath('testkey');
     }
 
     protected function getUnprotectedPrivateKeyContents()
@@ -204,7 +204,7 @@ class TestCase extends PHPUnitTestCase
 
     protected function getProtectedPrivateKeyFile()
     {
-        return $this->getKeyPath('testkey-protected');
+        return static::getKeyPath('testkey-protected');
     }
 
     protected function getProtectedPrivateKeyContents()
@@ -212,7 +212,7 @@ class TestCase extends PHPUnitTestCase
         return file_get_contents($this->getProtectedPrivateKeyFile());
     }
 
-    protected function getKeyPath(?string $file = null): string
+    public static function getKeyPath(?string $file = null): string
     {
         $dir = dirname(__FILE__) . DIRECTORY_SEPARATOR . 'Keys';
 

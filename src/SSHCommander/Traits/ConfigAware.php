@@ -25,7 +25,7 @@ trait ConfigAware
         if (is_array($config)) {
             $configObject = new SSHConfig(
                 $config,
-                $this->validatesConnectionInfo()
+                !$this->validatesConnectionInfo()
             );
         } elseif ($config instanceof SSHConfigInterface) {
             $configObject = $config;

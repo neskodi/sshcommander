@@ -13,7 +13,7 @@ use Exception;
 
 class SSHConfigTest extends TestCase
 {
-    public function testConstructorWithEmptyConnectionInfo()
+    public function testConstructorWithEmptyConnectionInfo(): void
     {
         $arrConfig = $this->getTestConfigAsArray(
             self::CONFIG_SECONDARY_ONLY
@@ -24,19 +24,19 @@ class SSHConfigTest extends TestCase
         new SSHConfig($arrConfig);
     }
 
-    public function testConstructorWithDisabledValidation()
+    public function testConstructorWithDisabledValidation(): void
     {
         $arrConfig         = $this->getTestConfigAsArray(
             self::CONFIG_SECONDARY_ONLY
         );
         $arrConfig['port'] = 22;
 
-        $config = new SSHConfig($arrConfig, false);
+        $config = new SSHConfig($arrConfig, true);
 
         $this->assertEquals($arrConfig, $config->all());
     }
 
-    public function testConstructorWithEmptyHost()
+    public function testConstructorWithEmptyHost(): void
     {
         $arrConfig             = $this->getTestConfigAsArray(
             self::CONFIG_SECONDARY_ONLY
@@ -50,7 +50,7 @@ class SSHConfigTest extends TestCase
         new SSHConfig($arrConfig);
     }
 
-    public function testConstructorWithBlankHost()
+    public function testConstructorWithBlankHost(): void
     {
         $arrConfig             = $this->getTestConfigAsArray(
             self::CONFIG_SECONDARY_ONLY
@@ -64,7 +64,7 @@ class SSHConfigTest extends TestCase
         new SSHConfig($arrConfig);
     }
 
-    public function testConstructorWithWrongHostVartype()
+    public function testConstructorWithWrongHostVartype(): void
     {
         $arrConfig             = $this->getTestConfigAsArray(
             self::CONFIG_SECONDARY_ONLY
@@ -78,7 +78,7 @@ class SSHConfigTest extends TestCase
         new SSHConfig($arrConfig);
     }
 
-    public function testConstructorWithEmptyUser()
+    public function testConstructorWithEmptyUser(): void
     {
         $arrConfig             = $this->getTestConfigAsArray(
             self::CONFIG_SECONDARY_ONLY
@@ -92,7 +92,7 @@ class SSHConfigTest extends TestCase
         new SSHConfig($arrConfig);
     }
 
-    public function testConstructorWithBlankUser()
+    public function testConstructorWithBlankUser(): void
     {
         $arrConfig             = $this->getTestConfigAsArray(
             self::CONFIG_SECONDARY_ONLY
@@ -106,7 +106,7 @@ class SSHConfigTest extends TestCase
         new SSHConfig($arrConfig);
     }
 
-    public function testConstructorWithWrongUserVartype()
+    public function testConstructorWithWrongUserVartype(): void
     {
         $arrConfig             = $this->getTestConfigAsArray(
             self::CONFIG_SECONDARY_ONLY
@@ -120,7 +120,7 @@ class SSHConfigTest extends TestCase
         new SSHConfig($arrConfig);
     }
 
-    public function testConstructorAcceptsEmptyPassword()
+    public function testConstructorAcceptsEmptyPassword(): void
     {
         $arrConfig             = $this->getTestConfigAsArray(
             self::CONFIG_SECONDARY_ONLY
@@ -134,7 +134,7 @@ class SSHConfigTest extends TestCase
         $this->assertSame('', $config->getPassword());
     }
 
-    public function testConstructorWithWrongPasswordVartype()
+    public function testConstructorWithWrongPasswordVartype(): void
     {
         $arrConfig             = $this->getTestConfigAsArray(
             self::CONFIG_SECONDARY_ONLY
@@ -148,7 +148,7 @@ class SSHConfigTest extends TestCase
         new SSHConfig($arrConfig);
     }
 
-    public function testConstructorWithEmptyKey()
+    public function testConstructorWithEmptyKey(): void
     {
         $arrConfig         = $this->getTestConfigAsArray(
             self::CONFIG_SECONDARY_ONLY
@@ -162,7 +162,7 @@ class SSHConfigTest extends TestCase
         new SSHConfig($arrConfig);
     }
 
-    public function testConstructorWithBlankKey()
+    public function testConstructorWithBlankKey(): void
     {
         $arrConfig         = $this->getTestConfigAsArray(
             self::CONFIG_SECONDARY_ONLY
@@ -176,7 +176,7 @@ class SSHConfigTest extends TestCase
         new SSHConfig($arrConfig);
     }
 
-    public function testConstructorWithWrongKeyVartype()
+    public function testConstructorWithWrongKeyVartype(): void
     {
         $arrConfig         = $this->getTestConfigAsArray(
             self::CONFIG_SECONDARY_ONLY
@@ -190,7 +190,7 @@ class SSHConfigTest extends TestCase
         new SSHConfig($arrConfig);
     }
 
-    public function testConstructorWithEmptyKeyfile()
+    public function testConstructorWithEmptyKeyfile(): void
     {
         $arrConfig            = $this->getTestConfigAsArray(
             self::CONFIG_SECONDARY_ONLY
@@ -204,7 +204,7 @@ class SSHConfigTest extends TestCase
         new SSHConfig($arrConfig);
     }
 
-    public function testConstructorWithInaccessibleKeyfile()
+    public function testConstructorWithInaccessibleKeyfile(): void
     {
         $arrConfig            = $this->getTestConfigAsArray(
             self::CONFIG_SECONDARY_ONLY
@@ -218,7 +218,7 @@ class SSHConfigTest extends TestCase
         new SSHConfig($arrConfig);
     }
 
-    public function testConstructorWithoutCredential()
+    public function testConstructorWithoutCredential(): void
     {
         $arrConfig         = $this->getTestConfigAsArray(
             self::CONFIG_SECONDARY_ONLY
@@ -231,7 +231,7 @@ class SSHConfigTest extends TestCase
         new SSHConfig($arrConfig);
     }
 
-    public function testConstructorWithValidPortAsString()
+    public function testConstructorWithValidPortAsString(): void
     {
         $arrConfig             = $this->getTestConfigAsArray(
             self::CONFIG_SECONDARY_ONLY
@@ -246,7 +246,7 @@ class SSHConfigTest extends TestCase
         $this->assertSame(1234, $config->getPort());
     }
 
-    public function testConstructorWithValidPortAsInteger()
+    public function testConstructorWithValidPortAsInteger(): void
     {
         $arrConfig             = $this->getTestConfigAsArray(
             self::CONFIG_SECONDARY_ONLY
@@ -261,7 +261,7 @@ class SSHConfigTest extends TestCase
         $this->assertSame(1234, $config->getPort());
     }
 
-    public function testConstructorWithEmptyPort()
+    public function testConstructorWithEmptyPort(): void
     {
         $arrConfig             = $this->getTestConfigAsArray(
             self::CONFIG_SECONDARY_ONLY
@@ -276,7 +276,7 @@ class SSHConfigTest extends TestCase
         new SSHConfig($arrConfig);
     }
 
-    public function testConstructorWithBlankPort()
+    public function testConstructorWithBlankPort(): void
     {
         $arrConfig             = $this->getTestConfigAsArray(
             self::CONFIG_SECONDARY_ONLY
@@ -291,7 +291,7 @@ class SSHConfigTest extends TestCase
         new SSHConfig($arrConfig);
     }
 
-    public function testConstructorWithWrongPortVartype()
+    public function testConstructorWithWrongPortVartype(): void
     {
         $arrConfig             = $this->getTestConfigAsArray(
             self::CONFIG_SECONDARY_ONLY
@@ -306,7 +306,7 @@ class SSHConfigTest extends TestCase
         new SSHConfig($arrConfig);
     }
 
-    public function testSet()
+    public function testSet(): void
     {
         $arrConfig = $this->getTestConfigAsArray();
 
@@ -317,7 +317,7 @@ class SSHConfigTest extends TestCase
         $this->assertEquals('testvalue', $config->get('testkey'));
     }
 
-    public function testSetInvalidValue()
+    public function testSetInvalidValue(): void
     {
         $arrConfig = $this->getTestConfigAsArray();
 
@@ -328,7 +328,7 @@ class SSHConfigTest extends TestCase
         $config->set('port', 'San Marino');
     }
 
-    public function testSetFromArray()
+    public function testSetFromArray(): void
     {
         $arrConfig = $this->getTestConfigAsArray();
 
@@ -343,7 +343,7 @@ class SSHConfigTest extends TestCase
 
         $config = new SSHConfig($arrConfig);
 
-        $config->setFromArray($arrNewValues);
+        $config->setFromArray($arrNewValues, true);
 
         $this->assertEquals($arrNewValues['host'], $config->getHost());
         $this->assertEquals($arrNewValues['port'], $config->getPort());
@@ -476,7 +476,7 @@ class SSHConfigTest extends TestCase
             self::CONFIG_SECONDARY_ONLY
         );
 
-        $config = new SSHConfig([], false);
+        $config = new SSHConfig([], true);
 
         $this->expectException(ConfigValidationException::class);
 
@@ -501,7 +501,7 @@ class SSHConfigTest extends TestCase
             self::CONFIG_CONNECTION_ONLY
         );
 
-        $config = new SSHConfig([], false);
+        $config = new SSHConfig([], true);
 
         try {
             $result = $config->validate($arrConfig);
@@ -516,7 +516,7 @@ class SSHConfigTest extends TestCase
 
     public function testGetPortReturnsNullIfPortIsNotSet()
     {
-        $config = new SSHConfig(['port' => null], false);
+        $config = new SSHConfig(['port' => null], true);
 
         $this->assertNull($config->getPort());
     }

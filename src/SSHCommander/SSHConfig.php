@@ -41,19 +41,18 @@ class SSHConfig implements SSHConfigInterface
      * are always present.
      *
      * @param array $config
-     * @param bool  $validateConnectionInfo Whether to require connection
-     *                                      information such as host, user etc
+     * @param bool  $skipValidation
      */
     public function __construct(
         array $config = [],
-        bool $validateConnectionInfo = true
+        bool $skipValidation = false
     ) {
         $this->loadDefaultConfigFile()
              ->loadUserConfigFile();
 
         // Now that the entire configuration is in place, we can validate
         // connection information if necessary.
-        if ($validateConnectionInfo) {
+        if (!$skipValidation) {
             $this->validate($config);
         }
 
@@ -110,12 +109,21 @@ class SSHConfig implements SSHConfigInterface
      *
      * @param array $config
      *
+     * @param bool  $skipValidation
+     *
      * @return SSHConfigInterface
      */
-    public function setFromArray(array $config): SSHConfigInterface
-    {
+    public function setFromArray(
+        array $config,
+        bool $skipValidation = false
+    ): SSHConfigInterface {
         foreach ($config as $key => $value) {
-            $this->config[$key] = $this->prepare($config, $key);
+            $this->set(
+                $key,
+                $this->prepare($config, $key),
+                $skipValidation,
+                $config
+            );
         }
 
         return $this;
@@ -222,15 +230,23 @@ class SSHConfig implements SSHConfigInterface
      *
      * @param string $param the name of parameter to set.
      * @param mixed  $value the value to set the parameter to.
+     * @param bool   $skipValidation
+     * @param array  $context
      */
-    public function set(string $param, $value): void
-    {
+    public function set(
+        string $param,
+        $value,
+        bool $skipValidation = false,
+        array $context = []
+    ): void {
         $method = 'set' . Utils::camelCase($param);
         if (method_exists($this, $method)) {
             // we have a special setter for this
             $this->$method($value);
         } else {
-            $this->validateBeforeSet($param, $value);
+            if (!$skipValidation) {
+                $this->validateBeforeSet($param, $value, $context);
+            }
 
             // just throw the value into the config
             $this->config[$param] = $value;
@@ -411,12 +427,20 @@ class SSHConfig implements SSHConfigInterface
      *
      * @param string $param
      * @param        $value
+     * @param array  $context
      */
-    protected function validateBeforeSet(string $param, $value): void
-    {
+    protected function validateBeforeSet(
+        string $param,
+        $value,
+        array $context = []
+    ): void {
         $validationMethod = 'validate' . ucfirst(strtolower($param));
         if (method_exists($this, $validationMethod)) {
-            $validatedArray = array_merge($this->all(), [$param => $value]);
+            $validatedArray = array_merge(
+                $this->all(),
+                $context,
+                [$param => $value]
+            );
 
             try {
                 $this->$validationMethod($validatedArray);
