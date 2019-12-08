@@ -230,6 +230,8 @@ class SSHConfig implements SSHConfigInterface
             // we have a special setter for this
             $this->$method($value);
         } else {
+            $this->validateBeforeSet($param, $value);
+
             // just throw the value into the config
             $this->config[$param] = $value;
         }
@@ -401,5 +403,29 @@ class SSHConfig implements SSHConfigInterface
     public function getPassword(): ?string
     {
         return $this->config['password'] ?? null;
+    }
+
+    /**
+     * Validate the value before adding it to the config. Normal validation
+     * rules apply.
+     *
+     * @param string $param
+     * @param        $value
+     */
+    protected function validateBeforeSet(string $param, $value): void
+    {
+        $validationMethod = 'validate' . ucfirst(strtolower($param));
+        if (method_exists($this, $validationMethod)) {
+            $validatedArray = array_merge($this->all(), [$param => $value]);
+
+            try {
+                $this->$validationMethod($validatedArray);
+            } catch (ConfigValidationException $e) {
+                $message = 'Unable to add "%s" with value "%s" to config. ' .
+                           $e->getMessage();
+                $message = sprintf($message, $param, $value);
+                throw new ConfigValidationException($message);
+            }
+        }
     }
 }

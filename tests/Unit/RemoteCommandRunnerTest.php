@@ -8,7 +8,7 @@ use Neskodi\SSHCommander\Interfaces\SSHCommandResultInterface;
 use Neskodi\SSHCommander\CommandRunners\RemoteCommandRunner;
 use Neskodi\SSHCommander\Interfaces\SSHConnectionInterface;
 use Neskodi\SSHCommander\Interfaces\SSHConfigInterface;
-use Neskodi\SSHCommander\Tests\MockSSHConnection;
+use Neskodi\SSHCommander\Tests\Mocks\MockSSHConnection;
 use Neskodi\SSHCommander\Tests\TestCase;
 use Neskodi\SSHCommander\SSHConnection;
 use Neskodi\SSHCommander\SSHCommand;

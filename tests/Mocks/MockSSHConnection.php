@@ -1,6 +1,6 @@
 <?php /** @noinspection PhpUndefinedMethodInspection */
 
-namespace Neskodi\SSHCommander\Tests;
+namespace Neskodi\SSHCommander\Tests\Mocks;
 
 use Neskodi\SSHCommander\Interfaces\SSHConnectionInterface;
 use Neskodi\SSHCommander\Interfaces\ConfigAwareInterface;

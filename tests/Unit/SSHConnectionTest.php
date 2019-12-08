@@ -6,7 +6,7 @@ namespace Neskodi\SSHCommander\Tests\Unit;
 
 use Neskodi\SSHCommander\Exceptions\AuthenticationException;
 use Neskodi\SSHCommander\Interfaces\SSHConfigInterface;
-use Neskodi\SSHCommander\Tests\MockSSHConnection;
+use Neskodi\SSHCommander\Tests\Mocks\MockSSHConnection;
 use Neskodi\SSHCommander\Tests\TestCase;
 use Neskodi\SSHCommander\SSHConnection;
 use Neskodi\SSHCommander\SSHCommand;

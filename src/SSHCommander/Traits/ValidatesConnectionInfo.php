@@ -114,12 +114,19 @@ trait ValidatesConnectionInfo
      * @param array $config
      *
      * @return $this
-     *
-     * @noinspection PhpUnusedParameterInspection
      */
     protected function validatePassword(array $config)
     {
-        // no validation applied so far
+        if (array_key_exists('password', $config)) {
+            if (!is_string($config['password'])) {
+                $error = sprintf(
+                    'SSH password provided must be a string, %s given',
+                    gettype($config['password'])
+                );
+
+                throw new ConfigValidationException($error);
+            }
+        }
 
         return $this;
     }

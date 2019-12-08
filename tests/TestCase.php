@@ -6,6 +6,7 @@ namespace Neskodi\SSHCommander\Tests;
 
 use Neskodi\SSHCommander\Interfaces\SSHConnectionInterface;
 use Neskodi\SSHCommander\Interfaces\SSHConfigInterface;
+use Neskodi\SSHCommander\Tests\Mocks\MockSSHConnection;
 use Neskodi\SSHCommander\Tests\Unit\SSHConnectionTest;
 use PHPUnit\Framework\TestCase as PHPUnitTestCase;
 use Neskodi\SSHCommander\Factories\LoggerFactory;
@@ -213,7 +214,7 @@ class TestCase extends PHPUnitTestCase
 
     protected function getKeyPath(?string $file = null): string
     {
-        $dir = dirname(__FILE__);
+        $dir = dirname(__FILE__) . DIRECTORY_SEPARATOR . 'Keys';
 
         return $file
             ? $dir . DIRECTORY_SEPARATOR . $file
