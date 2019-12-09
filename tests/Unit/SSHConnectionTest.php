@@ -11,8 +11,8 @@ use Neskodi\SSHCommander\Tests\TestCase;
 use Neskodi\SSHCommander\SSHConnection;
 use Neskodi\SSHCommander\SSHCommand;
 use Monolog\Handler\TestHandler;
-use phpseclib\Net\SSH2;
 use Psr\Log\LoggerInterface;
+use phpseclib\Net\SSH2;
 use Psr\Log\LogLevel;
 
 class SSHConnectionTest extends TestCase
