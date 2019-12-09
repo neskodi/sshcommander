@@ -28,7 +28,7 @@ class SSHConnectionTest extends TestCase
 
     const AUTH_PASSWORD = 'secret';
 
-    public function testConstructor()
+    public function testConstructor(): void
     {
         $config = $this->getTestConfigAsObject();
         $logger = $this->getTestLogger(LogLevel::DEBUG);
@@ -46,7 +46,7 @@ class SSHConnectionTest extends TestCase
         );
     }
 
-    public function testAutoLoginOff()
+    public function testAutoLoginOff(): void
     {
         $config = $this->getTestConfigAsObject(
             self::CONFIG_FULL,
@@ -58,7 +58,7 @@ class SSHConnectionTest extends TestCase
         $this->assertFalse($connection->isAuthenticated());
     }
 
-    public function testAutoLoginWithPassword()
+    public function testAutoLoginWithPassword(): void
     {
         $this->AutoLoginAndCheckLogRecords(
             $this->getConnectionConfig(
@@ -69,7 +69,7 @@ class SSHConnectionTest extends TestCase
         );
     }
 
-    public function testAutoLoginWithKey()
+    public function testAutoLoginWithKey(): void
     {
         $this->AutoLoginAndCheckLogRecords(
             $this->getConnectionConfig(
@@ -80,7 +80,7 @@ class SSHConnectionTest extends TestCase
         );
     }
 
-    public function testAutoLoginWithKeyfile()
+    public function testAutoLoginWithKeyfile(): void
     {
         $this->AutoLoginAndCheckLogRecords(
             $this->getConnectionConfig(
@@ -91,7 +91,7 @@ class SSHConnectionTest extends TestCase
         );
     }
 
-    public function testAutoLoginWithProtectedKey()
+    public function testAutoLoginWithProtectedKey(): void
     {
         $this->AutoLoginAndCheckLogRecords(
             $this->getConnectionConfig(
@@ -102,7 +102,7 @@ class SSHConnectionTest extends TestCase
         );
     }
 
-    public function testAutoLoginWithProtectedKeyfile()
+    public function testAutoLoginWithProtectedKeyfile(): void
     {
         $this->AutoLoginAndCheckLogRecords(
             $this->getConnectionConfig(
@@ -113,7 +113,7 @@ class SSHConnectionTest extends TestCase
         );
     }
 
-    public function testAutoLoginFailed()
+    public function testAutoLoginFailed(): void
     {
         $config = $this->getTestConfigAsObject(
             self::CONFIG_FULL,
@@ -129,7 +129,7 @@ class SSHConnectionTest extends TestCase
         new MockSSHConnection($config);
     }
 
-    public function testLazyLoginWithPassword()
+    public function testLazyLoginWithPassword(): void
     {
         $this->LazyLoginAndCheckLogRecords(
             $this->getConnectionConfig(
@@ -141,7 +141,7 @@ class SSHConnectionTest extends TestCase
         );
     }
 
-    public function testLazyLoginWithKey()
+    public function testLazyLoginWithKey(): void
     {
         $this->LazyLoginAndCheckLogRecords(
             $this->getConnectionConfig(
@@ -153,7 +153,7 @@ class SSHConnectionTest extends TestCase
         );
     }
 
-    public function testLazyLoginWithKeyfile()
+    public function testLazyLoginWithKeyfile(): void
     {
         $this->LazyLoginAndCheckLogRecords(
             $this->getConnectionConfig(
@@ -165,7 +165,7 @@ class SSHConnectionTest extends TestCase
         );
     }
 
-    public function testLazyLoginWithProtectedKey()
+    public function testLazyLoginWithProtectedKey(): void
     {
         $this->LazyLoginAndCheckLogRecords(
             $this->getConnectionConfig(
@@ -177,7 +177,7 @@ class SSHConnectionTest extends TestCase
         );
     }
 
-    public function testLazyLoginWithProtectedKeyfile()
+    public function testLazyLoginWithProtectedKeyfile(): void
     {
         $this->LazyLoginAndCheckLogRecords(
             $this->getConnectionConfig(
@@ -189,7 +189,7 @@ class SSHConnectionTest extends TestCase
         );
     }
 
-    public function testLazyLoginFailed()
+    public function testLazyLoginFailed(): void
     {
         $config = $this->getTestConfigAsObject(
             self::CONFIG_FULL,
@@ -210,7 +210,7 @@ class SSHConnectionTest extends TestCase
         $connection->exec(new SSHCommand('ls', $config));
     }
 
-    public function testAuthenticateOnlyWithPassword()
+    public function testAuthenticateOnlyWithPassword(): void
     {
         $this->AuthOnlyAndCheckLogRecords(
             $this->getConnectionConfig(
@@ -221,7 +221,7 @@ class SSHConnectionTest extends TestCase
         );
     }
 
-    public function testAuthenticateOnlyWithKey()
+    public function testAuthenticateOnlyWithKey(): void
     {
         $this->AuthOnlyAndCheckLogRecords(
             $this->getConnectionConfig(
@@ -232,7 +232,7 @@ class SSHConnectionTest extends TestCase
         );
     }
 
-    public function testAuthenticateOnlyWithKeyfile()
+    public function testAuthenticateOnlyWithKeyfile(): void
     {
         $this->AuthOnlyAndCheckLogRecords(
             $this->getConnectionConfig(
@@ -243,7 +243,7 @@ class SSHConnectionTest extends TestCase
         );
     }
 
-    public function testAuthenticateOnlyWithProtectedKey()
+    public function testAuthenticateOnlyWithProtectedKey(): void
     {
         $this->AuthOnlyAndCheckLogRecords(
             $this->getConnectionConfig(
@@ -254,7 +254,7 @@ class SSHConnectionTest extends TestCase
         );
     }
 
-    public function testAuthenticateOnlyWithProtectedKeyfile()
+    public function testAuthenticateOnlyWithProtectedKeyfile(): void
     {
         $this->AuthOnlyAndCheckLogRecords(
             $this->getConnectionConfig(
@@ -265,7 +265,7 @@ class SSHConnectionTest extends TestCase
         );
     }
 
-    public function testAuthenticateOnlyFailed()
+    public function testAuthenticateOnlyFailed(): void
     {
         $config = $this->getTestConfigAsObject(
             self::CONFIG_FULL,
@@ -286,7 +286,7 @@ class SSHConnectionTest extends TestCase
         $connection->authenticate();
     }
 
-    public function testExec()
+    public function testExec(): void
     {
         $config = $this->getTestConfigAsObject(
             self::CONFIG_FULL,
@@ -307,7 +307,7 @@ class SSHConnectionTest extends TestCase
         $this->assertIsInt($connection->getLastExitCode());
     }
 
-    public function testResetOutput()
+    public function testResetOutput(): void
     {
         $config = $this->getTestConfigAsObject(
             self::CONFIG_FULL,
@@ -337,7 +337,7 @@ class SSHConnectionTest extends TestCase
         $this->assertEmpty($connection->getStdErrLines());
     }
 
-    public function testSetTimeout()
+    public function testSetTimeout(): void
     {
         $timeout = 150;
 
@@ -352,7 +352,7 @@ class SSHConnectionTest extends TestCase
         $this->assertSame($timeout, $connection->getSSH2()->timeout);
     }
 
-    public function testResetTimeout()
+    public function testResetTimeout(): void
     {
         $default = SSHConnection::DEFAULT_TIMEOUT;
         $timeout = 150;
@@ -372,7 +372,7 @@ class SSHConnectionTest extends TestCase
         $this->assertSame($default, $connection->getSSH2()->timeout);
     }
 
-    public function testGetSSH2()
+    public function testGetSSH2(): void
     {
         $config     = $this->getTestConfigAsObject(
             self::CONFIG_FULL,
@@ -463,30 +463,30 @@ class SSHConnectionTest extends TestCase
         ));
     }
 
-    protected function AuthOnlyAndCheckLogRecords(array $config)
-        {
-            $config = $this->getTestConfigAsObject(
-                self::CONFIG_FULL,
-                $config
-            );
+    protected function AuthOnlyAndCheckLogRecords(array $config): void
+    {
+        $config = $this->getTestConfigAsObject(
+            self::CONFIG_FULL,
+            $config
+        );
 
-            $logger = $this->getTestLogger(LogLevel::DEBUG);
+        $logger = $this->getTestLogger(LogLevel::DEBUG);
 
-            $connection = new MockSSHConnection($config, $logger);
+        $connection = new MockSSHConnection($config, $logger);
 
-            $this->assertFalse($connection->isAuthenticated());
+        $this->assertFalse($connection->isAuthenticated());
 
-            MockSSHConnection::expect(MockSSHConnection::RESULT_SUCCESS);
-            $connection->authenticate();
+        MockSSHConnection::expect(MockSSHConnection::RESULT_SUCCESS);
+        $connection->authenticate();
 
-            $this->assertTrue($connection->isAuthenticated());
+        $this->assertTrue($connection->isAuthenticated());
 
-            /** @var TestHandler $handler */
-            $handler = $connection->getLogger()->popHandler();
+        /** @var TestHandler $handler */
+        $handler = $connection->getLogger()->popHandler();
 
-            $this->assertTrue($handler->hasRecord(
-                'Authenticated.',
-                LogLevel::INFO
-            ));
-        }
+        $this->assertTrue($handler->hasRecord(
+            'Authenticated.',
+            LogLevel::INFO
+        ));
+    }
 }

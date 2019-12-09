@@ -44,7 +44,7 @@ class SSHCommandResultTest extends TestCase
         return $acc;
     }
 
-    public function testConstructor()
+    public function testConstructor(): void
     {
         $result = $this->createCommandResult();
 
@@ -58,7 +58,7 @@ class SSHCommandResultTest extends TestCase
         $this->assertNull($result->getErrorOutput());
     }
 
-    public function testConstructorWithSuccessfulExitCode()
+    public function testConstructorWithSuccessfulExitCode(): void
     {
         $command = $this->getCommand();
         $result = new SSHCommandResult($command, 0);
@@ -71,7 +71,7 @@ class SSHCommandResultTest extends TestCase
         $this->assertNull($result->getErrorOutput());
     }
 
-    public function testConstructorWithErrorExitCode()
+    public function testConstructorWithErrorExitCode(): void
     {
         $command = $this->getCommand();
         $result = new SSHCommandResult($command, 255);
@@ -84,7 +84,7 @@ class SSHCommandResultTest extends TestCase
         $this->assertNull($result->getErrorOutput());
     }
 
-    public function testConstructorWithStdout()
+    public function testConstructorWithStdout(): void
     {
         $command = $this->getCommand();
         $result = new SSHCommandResult($command, null, ['test']);
@@ -97,7 +97,7 @@ class SSHCommandResultTest extends TestCase
         $this->assertNull($result->getErrorOutput());
     }
 
-    public function testConstructorWithStderr()
+    public function testConstructorWithStderr(): void
     {
         $command = $this->getCommand();
         $result = new SSHCommandResult($command, null, null, ['test']);
@@ -110,7 +110,7 @@ class SSHCommandResultTest extends TestCase
         $this->assertEquals(['test'], $result->getErrorOutput());
     }
 
-    public function testRemoveLastEmptyLine()
+    public function testRemoveLastEmptyLine(): void
     {
         $defaultConfig = $this->getTestConfigAsArray();
         $defaultConfig['output_trim_last_empty_line'] = true;
@@ -128,7 +128,7 @@ class SSHCommandResultTest extends TestCase
         $this->assertEquals(['test err'], $result->getErrorOutput());
     }
 
-    public function testLeaveLastEmptyLine()
+    public function testLeaveLastEmptyLine(): void
     {
         $defaultConfig = $this->getTestConfigAsArray();
         $defaultConfig['output_trim_last_empty_line'] = false;
@@ -146,7 +146,7 @@ class SSHCommandResultTest extends TestCase
         $this->assertEquals(['test err', ''], $result->getErrorOutput());
     }
 
-    public function test__toString()
+    public function test__toString(): void
     {
         $result = $this->createCommandResult();
         $result->setOutput([
@@ -160,7 +160,7 @@ class SSHCommandResultTest extends TestCase
         $this->assertEquals('test line 1;test line 2', $str);
     }
 
-    public function testSetCommand()
+    public function testSetCommand(): void
     {
         $result = $this->createCommandResult();
         $result->setCommand(
@@ -175,7 +175,7 @@ class SSHCommandResultTest extends TestCase
         $this->assertEquals('cd /test', $strCommand);
     }
 
-    public function testSetExitCode()
+    public function testSetExitCode(): void
     {
         $exitCode = 4;
 
@@ -185,7 +185,7 @@ class SSHCommandResultTest extends TestCase
         $this->assertEquals($exitCode, $result->getExitCode());
     }
 
-    public function testSetOutputDelimiter()
+    public function testSetOutputDelimiter(): void
     {
         $result = $this->createCommandResult();
         $result->setOutput([
@@ -199,7 +199,7 @@ class SSHCommandResultTest extends TestCase
         $this->assertEquals('test line 1~~test line 2', $str);
     }
 
-    public function testIsError()
+    public function testIsError(): void
     {
         $result = $this->createCommandResult();
 
@@ -209,7 +209,7 @@ class SSHCommandResultTest extends TestCase
         $this->assertFalse($result->isError());
     }
 
-    public function testIsOk()
+    public function testIsOk(): void
     {
         $result = $this->createCommandResult();
 
@@ -219,7 +219,7 @@ class SSHCommandResultTest extends TestCase
         $this->assertFalse($result->isOk());
     }
 
-    public function testSetOutput()
+    public function testSetOutput(): void
     {
         $output = [
             'test line 1',
@@ -232,7 +232,7 @@ class SSHCommandResultTest extends TestCase
         $this->assertEquals($output, $result->getOutput());
     }
 
-    public function testSetErrorOutput()
+    public function testSetErrorOutput(): void
     {
         $output = [
             'test error line 1',
@@ -250,7 +250,7 @@ class SSHCommandResultTest extends TestCase
         );
     }
 
-    public function testLogResult()
+    public function testLogResult(): void
     {
         $output = [
             'test stdout line 1',
@@ -279,7 +279,7 @@ class SSHCommandResultTest extends TestCase
         );
     }
 
-    public function testLogEmptyOutput()
+    public function testLogEmptyOutput(): void
     {
         $result = $this->createCommandResult();
         $result->setOutput([]);
@@ -297,7 +297,7 @@ class SSHCommandResultTest extends TestCase
         );
     }
 
-    public function testGetStatus()
+    public function testGetStatus(): void
     {
         $result = $this->createCommandResult();
 

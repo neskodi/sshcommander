@@ -41,7 +41,7 @@ class SSHCommanderTest extends TestCase
         $commander = new SSHCommander(new stdClass);
     }
 
-    public function testConstructorWithLogger()
+    public function testConstructorWithLogger(): void
     {
         $config = $this->getTestConfigAsArray();
         $logger = $this->getTestLogger(LogLevel::DEBUG);
@@ -51,7 +51,7 @@ class SSHCommanderTest extends TestCase
         $this->assertInstanceOf(LoggerInterface::class, $commander->getLogger());
     }
 
-    public function testConstructorConfigWithWriteableLogFile()
+    public function testConstructorConfigWithWriteableLogFile(): void
     {
         $file = $_ENV['ssh_log_file'];
         $this->assertTrue(Utils::isWritableOrCreatable($file));
@@ -95,7 +95,7 @@ class SSHCommanderTest extends TestCase
         );
     }
 
-    public function testGetConnection()
+    public function testGetConnection(): void
     {
         $testConfigComm = $this->getTestConfigAsArray(
             self::CONFIG_CONNECTION_ONLY,
@@ -180,7 +180,7 @@ class SSHCommanderTest extends TestCase
         $this->assertEquals($command->getCommands(true, false), $strcmd);
     }
 
-    public function testCreateCommandFromCommand()
+    public function testCreateCommandFromCommand(): void
     {
         $config = $this->getTestConfigAsArray();
         $strcmd = 'pwd';
@@ -257,7 +257,7 @@ class SSHCommanderTest extends TestCase
         $this->assertEquals($testConfig, $resultConfig);
     }
 
-    public function testRunCommand()
+    public function testRunCommand(): void
     {
         $config    = $this->getTestConfigAsArray();
         $commander = new SSHCommander($config);

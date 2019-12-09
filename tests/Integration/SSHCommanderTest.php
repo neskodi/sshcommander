@@ -89,6 +89,42 @@ class SSHCommanderTest extends TestCase
         $this->assertSame($basedir, (string)$result);
     }
 
+    public function testMultiCommandCanBeProvidedAsString(): void
+    {
+        try {
+            $this->requireUser();
+            $this->requireAuthCredential();
+        } catch (RuntimeException $e) {
+            $this->markTestSkipped($e->getMessage());
+        }
+
+        $commander = new SSHCommander($this->sshOptions);
+
+        $basedir = '/tmp';
+
+        $result = $commander->run("cd $basedir" . PHP_EOL . 'pwd');
+
+        $this->assertSame($basedir, (string)$result);
+    }
+
+    public function testMultiCommandCanBeProvidedAsArray(): void
+    {
+        try {
+            $this->requireUser();
+            $this->requireAuthCredential();
+        } catch (RuntimeException $e) {
+            $this->markTestSkipped($e->getMessage());
+        }
+
+        $commander = new SSHCommander($this->sshOptions);
+
+        $basedir = '/tmp';
+
+        $result = $commander->run(["cd $basedir", 'pwd']);
+
+        $this->assertSame($basedir, (string)$result);
+    }
+
     public function testLoginWithPublicKeyWorks(): void
     {
         try {
@@ -164,7 +200,7 @@ class SSHCommanderTest extends TestCase
         $this->assertTrue($connection->isAuthenticated());
     }
 
-    public function testLazyAuthentication()
+    public function testLazyAuthentication(): void
     {
         $config = new SSHConfig($this->sshOptions);
         $config->set('autologin', false);

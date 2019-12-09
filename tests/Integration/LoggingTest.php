@@ -5,6 +5,7 @@
 namespace Neskodi\SSHCommander\Tests\Integration;
 
 use Neskodi\SSHCommander\Exceptions\AuthenticationException;
+use Neskodi\SSHCommander\Interfaces\SSHCommanderInterface;
 use Neskodi\SSHCommander\Interfaces\SSHCommandInterface;
 use Neskodi\SSHCommander\Tests\TestCase;
 use Neskodi\SSHCommander\SSHCommander;
@@ -104,10 +105,10 @@ class LoggingTest extends TestCase
      * Get the singleton instance of SSHCommander (will be used for most
      * commands in this test).
      *
-     * @return SSHCommander
+     * @return SSHCommanderInterface
      * @throws Exception
      */
-    protected function getCommander(): SSHCommander
+    protected function getCommander(): SSHCommanderInterface
     {
         if (!$this->commander) {
             $this->commander = new SSHCommander($this->sshOptions);
@@ -196,11 +197,12 @@ class LoggingTest extends TestCase
      *
      * @param string $level the logging level to use.
      *
-     * @return SSHCommander
+     * @return SSHCommanderInterface
      * @throws Exception
      */
-    protected function getAuthFailedCommander(string $level)
-    {
+    protected function getAuthFailedCommander(
+        string $level
+    ): SSHCommanderInterface {
         $options = array_merge(
             $this->sshOptions,
             ['user' => '****']

@@ -13,6 +13,20 @@ use Exception;
 
 class SSHConfigTest extends TestCase
 {
+    /**
+     * @return array
+     */
+    protected function getBaseConfigWithMissingCredentials(): array
+    {
+        $base = $this->getTestConfigAsArray(self::CONFIG_SECONDARY_ONLY);
+        $base = array_merge($base, [
+            'host' => 'example.com',
+            'user' => 'foo',
+        ]);
+
+        return $base;
+    }
+
     public function testConstructorWithEmptyConnectionInfo(): void
     {
         $arrConfig = $this->getTestConfigAsArray(
@@ -353,7 +367,7 @@ class SSHConfigTest extends TestCase
         $this->assertEquals($arrNewValues['keyfile'], $config->getKeyfile());
     }
 
-    public function testSetConfigFileLocation()
+    public function testSetConfigFileLocation(): void
     {
         $location = '/x/files';
 
@@ -364,7 +378,7 @@ class SSHConfigTest extends TestCase
         SSHConfig::resetConfigFileLocation();
     }
 
-    public function testResetConfigFileLocation()
+    public function testResetConfigFileLocation(): void
     {
         $location = '/x/files';
         $default  = SSHConfig::getDefaultConfigFileLocation();
@@ -378,14 +392,14 @@ class SSHConfigTest extends TestCase
         $this->assertEquals($default, SSHConfig::getConfigFileLocation());
     }
 
-    public function testGetDefaultConfigFileLocation()
+    public function testGetDefaultConfigFileLocation(): void
     {
         $default = SSHConfig::getDefaultConfigFileLocation();
 
         $this->assertStringEndsWith('config.php', $default);
     }
 
-    public function testValidMagicGetters()
+    public function testValidMagicGetters(): void
     {
         $arrConfig = $this->getTestConfigAsArray();
 
@@ -396,7 +410,7 @@ class SSHConfigTest extends TestCase
         $this->assertEquals('testvalue', $config->getTestKey());
     }
 
-    public function testInvalidMagicGetters()
+    public function testInvalidMagicGetters(): void
     {
         $arrConfig = $this->getTestConfigAsArray();
 
@@ -407,9 +421,9 @@ class SSHConfigTest extends TestCase
         $config->noSuchGetter();
     }
 
-    public function testSelectCredentialSelectsKey()
+    public function testSelectCredentialSelectsKey(): void
     {
-        $base = $this->getBaseConfigWithoutCredentials();
+        $base = $this->getBaseConfigWithMissingCredentials();
 
         $credentials = [
             'key'      => 'valid',
@@ -425,9 +439,9 @@ class SSHConfigTest extends TestCase
         );
     }
 
-    public function testSelectCredentialSelectsKeyfileIfKeyIsMissing()
+    public function testSelectCredentialSelectsKeyfileIfKeyIsMissing(): void
     {
-        $base = $this->getBaseConfigWithoutCredentials();
+        $base = $this->getBaseConfigWithMissingCredentials();
 
         $credentials = [
             'key'      => null,
@@ -443,9 +457,9 @@ class SSHConfigTest extends TestCase
         );
     }
 
-    public function testSelectCredentialSelectsPassword()
+    public function testSelectCredentialSelectsPassword(): void
     {
-        $base = $this->getBaseConfigWithoutCredentials();
+        $base = $this->getBaseConfigWithMissingCredentials();
 
         $credentials = [
             'key'      => null,
@@ -461,7 +475,7 @@ class SSHConfigTest extends TestCase
         );
     }
 
-    public function testAll()
+    public function testGettingAllValues(): void
     {
         $arrConfig = $this->getTestConfigAsArray();
 
@@ -470,7 +484,7 @@ class SSHConfigTest extends TestCase
         $this->assertEquals($arrConfig, $config->all());
     }
 
-    public function testValidateInvalidConfig()
+    public function testValidateInvalidConfig(): void
     {
         $arrConfig = $this->getTestConfigAsArray(
             self::CONFIG_SECONDARY_ONLY
@@ -483,7 +497,7 @@ class SSHConfigTest extends TestCase
         $config->validate($arrConfig);
     }
 
-    public function testInaccessibleDefaultConfigFile()
+    public function testInaccessibleDefaultConfigFile(): void
     {
         $arrConfig = $this->getTestConfigAsArray(
             self::CONFIG_CONNECTION_ONLY
@@ -495,7 +509,7 @@ class SSHConfigTest extends TestCase
     }
 
     /** @noinspection PhpUndefinedVariableInspection */
-    public function testValidateValidConfig()
+    public function testValidateValidConfig(): void
     {
         $arrConfig = $this->getTestConfigAsArray(
             self::CONFIG_CONNECTION_ONLY
@@ -514,25 +528,10 @@ class SSHConfigTest extends TestCase
         $this->assertInstanceOf(SSHConfigInterface::class, $result);
     }
 
-    public function testGetPortReturnsNullIfPortIsNotSet()
+    public function testGetPortReturnsNullIfPortIsNotSet(): void
     {
         $config = new SSHConfig(['port' => null], true);
 
         $this->assertNull($config->getPort());
-    }
-
-
-    /**
-     * @return array
-     */
-    protected function getBaseConfigWithoutCredentials(): array
-    {
-        $base = $this->getTestConfigAsArray(self::CONFIG_SECONDARY_ONLY);
-        $base = array_merge($base, [
-            'host' => 'example.com',
-            'user' => 'foo',
-        ]);
-
-        return $base;
     }
 }

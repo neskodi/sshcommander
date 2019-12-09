@@ -345,7 +345,7 @@ class SSHCommandTest extends TestCase
         $this->assertEquals('set -e;cd /start;cd /test;ls', $result);
     }
 
-    public function testGetCommandsAsStringPrepared()
+    public function testGetCommandsAsStringPrepared(): void
     {
         $command = new SSHCommand(
             ['cd /test', 'ls'],
@@ -362,7 +362,7 @@ class SSHCommandTest extends TestCase
         $this->assertEquals('set -e;cd /start;cd /test;ls', $result);
     }
 
-    public function testGetCommandsAsStringRaw()
+    public function testGetCommandsAsStringRaw(): void
     {
         $command = new SSHCommand(
             ['cd /test', 'ls'],
@@ -379,7 +379,7 @@ class SSHCommandTest extends TestCase
         $this->assertEquals('cd /test;ls', $result);
     }
 
-    public function testGetCommandsAsArrayPrepared()
+    public function testGetCommandsAsArrayPrepared(): void
     {
         $command = new SSHCommand(
             ['cd /test', 'ls'],
@@ -401,7 +401,7 @@ class SSHCommandTest extends TestCase
         ], $result);
     }
 
-    public function testGetCommandsAsArrayRaw()
+    public function testGetCommandsAsArrayRaw(): void
     {
         $command = new SSHCommand(
             ['cd /test', 'ls'],
