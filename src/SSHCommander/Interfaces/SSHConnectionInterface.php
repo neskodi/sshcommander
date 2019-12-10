@@ -6,6 +6,10 @@ use phpseclib\Net\SSH2;
 
 interface SSHConnectionInterface
 {
+    public function setConfig(SSHConfigInterface $config);
+
+    public function getConfig(?string $param = null);
+
     public function authenticate(): bool;
 
     public function setTimeout(int $timeout): SSHConnectionInterface;
