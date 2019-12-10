@@ -5,26 +5,13 @@
 namespace Neskodi\SSHCommander\Tests\Integration;
 
 use Neskodi\SSHCommander\Exceptions\AuthenticationException;
-use Neskodi\SSHCommander\Tests\TestCase;
+use Neskodi\SSHCommander\Tests\IntegrationTestCase;
 use Neskodi\SSHCommander\SSHCommander;
 use Neskodi\SSHCommander\SSHConfig;
 use RuntimeException;
 
-class SSHCommanderTest extends TestCase
+class SSHCommanderTest extends IntegrationTestCase
 {
-    protected function setUp(): void
-    {
-        $this->buildSshOptions();
-
-        if (empty($this->sshOptions)) {
-            // we can't test anything without a working connection
-            $this->markTestSkipped(
-                'SSHCommander needs a working SSH connection ' .
-                'to run integration tests. Please set the connection ' .
-                'information in phpunit.xml.');
-        }
-    }
-
     public function testFailedConnectionIsProperlyReported(): void
     {
         $this->expectException(AuthenticationException::class);

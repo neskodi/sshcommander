@@ -7,15 +7,14 @@ namespace Neskodi\SSHCommander\Tests\Integration;
 use Neskodi\SSHCommander\Exceptions\AuthenticationException;
 use Neskodi\SSHCommander\Interfaces\SSHCommanderInterface;
 use Neskodi\SSHCommander\Interfaces\SSHCommandInterface;
-use Neskodi\SSHCommander\Tests\TestCase;
+use Neskodi\SSHCommander\Tests\IntegrationTestCase;
 use Neskodi\SSHCommander\SSHCommander;
 use Monolog\Handler\TestHandler;
 use Psr\Log\LogLevel;
-use RuntimeException;
 use Monolog\Logger;
 use Exception;
 
-class LoggingTest extends TestCase
+class LoggingTest extends IntegrationTestCase
 {
     const TEST_OUTPUT_STRING       = 'quick brown fox jumps over the lazy dog';
 
@@ -48,27 +47,6 @@ class LoggingTest extends TestCase
      */
     protected $logRecords = [];
 
-    protected function setUp(): void
-    {
-        $this->buildSshOptions();
-
-        if (empty($this->sshOptions)) {
-            // we can't test anything without a working connection
-            $this->markTestSkipped(
-                'SSHCommander needs a working SSH connection ' .
-                'to run integration tests. Please set the connection ' .
-                'information in phpunit.xml.'
-            );
-        }
-
-        try {
-            $this->requireUser();
-            $this->requireAuthCredential();
-        } catch (RuntimeException $e) {
-            // we can't test anything without a working connection
-            $this->markTestSkipped($e->getMessage());
-        }
-    }
 
     /**
      * Get a command that is guaranteed to succeed on any system.
