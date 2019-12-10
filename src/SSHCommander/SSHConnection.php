@@ -107,12 +107,21 @@ class SSHConnection implements
 
     /**
      * Automatically set the timeout from the config value "timeout_command".
+     * If we are given a specific command, see if it defines its own value,
+     * otherwise use the global config.
+     *
+     * @param SSHCommandInterface $command
      *
      * @return $this
      */
-    protected function setCommandTimeout(): SSHConnectionInterface
+    protected function setCommandTimeout(?SSHCommandInterface $command = null): SSHConnectionInterface
     {
-        $this->setTimeoutFromConfig('timeout_command');
+        $commandTimeout = $command->getConfig('timeout_command')
+                          ?? $this->getConfig('timeout_command');
+
+        if (!is_null($commandTimeout)) {
+            $this->setTimeout((int)$commandTimeout);
+        }
 
         return $this;
     }
@@ -298,7 +307,7 @@ class SSHConnection implements
      * exec() method.
      *
      * @param SSHCommandInterface $command the command to execute, or multiple
-     *                                   commands separated by newline.
+     *                                     commands separated by newline.
      *
      * @return SSHConnectionInterface
      *
@@ -325,7 +334,7 @@ class SSHConnection implements
         // the delimiter used to split output lines, by default \n
         $delim = $command->getConfig('delimiter_split_output');
 
-        $this->setCommandTimeout();
+        $this->setCommandTimeout($command);
 
         // clean all data from previous commands
         $this->resetOutput();
@@ -446,9 +455,15 @@ class SSHConnection implements
      */
     protected function logCommandEnd(float $seconds): void
     {
-        $this->info('Command completed in {seconds} seconds', [
-            'seconds' => $seconds,
-        ]);
+        if ($this->getSSH2()->isTimeout()) {
+            $this->notice('Command timed out after {seconds} seconds', [
+                'seconds' => $seconds,
+            ]);
+        } else {
+            $this->info('Command completed in {seconds} seconds', [
+                'seconds' => $seconds,
+            ]);
+        }
     }
 
     /**
