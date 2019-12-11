@@ -10,6 +10,10 @@ interface SSHConnectionInterface
 
     public function getConfig(?string $param = null);
 
+    public function startTimer();
+
+    public function stopTimer(): float;
+
     public function authenticate(): bool;
 
     public function setTimeout(int $timeout): SSHConnectionInterface;

@@ -345,7 +345,7 @@ class SSHConnection implements
         $this->sshExec($command, $delim);
 
         // stop the timer and log command end
-        $this->logCommandEnd($this->endTimer());
+        $this->logCommandEnd($this->stopTimer());
 
         // collect exit code and stdout from ssh2
         $this->collectAdditionalResults($command, $delim);

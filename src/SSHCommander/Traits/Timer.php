@@ -32,7 +32,7 @@ trait Timer
      *
      * @return float
      */
-    public function endTimer(): float
+    public function stopTimer(): float
     {
         $this->timerEnd = microtime(true);
         $total          = $this->timerEnd - $this->timerStart;

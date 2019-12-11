@@ -6,7 +6,7 @@ interface TimerInterface
 {
     public function startTimer(): void;
 
-    public function endTimer(): float;
+    public function stopTimer(): float;
 
     public function resetTimer(): void;
 
