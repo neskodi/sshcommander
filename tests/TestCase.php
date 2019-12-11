@@ -221,7 +221,7 @@ class TestCase extends PHPUnitTestCase
             : $dir;
     }
 
-    protected function getConnectionConfig(
+    protected function getMockConnectionConfigByType(
         string $type,
         string $passwd,
         bool $autologin = true

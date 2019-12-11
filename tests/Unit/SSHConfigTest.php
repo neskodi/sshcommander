@@ -5,7 +5,7 @@ namespace Neskodi\SSHCommander\Tests\Unit;
 use Neskodi\SSHCommander\Exceptions\ConfigFileMissingException;
 use Neskodi\SSHCommander\Exceptions\ConfigValidationException;
 use Neskodi\SSHCommander\Interfaces\SSHConfigInterface;
-use Neskodi\SSHCommander\Tests\Mocks\MockSSHConfig;
+use Neskodi\SSHCommander\Tests\Mocks\MockSSHConfigMissingDefaultFile;
 use Neskodi\SSHCommander\Tests\TestCase;
 use Neskodi\SSHCommander\SSHConfig;
 use BadMethodCallException;
@@ -505,7 +505,7 @@ class SSHConfigTest extends TestCase
 
         $this->expectException(ConfigFileMissingException::class);
 
-        new MockSSHConfig($arrConfig);
+        new MockSSHConfigMissingDefaultFile($arrConfig);
     }
 
     /** @noinspection PhpUndefinedVariableInspection */
