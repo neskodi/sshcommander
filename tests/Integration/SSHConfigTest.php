@@ -14,79 +14,6 @@ class SSHConfigTest extends IntegrationTestCase
 {
     use Timer;
 
-    /** @noinspection PhpUnhandledExceptionInspection */
-    public function testCommandTimeoutFromGlobalConfig(): void
-    {
-        try {
-            $this->requireUser();
-            $this->requireAuthCredential();
-        } catch (RuntimeException $e) {
-            $this->markTestSkipped($e->getMessage());
-        }
-
-        $timeoutValue  = 2;
-        $timeoutConfig = ['timeout_command' => $timeoutValue];
-        $config        = array_merge($this->sshOptions, $timeoutConfig);
-
-        $commander = new SSHCommander($config);
-
-        $this->startTimer();
-        $commander->run('ping google.com');
-        $elapsed = $this->stopTimer();
-
-        $this->assertEquals($timeoutValue, (int)$elapsed);
-    }
-
-    /** @noinspection PhpUnhandledExceptionInspection */
-    public function testCommandTimeoutAtRunTime(): void
-    {
-        try {
-            $this->requireUser();
-            $this->requireAuthCredential();
-        } catch (RuntimeException $e) {
-            $this->markTestSkipped($e->getMessage());
-        }
-
-        $timeoutValue  = 2;
-        $timeoutConfig = ['timeout_command' => $timeoutValue];
-
-        $commander = new SSHCommander($this->sshOptions);
-
-        $this->startTimer();
-        $commander->run('ping google.com', $timeoutConfig);
-        $elapsed = $this->stopTimer();
-
-        $this->assertEquals($timeoutValue, (int)$elapsed);
-    }
-
-    /** @noinspection PhpUnhandledExceptionInspection */
-    public function testCommandTimeoutFromConfigFile(): void
-    {
-        try {
-            $this->requireUser();
-            $this->requireAuthCredential();
-        } catch (RuntimeException $e) {
-            $this->markTestSkipped($e->getMessage());
-        }
-
-        $timeoutValue  = 2;
-        $timeoutConfig = ['timeout_command' => $timeoutValue];
-
-        MockSSHConfig::setOverrides($timeoutConfig);
-        $config    = new MockSSHConfig($this->sshOptions);
-        $commander = new SSHCommander($config);
-
-        $this->assertEquals($timeoutValue, $commander->getConfig('timeout_command'));
-
-        $this->startTimer();
-        $commander->run('ping google.com', $timeoutConfig);
-        $elapsed = $this->stopTimer();
-
-        $this->assertEquals($timeoutValue, (int)$elapsed);
-
-        MockSSHConfig::resetOverrides();
-    }
-
     public function testConfigSelectsKey(): void
     {
         try {
@@ -195,5 +122,78 @@ class SSHConfigTest extends IntegrationTestCase
         $this->assertFalse($handler->hasDebugThatContains(
             'Reading key contents from file'
         ));
+    }
+
+    /** @noinspection PhpUnhandledExceptionInspection */
+    public function testCommandTimeoutFromConfigFile(): void
+    {
+        try {
+            $this->requireUser();
+            $this->requireAuthCredential();
+        } catch (RuntimeException $e) {
+            $this->markTestSkipped($e->getMessage());
+        }
+
+        $timeoutValue  = 2;
+        $timeoutConfig = ['timeout_command' => $timeoutValue];
+
+        MockSSHConfig::setOverrides($timeoutConfig);
+        $config    = new MockSSHConfig($this->sshOptions);
+        $commander = new SSHCommander($config);
+
+        $this->assertEquals($timeoutValue, $commander->getConfig('timeout_command'));
+
+        $this->startTimer();
+        $commander->run('ping google.com', $timeoutConfig);
+        $elapsed = $this->stopTimer();
+
+        $this->assertEquals($timeoutValue, (int)$elapsed);
+
+        MockSSHConfig::resetOverrides();
+    }
+
+    /** @noinspection PhpUnhandledExceptionInspection */
+    public function testCommandTimeoutFromGlobalConfig(): void
+    {
+        try {
+            $this->requireUser();
+            $this->requireAuthCredential();
+        } catch (RuntimeException $e) {
+            $this->markTestSkipped($e->getMessage());
+        }
+
+        $timeoutValue  = 2;
+        $timeoutConfig = ['timeout_command' => $timeoutValue];
+        $config        = array_merge($this->sshOptions, $timeoutConfig);
+
+        $commander = new SSHCommander($config);
+
+        $this->startTimer();
+        $commander->run('ping google.com');
+        $elapsed = $this->stopTimer();
+
+        $this->assertEquals($timeoutValue, (int)$elapsed);
+    }
+
+    /** @noinspection PhpUnhandledExceptionInspection */
+    public function testCommandTimeoutInCommandConfig(): void
+    {
+        try {
+            $this->requireUser();
+            $this->requireAuthCredential();
+        } catch (RuntimeException $e) {
+            $this->markTestSkipped($e->getMessage());
+        }
+
+        $timeoutValue  = 2;
+        $timeoutConfig = ['timeout_command' => $timeoutValue];
+
+        $commander = new SSHCommander($this->sshOptions);
+
+        $this->startTimer();
+        $commander->run('ping google.com', $timeoutConfig);
+        $elapsed = $this->stopTimer();
+
+        $this->assertEquals($timeoutValue, (int)$elapsed);
     }
 }
