@@ -7,7 +7,6 @@ namespace Neskodi\SSHCommander\Tests;
 use Neskodi\SSHCommander\Interfaces\SSHConnectionInterface;
 use Neskodi\SSHCommander\Interfaces\SSHConfigInterface;
 use Neskodi\SSHCommander\Tests\Mocks\MockSSHConnection;
-use Neskodi\SSHCommander\Tests\Unit\SSHConnectionTest;
 use PHPUnit\Framework\TestCase as PHPUnitTestCase;
 use Neskodi\SSHCommander\Factories\LoggerFactory;
 use Monolog\Processor\PsrLogMessageProcessor;
@@ -21,6 +20,12 @@ use Exception;
 
 class TestCase extends PHPUnitTestCase
 {
+    const AUTH_TYPE_PASSWORD          = 'password';
+    const AUTH_TYPE_KEY               = 'key';
+    const AUTH_TYPE_KEY_PROTECTED     = 'key-protected';
+    const AUTH_TYPE_KEYFILE           = 'keyfile';
+    const AUTH_TYPE_KEYFILE_PROTECTED = 'keyfile-protected';
+
     const CONNECTION_CONFIG_KEYS = [
         'host',
         'port',
@@ -38,6 +43,11 @@ class TestCase extends PHPUnitTestCase
      * @var array
      */
     protected $sshOptions = [];
+
+    /**
+     * @var string
+     */
+    protected static $keyfilePassword;
 
     public function getTestConfigFile()
     {
@@ -207,6 +217,17 @@ class TestCase extends PHPUnitTestCase
         return static::getKeyPath('testkey-protected');
     }
 
+    protected function getPasswordForProtectedKeyFile()
+    {
+        if (null === self::$keyfilePassword) {
+            self::$keyfilePassword = include(
+                static::getKeyPath('password.php')
+            );
+        }
+
+        return self::$keyfilePassword;
+    }
+
     protected function getProtectedPrivateKeyContents()
     {
         return file_get_contents($this->getProtectedPrivateKeyFile());
@@ -223,42 +244,41 @@ class TestCase extends PHPUnitTestCase
 
     protected function getMockConnectionConfigByType(
         string $type,
-        string $passwd,
         bool $autologin = true
     ): array {
         switch ($type) {
-            case SSHConnectionTest::AUTH_TYPE_PASSWORD:
+            case static::AUTH_TYPE_PASSWORD:
                 return [
                     'autologin' => $autologin,
-                    'password'  => $passwd,
+                    'password'  => $this->getPasswordForProtectedKeyFile(),
                     'key'       => null,
                     'keyfile'   => null,
                 ];
-            case SSHConnectionTest::AUTH_TYPE_KEY:
+            case static::AUTH_TYPE_KEY:
                 return [
                     'autologin' => $autologin,
                     'password'  => null,
                     'key'       => $this->getUnprotectedPrivateKeyContents(),
                     'keyfile'   => null,
                 ];
-            case SSHConnectionTest::AUTH_TYPE_KEY_PROTECTED:
+            case static::AUTH_TYPE_KEY_PROTECTED:
                 return [
                     'autologin' => $autologin,
-                    'password'  => $passwd,
+                    'password'  => $this->getPasswordForProtectedKeyFile(),
                     'key'       => $this->getProtectedPrivateKeyContents(),
                     'keyfile'   => null,
                 ];
-            case SSHConnectionTest::AUTH_TYPE_KEYFILE:
+            case static::AUTH_TYPE_KEYFILE:
                 return [
                     'autologin' => $autologin,
                     'password'  => null,
                     'key'       => null,
                     'keyfile'   => $this->getProtectedPrivateKeyFile(),
                 ];
-            case SSHConnectionTest::AUTH_TYPE_KEYFILE_PROTECTED:
+            case static::AUTH_TYPE_KEYFILE_PROTECTED:
                 return [
                     'autologin' => $autologin,
-                    'password'  => $passwd,
+                    'password'  => $this->getPasswordForProtectedKeyFile(),
                     'key'       => null,
                     'keyfile'   => $this->getProtectedPrivateKeyFile(),
                 ];
@@ -266,7 +286,7 @@ class TestCase extends PHPUnitTestCase
 
         return [
             'autologin' => $autologin,
-            'password'  => $passwd,
+            'password'  => $this->getPasswordForProtectedKeyFile(),
             'key'       => $this->getProtectedPrivateKeyContents(),
             'keyfile'   => $this->getProtectedPrivateKeyFile(),
         ];

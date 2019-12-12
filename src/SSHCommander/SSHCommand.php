@@ -229,8 +229,8 @@ class SSHCommand implements SSHCommandInterface, ConfigAwareInterface
      *
      * @return bool
      */
-    protected function validatesConnectionInfo(): bool
+    protected function skipValidation(): bool
     {
-        return false;
+        return true;
     }
 }

@@ -1,4 +1,4 @@
-<?php
+<?php /** @noinspection PhpUnhandledExceptionInspection */
 
 namespace Neskodi\SSHCommander\Tests\Integration;
 
@@ -6,8 +6,9 @@ use Neskodi\SSHCommander\Tests\IntegrationTestCase;
 use Neskodi\SSHCommander\Tests\Mocks\MockSSHConfig;
 use Neskodi\SSHCommander\SSHCommander;
 use Neskodi\SSHCommander\Traits\Timer;
-use Neskodi\SSHCommander\SSHConfig;
+use Monolog\Handler\TestHandler;
 use Psr\Log\LogLevel;
+use RuntimeException;
 
 class SSHConfigTest extends IntegrationTestCase
 {
@@ -16,6 +17,13 @@ class SSHConfigTest extends IntegrationTestCase
     /** @noinspection PhpUnhandledExceptionInspection */
     public function testCommandTimeoutFromGlobalConfig(): void
     {
+        try {
+            $this->requireUser();
+            $this->requireAuthCredential();
+        } catch (RuntimeException $e) {
+            $this->markTestSkipped($e->getMessage());
+        }
+
         $timeoutValue  = 2;
         $timeoutConfig = ['timeout_command' => $timeoutValue];
         $config        = array_merge($this->sshOptions, $timeoutConfig);
@@ -32,6 +40,13 @@ class SSHConfigTest extends IntegrationTestCase
     /** @noinspection PhpUnhandledExceptionInspection */
     public function testCommandTimeoutAtRunTime(): void
     {
+        try {
+            $this->requireUser();
+            $this->requireAuthCredential();
+        } catch (RuntimeException $e) {
+            $this->markTestSkipped($e->getMessage());
+        }
+
         $timeoutValue  = 2;
         $timeoutConfig = ['timeout_command' => $timeoutValue];
 
@@ -47,6 +62,13 @@ class SSHConfigTest extends IntegrationTestCase
     /** @noinspection PhpUnhandledExceptionInspection */
     public function testCommandTimeoutFromConfigFile(): void
     {
+        try {
+            $this->requireUser();
+            $this->requireAuthCredential();
+        } catch (RuntimeException $e) {
+            $this->markTestSkipped($e->getMessage());
+        }
+
         $timeoutValue  = 2;
         $timeoutConfig = ['timeout_command' => $timeoutValue];
 
@@ -67,17 +89,111 @@ class SSHConfigTest extends IntegrationTestCase
 
     public function testConfigSelectsKey(): void
     {
+        try {
+            $this->requireUser();
+            $this->requireKeyfile();
+        } catch (RuntimeException $e) {
+            $this->markTestSkipped($e->getMessage());
+        }
 
+        $config = array_merge($this->sshOptions, [
+            'key' => file_get_contents($this->sshOptions['keyfile']),
+        ]);
+        $logger = $this->getTestLogger(LogLevel::DEBUG);
+
+        $commander = new SSHCommander($config, $logger);
+
+        $result = $commander->run('pwd');
+
+        $this->assertTrue($result->isOk());
+
+        /** @var TestHandler $handler */
+        $handler = $logger->popHandler();
+
+        $this->assertTrue($handler->hasInfoThatMatches(
+            '/Authenticating .*? with a private key/i'
+        ));
+
+        $this->assertTrue($handler->hasDebugThatContains(
+            'Key contents provided via configuration'
+        ));
+
+        $this->assertFalse($handler->hasDebugThatContains(
+            'Reading key contents from file'
+        ));
     }
 
     public function testConfigSelectsKeyfile(): void
     {
+        try {
+            $this->requireUser();
+            $this->requireKeyfile();
+            $this->requirePassword();
+        } catch (RuntimeException $e) {
+            $this->markTestSkipped($e->getMessage());
+        }
 
+        $config = array_merge($this->sshOptions, ['key' => null]);
+
+        $logger = $this->getTestLogger(LogLevel::DEBUG);
+
+        $commander = new SSHCommander($config, $logger);
+
+        $result = $commander->run('pwd');
+
+        $this->assertTrue($result->isOk());
+
+        /** @var TestHandler $handler */
+        $handler = $logger->popHandler();
+
+        $this->assertTrue($handler->hasInfoThatMatches(
+            '/Authenticating .*? with a private key/i'
+        ));
+
+        $this->assertFalse($handler->hasDebugThatContains(
+            'Key contents provided via configuration'
+        ));
+
+        $this->assertTrue($handler->hasDebugThatContains(
+            'Reading key contents from file'
+        ));
     }
 
     public function testConfigSelectsPassword(): void
     {
+        try {
+            $this->requireUser();
+            $this->requirePassword();
+        } catch (RuntimeException $e) {
+            $this->markTestSkipped($e->getMessage());
+        }
 
+        $config = array_merge($this->sshOptions, [
+            'key'     => null,
+            'keyfile' => null,
+        ]);
+
+        $logger = $this->getTestLogger(LogLevel::DEBUG);
+
+        $commander = new SSHCommander($config, $logger);
+
+        $result = $commander->run('pwd');
+
+        $this->assertTrue($result->isOk());
+
+        /** @var TestHandler $handler */
+        $handler = $logger->popHandler();
+
+        $this->assertTrue($handler->hasInfoThatMatches(
+            '/Authenticating .*? with a password/i'
+        ));
+
+        $this->assertFalse($handler->hasDebugThatContains(
+            'Key contents provided via configuration'
+        ));
+
+        $this->assertFalse($handler->hasDebugThatContains(
+            'Reading key contents from file'
+        ));
     }
-
 }

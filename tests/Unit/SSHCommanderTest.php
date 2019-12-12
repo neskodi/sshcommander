@@ -154,7 +154,7 @@ class SSHCommanderTest extends TestCase
         $commander = new SSHCommander([
             'host'     => 'example.com',
             'user'     => 'foo',
-            'password' => 'secret',
+            'password' => 'bar',
         ]);
 
         $this->assertEquals(
@@ -202,7 +202,7 @@ class SSHCommanderTest extends TestCase
         $extra         = [
             'host'      => 'example.com',
             'user'      => 'foo',
-            'password'  => 'secret',
+            'password'  => 'bar',
             'autologin' => false,
         ];
         $defaultConfig = array_merge($defaultConfig, $extra);
@@ -222,7 +222,7 @@ class SSHCommanderTest extends TestCase
         $extra         = [
             'host'      => 'example.com',
             'user'      => 'foo',
-            'password'  => 'secret',
+            'password'  => 'bar',
             'autologin' => false,
         ];
 

@@ -25,7 +25,7 @@ trait ConfigAware
         if (is_array($config)) {
             $configObject = new SSHConfig(
                 $config,
-                !$this->validatesConnectionInfo()
+                $this->skipValidation()
             );
         } elseif ($config instanceof SSHConfigInterface) {
             $configObject = $config;
@@ -60,8 +60,8 @@ trait ConfigAware
      *
      * @return bool
      */
-    protected function validatesConnectionInfo(): bool
+    protected function skipValidation(): bool
     {
-        return true;
+        return false;
     }
 }

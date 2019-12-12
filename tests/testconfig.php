@@ -1,4 +1,4 @@
-<?php
+<?php /** @noinspection PhpIncludeInspection */
 
 // these values are only used to test the ability to override config values.
 // they are not used in real SSH connection and command tests.
@@ -8,8 +8,8 @@ return [
     'host'     => '127.0.0.1',
     'port'     => '2222',
     'user'     => 'foo',
-    'password' => 'secret',
-    'key'      => 'ssh-rsa secret',
+    'password' => 'bar',
+    'key'      => '---RSA PRIVATE KEY---',
     'keyfile'  => TestCase::getKeyPath('testkey'),
 
     'autologin'                   => false,
