@@ -144,9 +144,10 @@ class SSHCommander implements
         array $options = []
     ): SSHCommandInterface {
         if ($command instanceof SSHCommandInterface) {
-            $options = $command->getConfig()->all();
-            $this->addDefaultCommandOptions($options);
+            // Override options that were directly passed
             $command->setOptions($options);
+            // Add any missing default options
+            $command->setOptions($this->config->all(), true);
         } else {
             $this->addDefaultCommandOptions($options);
             $command = new SSHCommand($command, $options);
@@ -157,7 +158,7 @@ class SSHCommander implements
 
     /**
      * Pass some global options to command by default, unless they were
-     * specified.
+     * specified with the command itself.
      *
      * @param array $options
      */

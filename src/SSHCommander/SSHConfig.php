@@ -311,6 +311,18 @@ class SSHConfig implements SSHConfigInterface
     }
 
     /**
+     * Check if a parameter is already set in the config array.
+     *
+     * @param string $key
+     *
+     * @return bool
+     */
+    public function has(string $key): bool
+    {
+        return array_key_exists($key, $this->config);
+    }
+
+    /**
      * Set the location of the config file that is used for reading the default
      * settings.
      *

@@ -12,6 +12,8 @@ interface SSHConfigInterface
 
     public function all(): array;
 
+    public function has(string $key): bool;
+
     public function validate(array $config): SSHConfigInterface;
 
     public function getHost(): ?string;

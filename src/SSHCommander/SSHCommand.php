@@ -121,11 +121,17 @@ class SSHCommand implements SSHCommandInterface, ConfigAwareInterface
      *
      * @param array $options
      *
+     * @param bool  $soft set each option only if it wasn't set before
+     *
      * @return SSHCommandInterface
      */
-    public function setOptions(array $options = []): SSHCommandInterface
+    public function setOptions(array $options = [], bool $soft = false): SSHCommandInterface
     {
         foreach ($options as $key => $value) {
+            if ($soft && $this->config->has($key)) {
+                continue;
+            }
+
             $this->config->set($key, $value);
         }
 

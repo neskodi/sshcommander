@@ -14,7 +14,7 @@ interface SSHCommandInterface
 
     public function setOption(string $key, $value): SSHCommandInterface;
 
-    public function setOptions(array $options = []): SSHCommandInterface;
+    public function setOptions(array $options = [], bool $soft = false): SSHCommandInterface;
 
     public function appendCommand($command): SSHCommandInterface;
 

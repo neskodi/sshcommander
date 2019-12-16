@@ -4,6 +4,8 @@ namespace Neskodi\SSHCommander\Interfaces;
 
 interface SSHCommanderInterface
 {
+    public static function setConfigFile(string $path);
+
     public function setConnection(
         SSHConnectionInterface $connection
     ): SSHCommanderInterface;
@@ -25,6 +27,4 @@ interface SSHCommanderInterface
         $command,
         array $options = []
     ): SSHCommandResultInterface;
-
-    public static function setConfigFile(string $path);
 }
