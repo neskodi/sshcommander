@@ -2,6 +2,8 @@
 
 namespace Neskodi\SSHCommander;
 
+use Neskodi\SSHCommander\Interfaces\SSHResultCollectionInterface;
+use Neskodi\SSHCommander\CommandRunners\SequenceCommandRunner;
 use Neskodi\SSHCommander\Interfaces\SSHCommandResultInterface;
 use Neskodi\SSHCommander\Interfaces\SSHCommandRunnerInterface;
 use Neskodi\SSHCommander\CommandRunners\RemoteCommandRunner;
@@ -11,11 +13,13 @@ use Neskodi\SSHCommander\Interfaces\SSHCommanderInterface;
 use Neskodi\SSHCommander\Interfaces\ConfigAwareInterface;
 use Neskodi\SSHCommander\Interfaces\LoggerAwareInterface;
 use Neskodi\SSHCommander\Interfaces\SSHCommandInterface;
+use Neskodi\SSHCommander\Exceptions\CommandRunException;
 use Neskodi\SSHCommander\Factories\LoggerFactory;
 use Neskodi\SSHCommander\Traits\ConfigAware;
 use Neskodi\SSHCommander\Traits\Loggable;
 use Psr\Log\LoggerInterface;
 use Exception;
+use Closure;
 
 class SSHCommander implements
     SSHCommanderInterface,
@@ -185,6 +189,45 @@ class SSHCommander implements
         $commandObject = $this->createCommand($command, $options);
 
         return $commandRunner->run($commandObject);
+    }
+
+    /** @noinspection PhpRedundantCatchClauseInspection */
+    public function sequence(
+        Closure $actions,
+        array $options = []
+    ): SSHResultCollectionInterface {
+        $this->startSequence();
+
+        try {
+            call_user_func($actions, $this, $options);
+        } catch (CommandRunException $exception) {
+            $this->processSequenceError($exception);
+        }
+
+        $result = $this->commandRunner->collectResults();
+
+        $this->endSequence();
+
+        return $result;
+    }
+
+    protected function startSequence(): void
+    {
+        $this->setCommandRunner(
+            $this->createCommandRunner(
+                SequenceCommandRunner::class
+            )
+        );
+    }
+
+    protected function endSequence(): SSHResultCollectionInterface
+    {
+        $this->commandRunner = null;
+    }
+
+    protected function processSequenceError(CommandRunException $exception)
+    {
+        // TODO: implement
     }
 
     /**
