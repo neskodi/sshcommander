@@ -24,6 +24,8 @@ interface SSHConnectionInterface
 
     public function isAuthenticated(): bool;
 
+    public function isValid(): bool;
+
     public function getStdOutLines(): array;
 
     public function getStdErrLines(): array;
@@ -31,6 +33,8 @@ interface SSHConnectionInterface
     public function getLastExitCode(): ?int;
 
     public function resetOutput(): void;
+
+    public function resetCommandConfig(): void;
 
     public function resetTimeout(): SSHConnectionInterface;
 }

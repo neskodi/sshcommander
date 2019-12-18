@@ -3,71 +3,35 @@
 namespace Neskodi\SSHCommander\CommandRunners;
 
 use Neskodi\SSHCommander\Interfaces\SSHRemoteCommandRunnerInterface;
+use Neskodi\SSHCommander\Exceptions\ConnectionMissingException;
+use Neskodi\SSHCommander\Exceptions\InvalidConnectionException;
 use Neskodi\SSHCommander\Interfaces\SSHCommandResultInterface;
 use Neskodi\SSHCommander\Interfaces\SSHCommandRunnerInterface;
 use Neskodi\SSHCommander\Exceptions\AuthenticationException;
 use Neskodi\SSHCommander\Interfaces\SSHConnectionInterface;
 use Neskodi\SSHCommander\Interfaces\SSHCommandInterface;
 use Neskodi\SSHCommander\SSHCommandResult;
-use Neskodi\SSHCommander\SSHConnection;
+use Neskodi\SSHCommander\Traits\Timer;
 
 class RemoteCommandRunner
     extends BaseCommandRunner
     implements SSHRemoteCommandRunnerInterface
 {
+    use Timer;
+
     /**
      * @var SSHConnectionInterface
      */
     protected $connection;
 
     /**
-     * Run the command.
-     *
-     * @param SSHCommandInterface $command the object containing the command to
-     *                                     run
-     *
-     * @return SSHCommandResultInterface
-     *
-     * @throws AuthenticationException
-     */
-    public function run(SSHCommandInterface $command): SSHCommandResultInterface
-    {
-        // retrieve and set a connection instance if it's not yet there
-        // configure it to respect specific command settings
-        $this->prepareConnection($command)
-             ->getConnection()
-             ->exec($command);
-
-        $result = $this->collectResult($command);
-
-        $this->logResult($result);
-
-        return $result;
-    }
-
-    /**
      * Get the SSH Connection instance used by this command runner.
      *
-     * @param SSHCommandInterface|null $command
-     *
-     * @return SSHConnectionInterface
-     *
-     * @throws AuthenticationException
+     * @return null|SSHConnectionInterface
      */
-    public function getConnection(
-        ?SSHCommandInterface $command = null
-    ): ?SSHConnectionInterface {
-        if ($this->connection instanceof SSHConnectionInterface) {
-            return $this->connection;
-        }
-
-        if ($command instanceof SSHCommandInterface) {
-            $this->setConnection($this->createConnectionFromCommand($command));
-
-            return $this->connection;
-        }
-
-        return null;
+    public function getConnection(): ?SSHConnectionInterface
+    {
+        return $this->connection;
     }
 
     /**
@@ -86,18 +50,62 @@ class RemoteCommandRunner
     }
 
     /**
-     * Create a new connection instance using config taken from the command.
+     * Run the command.
      *
-     * @param SSHCommandInterface $command
+     * @param SSHCommandInterface $command the object containing the command to
+     *                                     run
      *
-     * @return SSHConnectionInterface
+     * @return SSHCommandResultInterface
      *
      * @throws AuthenticationException
      */
-    protected function createConnectionFromCommand(
-        SSHCommandInterface $command
-    ): SSHConnectionInterface {
-        return new SSHConnection($command->getConfig());
+    public function run(SSHCommandInterface $command): SSHCommandResultInterface
+    {
+        // check that the connection is set and is ready to run the command
+        // configure it to respect specific command settings
+        $this->validateConnection()
+             ->prepareConnection($command)
+
+        // and fluently execute the command.
+             ->exec($command);
+
+        // reset connection to the default configuration, such as default
+        // timeout and quiet mode
+        $this->resetConnection();
+
+        // collect, log and return the results
+        $result = $this->collectResult($command);
+        $result->logResult();
+
+        return $result;
+    }
+
+    /**
+     * Since we can't accept connection as an argument to constructor, we do
+     * late injection and validation.
+     *
+     * Check that the connection is set, is authenticated or at least contains
+     * valid config for authentication attempt.
+     *
+     * @return $this
+     */
+    protected function validateConnection(): SSHCommandRunnerInterface
+    {
+        $connection = $this->getConnection();
+
+        if (!$connection instanceof SSHConnectionInterface) {
+            throw new ConnectionMissingException(
+                'SSH command runner requires an SSH connection object, ' .
+                'none was provided');
+        }
+
+        if (!$connection->isAuthenticated() && !$connection->isValid()) {
+            throw new InvalidConnectionException(
+                'SSH connection object provided to command runner is ' .
+                'misconfigured');
+        }
+
+        return $this;
     }
 
     /**
@@ -106,22 +114,59 @@ class RemoteCommandRunner
      * @param SSHCommandInterface $command
      *
      * @return $this
-     *
-     * @throws AuthenticationException
      */
     protected function prepareConnection(
         SSHCommandInterface $command
     ): SSHCommandRunnerInterface {
+        $connection = $this->getConnection();
+
+        // Enforce config from the command
+        $connection->setConfig($command->getConfig());
+
+        // authenticate if necessary. We do it early so that any incurring time
+        // does not count towards command execution time in the logs.
+        if (!$connection->isAuthenticated()) {
+            $connection->authenticate();
+        }
+
         // if user wants stderr as separate stream or wants to suppress it
         // altogether, tell phpseclib about it
         if (
             $command->getConfig('separate_stderr') ||
             $command->getConfig('suppress_stderr')
         ) {
-            $this->getConnection($command)->getSSH2()->enableQuietMode();
+            $connection->enableQuietMode();
         }
 
+        // Set command timeout
+        $connection->setTimeout($command->getConfig('timeout_command'));
+
         return $this;
+    }
+
+    /**
+     * Execute command using the timer and logger.
+     *
+     * @param $command
+     */
+    protected function exec($command)
+    {
+        $this->logCommandStart($command);
+        $this->startTimer();
+
+        $this->getConnection()->exec($command);
+
+        // stop the timer and log command end
+        $this->logCommandEnd($this->stopTimer());
+    }
+
+    /**
+     * Reset connection to the default configuration, such as default
+     * timeout and quiet mode.
+     */
+    protected function resetConnection(): void
+    {
+        $this->getConnection()->resetCommandConfig();
     }
 
     /**
@@ -136,7 +181,7 @@ class RemoteCommandRunner
     protected function collectResult(
         SSHCommandInterface $command
     ): SSHCommandResultInterface {
-        $conn = $this->getConnection();
+        $connection = $this->getConnection();
 
         // structure the result
         $result = new SSHCommandResult($command);
@@ -145,43 +190,45 @@ class RemoteCommandRunner
             $result->setLogger($logger);
         }
 
-        $result->setExitCode($conn->getLastExitCode())
-               ->setOutput($conn->getStdOutLines());
+        $result->setExitCode($connection->getLastExitCode())
+               ->setOutput($connection->getStdOutLines());
 
         // get the error stream separately, if we were asked to
         if ($command->getConfig('separate_stderr')) {
-            $result->setErrorOutput($conn->getStdErrLines());
+            $result->setErrorOutput($connection->getStdErrLines());
         }
 
         return $result;
     }
 
     /**
-     * Log command exit code and output:
-     * - notice / info: only exit code in case of error
-     * - debug: any exit code and entire output
+     * Log the event of running the command.
      *
-     * @param SSHCommandResultInterface $result
+     * @param SSHCommandInterface $command
      */
-    protected function logResult(SSHCommandResultInterface $result): void
+    protected function logCommandStart(SSHCommandInterface $command): void
     {
-        $status = $result->getStatus();
-        $code   = $result->getExitCode();
-        if ($result->isError()) {
-            // error is logged on the notice level
-            $this->notice(
-                'Command returned error status: {status}',
-                ['status' => $result->getExitCode()]
-            );
-        } else {
-            // success is logged on the debug level only
-            $this->debug(
-                'Command returned exit status: {status} (code {code})',
-                compact('status', 'code')
-            );
-        }
+        $this->info(sprintf(
+                'Running command: %s',
+                $command->toLoggableString())
+        );
+    }
 
-        // log the entire command output (debug level only)
-        $result->logResult();
+    /**
+     * Log command completion along with the time it took to run.
+     *
+     * @param float $seconds
+     */
+    protected function logCommandEnd(float $seconds): void
+    {
+        if ($this->getConnection()->isTimeout()) {
+            $this->notice('Command timed out after {seconds} seconds', [
+                'seconds' => $seconds,
+            ]);
+        } else {
+            $this->info('Command completed in {seconds} seconds', [
+                'seconds' => $seconds,
+            ]);
+        }
     }
 }

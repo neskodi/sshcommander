@@ -130,6 +130,23 @@ class SSHConfig implements SSHConfigInterface
     }
 
     /**
+     * If the initial validation was skipped, see if all data provided for
+     * authentication was provided.
+     *
+     * @return bool
+     */
+    public function isValid(): bool
+    {
+        try {
+            $this->validate($this->config);
+        } catch (ConfigValidationException $exception) {
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
      * Validate the passed config array. In case of invalid input,
      * exceptions will be thrown.
      *

@@ -13,6 +13,10 @@ use Psr\Log\LogLevel;
 
 class SSHCommandResultTest extends TestCase
 {
+    const RESULT_DELIMITER_LINE  = '---';
+    const RESULT_MESSAGE_SUCCESS = 'Command returned exit status: %s (code 0)';
+    const RESULT_MESSAGE_ERROR   = 'Command returned error code: %d';
+
     protected function createCommandResult(
         string $command = 'ls'
     ): SSHCommandResultInterface {
@@ -27,19 +31,41 @@ class SSHCommandResultTest extends TestCase
         return $command;
     }
 
+    protected function getCommandSuccessMessage(): string
+    {
+        return sprintf(
+            static::RESULT_MESSAGE_SUCCESS,
+            SSHCommandResult::STATUS_OK
+        );
+    }
+
+    protected function getCommandErrorMessage(int $code): string
+    {
+        return sprintf(static::RESULT_MESSAGE_ERROR, $code);
+    }
+
     protected function getExpectedDebugOutput(
+        int $exitCode,
         array $output,
         array $error
     ): array {
-        $acc     = ['Command returned:'];
-        $errhead = 'Command STDERR:';
-        $delim   = '---';
 
+        $message = (0 === $exitCode)
+            ? $this->getCommandSuccessMessage()
+            : $this->getCommandErrorMessage($exitCode);
+
+        $acc     = [];
+
+        $outhead = 'Command returned:';
+        $errhead = 'Command STDERR:';
+
+        array_push($acc, $message);
+        array_push($acc, $outhead);
         array_push($acc, ...$output);
-        array_push($acc, $delim);
+        array_push($acc, static::RESULT_DELIMITER_LINE);
         array_push($acc, $errhead);
         array_push($acc, ...$error);
-        array_push($acc, $delim);
+        array_push($acc, static::RESULT_DELIMITER_LINE);
 
         return $acc;
     }
@@ -262,9 +288,14 @@ class SSHCommandResultTest extends TestCase
             'test stderr line 2',
         ];
 
+        $exitCode = 0;
+
         $result = $this->createCommandResult();
+
+        $result->setExitCode($exitCode);
         $result->setOutput($output);
         $result->setErrorOutput($error);
+
         $result->setLogger($this->getTestLogger(LogLevel::DEBUG));
 
         $result->logResult();
@@ -274,7 +305,7 @@ class SSHCommandResultTest extends TestCase
         $records = array_column($records, 'message');
 
         $this->assertEquals(
-            $this->getExpectedDebugOutput($output, $error),
+            $this->getExpectedDebugOutput($exitCode, $output, $error),
             $records
         );
     }
@@ -283,6 +314,7 @@ class SSHCommandResultTest extends TestCase
     {
         $result = $this->createCommandResult();
         $result->setOutput([]);
+        $result->setExitCode(0);
         $result->setLogger($this->getTestLogger(LogLevel::DEBUG));
 
         $result->logResult();
@@ -292,7 +324,11 @@ class SSHCommandResultTest extends TestCase
         $records = array_column($records, 'message');
 
         $this->assertEquals(
-            ['Command output was empty.', '---'],
+            [
+                $this->getCommandSuccessMessage(),
+                'Command output was empty.',
+                static::RESULT_DELIMITER_LINE,
+            ],
             $records
         );
     }

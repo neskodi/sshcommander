@@ -348,37 +348,37 @@ class SSHConnectionTest extends TestCase
         $this->assertInstanceOf(SSH2::class, $connection->getSSH2());
     }
 
-    public function testSetTimerPrecision(): void
-    {
-        $config = $this->getTestConfigAsObject();
-        $config->set('autologin', false);
-        $config->set('log_level', LogLevel::DEBUG);
-
-        $connection = $this->getMockConnection();
-        MockSSHConnection::expect(MockSSHConnection::RESULT_SUCCESS);
-        $precision = 3;
-        $connection->setTimerPrecision($precision);
-
-        $connection->exec(new SSHCommand('ls', $config->all()));
-
-        $handler = $connection->getLogger()->popHandler();
-        $records = array_column($handler->getRecords(), 'message');
-
-        $timerDecimals = false;
-        $matches       = [];
-        $regex         = '/Command completed in ([\d]+)\.([\d]+) seconds/i';
-
-        foreach ($records as $record) {
-            if (!preg_match($regex, $record, $matches)) {
-                continue;
-            }
-
-            $timerDecimals = strlen($matches[2]);
-        }
-
-        $this->assertIsInt($timerDecimals);
-        $this->assertLessThanOrEqual($precision, $timerDecimals);
-    }
+    // public function testSetTimerPrecision(): void
+    // {
+    //     $config = $this->getTestConfigAsObject();
+    //     $config->set('autologin', false);
+    //     $config->set('log_level', LogLevel::DEBUG);
+    //
+    //     $connection = $this->getMockConnection();
+    //     MockSSHConnection::expect(MockSSHConnection::RESULT_SUCCESS);
+    //     $precision = 3;
+    //     $connection->setTimerPrecision($precision);
+    //
+    //     $connection->exec(new SSHCommand('ls', $config->all()));
+    //
+    //     $handler = $connection->getLogger()->popHandler();
+    //     $records = array_column($handler->getRecords(), 'message');
+    //
+    //     $timerDecimals = false;
+    //     $matches       = [];
+    //     $regex         = '/Command completed in ([\d]+)\.([\d]+) seconds/i';
+    //
+    //     foreach ($records as $record) {
+    //         if (!preg_match($regex, $record, $matches)) {
+    //             continue;
+    //         }
+    //
+    //         $timerDecimals = strlen($matches[2]);
+    //     }
+    //
+    //     $this->assertIsInt($timerDecimals);
+    //     $this->assertLessThanOrEqual($precision, $timerDecimals);
+    // }
 
     protected function AutoLoginAndCheckLogRecords(array $config, string $regex)
     {

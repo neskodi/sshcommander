@@ -59,20 +59,23 @@ class MockSSHConnection extends SSHConnection implements
         return $result;
     }
 
-    protected function sshExec(SSHCommandInterface $command, string $delim): void
+    protected function sshExec(SSHCommandInterface $command): void
     {
         usleep(rand(100000, 200000));
         $this->populateOutput();
+        $this->populateStdErrIfNecessary($command);
+        $this->setExitCode();
     }
 
-    protected function collectAdditionalResults(
-        SSHCommandInterface $command,
-        string $delim
-    ): void {
+    protected function setExitCode()
+    {
         $this->lastExitCode = static::expects(self::RESULT_ERROR)
             ? 255
             : 0;
+    }
 
+    protected function populateStdErrIfNecessary(SSHCommandInterface $command)
+    {
         if (static::expects(self::RESULT_ERROR)) {
             if ($command->getConfig('separate_stderr')) {
                 $this->populateStderr();

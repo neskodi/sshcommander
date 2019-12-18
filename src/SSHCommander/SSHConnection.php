@@ -80,79 +80,30 @@ class SSHConnection implements
     }
 
     /**
-     * Set the timeout (in seconds) for the next SSH2 operation.
+     * Proxy any unknown method directly to the SSH2 object.
      *
-     * @param int $timeout timeout in seconds
+     * @param $name
+     * @param $arguments
      *
-     * @return $this
+     * @return mixed
      */
-    public function setTimeout(int $timeout): SSHConnectionInterface
+    public function __call($name, $arguments)
     {
-        $this->getSSH2()->setTimeout($timeout);
-
-        return $this;
+        return call_user_func_array([$this->getSSH2(), $name], $arguments);
     }
 
     /**
-     * Reset the timeout to its default value.
+     * Check if we have all necessary information to establish and authenticate
+     * a connection.
      *
-     * @return $this
+     * @return bool
      */
-    public function resetTimeout(): SSHConnectionInterface
+    public function isValid(): bool
     {
-        $this->setTimeout(static::DEFAULT_TIMEOUT);
+        $config = $this->getConfig();
 
-        return $this;
-    }
-
-    /**
-     * Automatically set the timeout from the config value "timeout_command".
-     * If we are given a specific command, see if it defines its own value,
-     * otherwise use the global config.
-     *
-     * @param SSHCommandInterface $command
-     *
-     * @return $this
-     */
-    protected function setCommandTimeout(?SSHCommandInterface $command = null): SSHConnectionInterface
-    {
-        $commandTimeout = $command->getConfig('timeout_command')
-                          ?? $this->getConfig('timeout_command');
-
-        if (!is_null($commandTimeout)) {
-            $this->setTimeout((int)$commandTimeout);
-        }
-
-        return $this;
-    }
-
-    /**
-     * Automatically set the timeout from the config value "timeout_connect".
-     *
-     * @return $this
-     */
-    protected function setLoginTimeout(): SSHConnectionInterface
-    {
-        $this->setTimeoutFromConfig('timeout_connect');
-
-        return $this;
-    }
-
-    /**
-     * Set timeout automatically based on the relevant configuration value.
-     *
-     * @param string $configKey the config key to read the timeout from (in seconds)
-     *
-     * @return $this
-     */
-    protected function setTimeoutFromConfig(string $configKey): SSHConnectionInterface
-    {
-        if ($timeout = $this->getConfig($configKey)) {
-            $timeout = (int)$timeout;
-            $this->setTimeout($timeout);
-        }
-
-        return $this;
+        return $config instanceof SSHConfigInterface &&
+               $config->isValid();
     }
 
     /**
@@ -218,6 +169,20 @@ class SSHConnection implements
     }
 
     /**
+     * Log that we are starting connection.
+     */
+    protected function logConnecting(): void
+    {
+        $this->info(
+            'Connecting to {host}:{port}',
+            [
+                'host' => $this->getConfig()->getHost(),
+                'port' => $this->getConfig()->getPort(),
+            ]
+        );
+    }
+
+    /**
      * Get private key contents from the config object. May be stored directly
      * under 'key' or in the file pointed to by 'keyfile'.
      *
@@ -225,6 +190,7 @@ class SSHConnection implements
      */
     protected function getKeyContents(): ?string
     {
+        // TODO move to config
         $keyContents = null;
 
         if ($key = $this->getConfig()->getKey()) {
@@ -239,6 +205,24 @@ class SSHConnection implements
         }
 
         return $keyContents;
+    }
+
+    /**
+     * Create the RSA key object from string holding the key contents.
+     *
+     * @param string $keyContents
+     *
+     * @return RSA
+     */
+    protected function loadRSAKey(string $keyContents): RSA
+    {
+        $key = new RSA;
+        if ($password = $this->getConfig()->getPassword()) {
+            $key->setPassword($password);
+        }
+        $key->loadKey($keyContents);
+
+        return $key;
     }
 
     /**
@@ -279,27 +263,32 @@ class SSHConnection implements
         return $this->sshLogin($username, $password);
     }
 
-    protected function sshLogin(string $username, $credential): bool
+    /**
+     * Handle login error gracefully by recording a message into our own
+     * exception and throwing it. Do not pollute the command line.
+     *
+     * @throws AuthenticationException
+     */
+    protected function processLoginError(): void
     {
-        return $this->getSSH2()->login($username, $credential);
+        $errorText = error_get_last();
+        $message   = $errorText ? $errorText['message'] : '';
+
+        $exception = new AuthenticationException($message);
+        $this->error($exception->getMessage(), ['exception' => $exception]);
+
+        throw $exception;
     }
 
     /**
-     * Create the RSA key object from string holding the key contents.
+     * Return true is this connection has successfully passed authentication
+     * with the remote host, false otherwise.
      *
-     * @param string $keyContents
-     *
-     * @return RSA
+     * @return bool
      */
-    protected function loadRSAKey(string $keyContents): RSA
+    public function isAuthenticated(): bool
     {
-        $key = new RSA;
-        if ($password = $this->getConfig()->getPassword()) {
-            $key->setPassword($password);
-        }
-        $key->loadKey($keyContents);
-
-        return $key;
+        return (bool)$this->authenticated;
     }
 
     /**
@@ -319,90 +308,45 @@ class SSHConnection implements
             $this->authenticate();
         }
 
-        $this->run($command);
+        $this->resetOutput();
+
+        $this->sshExec($command);
 
         return $this;
     }
 
     /**
-     * Execute the command using the ssh2 object.
+     * Execute the command via phpseclib and collect the returned lines
+     * into an array
      *
      * @param SSHCommandInterface $command
+     * @param string              $delim
      */
-    protected function run(SSHCommandInterface $command): void
+    protected function sshExec(SSHCommandInterface $command): void
     {
+        $ssh = $this->getSSH2();
+
         // the delimiter used to split output lines, by default \n
         $delim = $command->getConfig('delimiter_split_output');
 
-        $this->setCommandTimeout($command);
+        $ssh->exec((string)$command, function ($str) use ($delim) {
+            $this->stdoutLines = array_merge(
+                $this->stdoutLines,
+                explode($delim, $str)
+            );
+        });
 
-        // clean all data from previous commands
-        $this->resetOutput();
+        // don't forget to collect the error stream too
+        if ($command->getConfig('separate_stderr')) {
+            $this->stderrLines = explode($delim, $ssh->getStdError());
+        }
 
-        $this->logCommandStart($command);
-        $this->startTimer();
-
-        $this->sshExec($command, $delim);
-
-        // stop the timer and log command end
-        $this->logCommandEnd($this->stopTimer());
-
-        // collect exit code and stdout from ssh2
-        $this->collectAdditionalResults($command, $delim);
-
-        $this->resetTimeout();
+        $this->lastExitCode = $ssh->getExitStatus();
     }
 
-    /**
-     * Handle login error gracefully by recording a message into our own
-     * exception and throwing it. Do not pollute the command line.
-     *
-     * @throws AuthenticationException
-     */
-    protected function processLoginError(): void
+    protected function sshLogin(string $username, $credential): bool
     {
-        $errorText = error_get_last();
-        $message   = $errorText ? $errorText['message'] : '';
-
-        $exception = new AuthenticationException($message);
-        $this->error($exception->getMessage(), ['exception' => $exception]);
-
-        throw $exception;
-    }
-
-    /**
-     * Log that we are starting connection.
-     */
-    protected function logConnecting(): void
-    {
-        $this->info(
-            'Connecting to {host}:{port}',
-            [
-                'host' => $this->getConfig()->getHost(),
-                'port' => $this->getConfig()->getPort(),
-            ]
-        );
-    }
-
-    /**
-     * Clear all traces of previous commands.
-     */
-    public function resetOutput(): void
-    {
-        $this->stdoutLines = $this->stderrLines = [];
-
-        $this->lastExitCode = null;
-    }
-
-    /**
-     * Return true is this connection has successfully passed authentication
-     * with the remote host, false otherwise.
-     *
-     * @return bool
-     */
-    public function isAuthenticated(): bool
-    {
-        return (bool)$this->authenticated;
+        return $this->getSSH2()->login($username, $credential);
     }
 
     /**
@@ -432,74 +376,94 @@ class SSHConnection implements
      */
     public function getLastExitCode(): ?int
     {
-        return $this->lastExitCode;
-    }
-
-    /**
-     * Log the event of running the command.
-     *
-     * @param SSHCommandInterface $command
-     */
-    protected function logCommandStart(SSHCommandInterface $command): void
-    {
-        $this->info(sprintf(
-                'Running command: %s',
-                $command->toLoggableString())
-        );
-    }
-
-    /**
-     * Log command completion along with the time it took to run.
-     *
-     * @param float $seconds
-     */
-    protected function logCommandEnd(float $seconds): void
-    {
-        if ($this->getSSH2()->isTimeout()) {
-            $this->notice('Command timed out after {seconds} seconds', [
-                'seconds' => $seconds,
-            ]);
-        } else {
-            $this->info('Command completed in {seconds} seconds', [
-                'seconds' => $seconds,
-            ]);
+        if (is_null($this->lastExitCode)) {
+            return null;
         }
+
+        return (int)$this->lastExitCode;
     }
 
     /**
-     * Execute the command via phpseclib and collect the returned lines
-     * into an array
+     * Set the timeout (in seconds) for the next SSH2 operation.
      *
-     * @param SSHCommandInterface $command
-     * @param string              $delim
+     * @param int $timeout timeout in seconds
+     *
+     * @return $this
      */
-    protected function sshExec(SSHCommandInterface $command, string $delim): void
+    public function setTimeout(int $timeout): SSHConnectionInterface
     {
-        $ssh = $this->getSSH2();
+        $this->getSSH2()->setTimeout($timeout);
 
-        $ssh->exec((string)$command, function ($str) use ($delim) {
-            $this->stdoutLines = array_merge(
-                $this->stdoutLines,
-                explode($delim, $str)
-            );
-        });
+        return $this;
     }
 
     /**
-     * Collect stderr and exit code from ssh2 object.
+     * Reset the timeout to its default value.
      *
-     * @param SSHCommandInterface $command
-     * @param string              $delim
+     * @return $this
      */
-    protected function collectAdditionalResults(SSHCommandInterface $command, string $delim): void
+    public function resetTimeout(): SSHConnectionInterface
     {
-        $ssh = $this->getSSH2();
+        $this->setTimeout(static::DEFAULT_TIMEOUT);
 
-        $this->lastExitCode = (int)$ssh->getExitStatus();
+        return $this;
+    }
 
-        // don't forget to collect the error stream too
-        if ($command->getConfig('separate_stderr')) {
-            $this->stderrLines = explode($delim, $ssh->getStdError());
+    /**
+     * Automatically set the timeout from the config value "timeout_connect".
+     *
+     * @return $this
+     */
+    protected function setLoginTimeout(): SSHConnectionInterface
+    {
+        $this->setTimeoutFromConfig('timeout_connect');
+
+        return $this;
+    }
+
+    /**
+     * Set timeout automatically based on the relevant configuration value.
+     *
+     * @param string $configKey the config key to read the timeout from (in seconds)
+     *
+     * @return $this
+     */
+    protected function setTimeoutFromConfig(string $configKey): SSHConnectionInterface
+    {
+        if ($timeout = $this->getConfig($configKey)) {
+            $timeout = (int)$timeout;
+            $this->setTimeout($timeout);
         }
+
+        return $this;
+    }
+
+    /**
+     * Clear all traces of previous commands.
+     */
+    public function resetOutput(): void
+    {
+        $this->stdoutLines = $this->stderrLines = [];
+
+        $this->lastExitCode = null;
+    }
+
+    /**
+     * Reset some configuration after running a single command back to default
+     * values.
+     */
+    public function resetCommandConfig(): void
+    {
+        $this->resetTimeout();
+
+        $this->resetQuietMode();
+    }
+
+    /**
+     * By default, quiet mode is disabled in phpseclib. Return it to that state.
+     */
+    public function resetQuietMode(): void
+    {
+        $this->getSSH2()->disableQuietMode();
     }
 }

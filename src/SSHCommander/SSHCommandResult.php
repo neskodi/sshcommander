@@ -13,7 +13,7 @@ class SSHCommandResult implements
 {
     use Loggable;
 
-    const STATUS_OK = 'ok';
+    const STATUS_OK    = 'ok';
     const STATUS_ERROR = 'error';
 
     /**
@@ -289,6 +289,24 @@ class SSHCommandResult implements
     {
         $outputLines = $this->getOutput();
         $errorLines  = $this->getErrorOutput();
+        $status      = $this->getStatus();
+        $code        = $this->getExitCode();
+
+        if ($this->isError()) {
+            // error is logged on the notice level
+            $this->notice(
+                sprintf('Command returned error code: %d', $code)
+            );
+        } else {
+            // success is logged on the debug level only
+            $this->debug(
+                sprintf(
+                    'Command returned exit status: %s (code %d)',
+                    $status,
+                    $code
+                )
+            );
+        }
 
         $headline = empty($outputLines)
             ? 'Command output was empty.'

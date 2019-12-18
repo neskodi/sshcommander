@@ -16,6 +16,8 @@ interface SSHConfigInterface
 
     public function validate(array $config): SSHConfigInterface;
 
+    public function isValid(): bool;
+
     public function getHost(): ?string;
 
     public function getPort(): ?int;

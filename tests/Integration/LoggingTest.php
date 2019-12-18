@@ -25,7 +25,7 @@ class LoggingTest extends IntegrationTestCase
     const COMMAND_OUTPUT_MARKER    = 'Command returned:';
     const COMMAND_STDERR_MARKER    = 'Command STDERR:';
     const COMMAND_SUCCESS_MARKER   = 'Command returned exit status: ok (code 0)';
-    const COMMAND_ERROR_MARKER     = 'Command returned error status:';
+    const COMMAND_ERROR_MARKER     = 'Command returned error code:';
 
     /**
      * @var SSHCommander

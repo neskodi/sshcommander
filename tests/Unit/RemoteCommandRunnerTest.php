@@ -28,28 +28,6 @@ class RemoteCommandRunnerTest extends TestCase
         $this->assertInstanceOf(SSHConfigInterface::class, $runner->getConfig());
     }
 
-    public function testGetConnection(): void
-    {
-        $config = $this->getTestConfigAsObject();
-        $logger = $this->getTestLogger(LogLevel::DEBUG);
-
-        $runner = new RemoteCommandRunner($config, $logger);
-
-        $this->assertNull($runner->getConnection());
-
-        // now add a command
-        $config->set('host', 'test');
-        $command    = new SSHCommand('ls', $config);
-        $connection = $runner->getConnection($command);
-
-        $this->assertInstanceOf(
-            SSHConnectionInterface::class,
-            $connection
-        );
-
-        $this->assertEquals('test', $connection->getConfig('host'));
-    }
-
     public function testSetConnection(): void
     {
         $config = $this->getTestConfigAsObject(
@@ -64,7 +42,17 @@ class RemoteCommandRunnerTest extends TestCase
         $connection = new SSHConnection($config);
 
         $runner = new RemoteCommandRunner($config, $logger);
+
+        $this->assertNull($runner->getConnection());
+
         $runner->setConnection($connection);
+
+        $connection = $runner->getConnection();
+
+        $this->assertInstanceOf(
+            SSHConnectionInterface::class,
+            $connection
+        );
 
         $this->assertEquals(
             'test',

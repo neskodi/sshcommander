@@ -5,6 +5,7 @@ namespace Neskodi\SSHCommander;
 use Neskodi\SSHCommander\Interfaces\SSHCommandResultInterface;
 use Neskodi\SSHCommander\Interfaces\SSHCommandRunnerInterface;
 use Neskodi\SSHCommander\CommandRunners\RemoteCommandRunner;
+use Neskodi\SSHCommander\Exceptions\AuthenticationException;
 use Neskodi\SSHCommander\Interfaces\SSHConnectionInterface;
 use Neskodi\SSHCommander\Interfaces\SSHCommanderInterface;
 use Neskodi\SSHCommander\Interfaces\ConfigAwareInterface;
@@ -115,12 +116,7 @@ class SSHCommander implements
     public function getCommandRunner(): SSHCommandRunnerInterface
     {
         if (!$this->commandRunner) {
-            $commandRunner = new RemoteCommandRunner(
-                $this->getConfig(),
-                $this->getLogger()
-            );
-
-            $commandRunner->setConnection($this->getConnection());
+            $commandRunner = $this->createCommandRunner();
 
             $this->setCommandRunner($commandRunner);
         }
@@ -144,7 +140,8 @@ class SSHCommander implements
         array $options = []
     ): SSHCommandInterface {
         if ($command instanceof SSHCommandInterface) {
-            // Override options that were directly passed
+            // Override options with values that were directly passed with the
+            // command
             $command->setOptions($options);
             // Add any missing default options
             $command->setOptions($this->config->all(), true);
@@ -199,5 +196,28 @@ class SSHCommander implements
     public static function setConfigFile(string $path)
     {
         SSHConfig::setConfigFileLocation($path);
+    }
+
+    /**
+     * Create a command runner object that will be an instance of the given
+     * command runner class.
+     *
+     * @param string $class
+     *
+     * @return mixed
+     *
+     * @throws AuthenticationException
+     */
+    protected function createCommandRunner(
+        string $class = RemoteCommandRunner::class
+    ): SSHCommandRunnerInterface {
+        $commandRunner = new $class(
+            $this->getConfig(),
+            $this->getLogger()
+        );
+
+        $commandRunner->setConnection($this->getConnection());
+
+        return $commandRunner;
     }
 }
