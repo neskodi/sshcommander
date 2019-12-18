@@ -42,11 +42,11 @@ class SSHConfigTest extends IntegrationTestCase
         ));
 
         $this->assertTrue($handler->hasDebugThatContains(
-            'Key contents provided via configuration'
+            'SSH key is provided at runtime'
         ));
 
         $this->assertFalse($handler->hasDebugThatContains(
-            'Reading key contents from file'
+            'SSH key is loaded from file'
         ));
     }
 
@@ -78,11 +78,11 @@ class SSHConfigTest extends IntegrationTestCase
         ));
 
         $this->assertFalse($handler->hasDebugThatContains(
-            'Key contents provided via configuration'
+            'SSH key is provided at runtime'
         ));
 
         $this->assertTrue($handler->hasDebugThatContains(
-            'Reading key contents from file'
+            'SSH key is loaded from file'
         ));
     }
 
@@ -121,6 +121,10 @@ class SSHConfigTest extends IntegrationTestCase
 
         $this->assertFalse($handler->hasDebugThatContains(
             'Reading key contents from file'
+        ));
+
+        $this->assertTrue($handler->hasDebugThatContains(
+            'SSH password is provided at runtime'
         ));
     }
 
