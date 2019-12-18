@@ -26,6 +26,8 @@ interface SSHConfigInterface
 
     public function getKeyfile(): ?string;
 
+    public function getKeyContents(): ?string;
+
     public function getUser(): ?string;
 
     public function getPassword(): ?string;

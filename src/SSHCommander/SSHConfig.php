@@ -430,6 +430,25 @@ class SSHConfig implements SSHConfigInterface
     }
 
     /**
+     * Get private key contents from the config object. May be stored directly
+     * under 'key' or in the file pointed to by 'keyfile'.
+     *
+     * @return string|null
+     */
+    public function getKeyContents(): ?string
+    {
+        $keyContents = null;
+
+        if ($key = $this->getKey()) {
+            $keyContents = (string)$key;
+        } elseif ($keyfile = $this->getKeyfile()) {
+            $keyContents = (string)file_get_contents($keyfile);
+        }
+
+        return $keyContents;
+    }
+
+    /**
      * Get the SSH user.
      *
      * @return string|null

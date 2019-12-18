@@ -143,10 +143,12 @@ class SSHConnection implements
 
         $credential = $this->getConfig()->selectCredential();
 
+        $this->logSelectedCredential($credential);
+
         switch ($credential) {
             case SSHConfig::CREDENTIAL_KEY:
             case SSHConfig::CREDENTIAL_KEYFILE:
-                $keyContents = $this->getKeyContents();
+                $keyContents = $this->getConfig()->getKeyContents();
                 @$result = $this->authenticateWithKey($keyContents);
                 break;
             default:
@@ -183,28 +185,26 @@ class SSHConnection implements
     }
 
     /**
-     * Get private key contents from the config object. May be stored directly
-     * under 'key' or in the file pointed to by 'keyfile'.
+     * Record which credential we use for authentication
      *
-     * @return false|string|null
+     * @param string $credential
      */
-    protected function getKeyContents(): ?string
+    protected function logSelectedCredential(string $credential): void
     {
-        // TODO move to config
-        $keyContents = null;
-
-        if ($key = $this->getConfig()->getKey()) {
-            $this->debug('Key contents provided via configuration.');
-            $keyContents = $key;
-        } elseif ($keyfile = $this->getConfig()->getKeyfile()) {
-            $this->debug(
-                'Reading key contents from file: {file}',
-                ['file' => $keyfile]
-            );
-            $keyContents = file_get_contents($keyfile);
+        switch ($credential) {
+            case SSHConfig::CREDENTIAL_KEY:
+                $this->debug('SSH key is provided at runtime');
+                break;
+            case SSHConfig::CREDENTIAL_KEYFILE:
+                $this->debug(sprintf(
+                    'SSH key is loaded from file: %s',
+                    $this->getConfig()->getKeyfile()
+                ));
+                break;
+            case SSHConfig::CREDENTIAL_PASSWORD:
+                $this->debug('SSH password is provided at runtime');
+                break;
         }
-
-        return $keyContents;
     }
 
     /**
