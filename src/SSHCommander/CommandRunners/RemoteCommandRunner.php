@@ -157,7 +157,7 @@ class RemoteCommandRunner
     }
 
     /**
-     * Execute command using the timer and logger.
+     * Execute the command on the prepared connection.
      *
      * @param $command
      */
