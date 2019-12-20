@@ -10,5 +10,7 @@ interface TimerInterface
 
     public function resetTimer(): void;
 
+    public function getElapsedTime(): float;
+
     public function setTimerPrecision(int $precision): void;
 }

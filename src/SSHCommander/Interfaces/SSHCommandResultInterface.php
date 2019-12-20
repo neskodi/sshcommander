@@ -31,4 +31,16 @@ interface SSHCommandResultInterface
     public function getCommand(): SSHCommandInterface;
 
     public function logResult(): void;
+
+    public function setCommandStartTime(float $time): SSHCommandResultInterface;
+
+    public function setCommandEndTime(float $time): SSHCommandResultInterface;
+
+    public function setCommandElapsedTime(float $time): SSHCommandResultInterface;
+
+    public function getCommandStartTime(): ?float;
+
+    public function getCommandEndTime(): ?float;
+
+    public function getCommandElapsedTime(): ?float;
 }

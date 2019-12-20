@@ -64,10 +64,18 @@ class RemoteCommandRunner
         // check that the connection is set and is ready to run the command
         // configure it to respect specific command settings
         $this->validateConnection()
-             ->prepareConnection($command)
+             ->prepareConnection($command);
+
+        // log the event of command start and start the timer.
+        $this->logCommandStart($command);
+        $this->startTimer();
 
         // and fluently execute the command.
-             ->exec($command);
+        $this->exec($command);
+
+        // stop the timer and log command end
+        $this->stopTimer();
+        $this->logCommandEnd();
 
         // reset connection to the default configuration, such as default
         // timeout and quiet mode
@@ -75,7 +83,11 @@ class RemoteCommandRunner
 
         // collect, log and return the results
         $result = $this->collectResult($command);
+        $this->recordCommandTiming($result);
         $result->logResult();
+
+        // also reset the timer
+        $this->resetTimer();
 
         return $result;
     }
@@ -151,13 +163,7 @@ class RemoteCommandRunner
      */
     protected function exec($command)
     {
-        $this->logCommandStart($command);
-        $this->startTimer();
-
         $this->getConnection()->exec($command);
-
-        // stop the timer and log command end
-        $this->logCommandEnd($this->stopTimer());
     }
 
     /**
@@ -202,6 +208,19 @@ class RemoteCommandRunner
     }
 
     /**
+     * Record command start and end timestamps and the elapsed time into
+     * command result object.
+     *
+     * @param SSHCommandResultInterface $result
+     */
+    protected function recordCommandTiming(SSHCommandResultInterface $result): void
+    {
+        $result->setCommandStartTime($this->timerStart);
+        $result->setCommandStartTime($this->timerEnd);
+        $result->setCommandElapsedTime($this->getElapsedTime());
+    }
+
+    /**
      * Log the event of running the command.
      *
      * @param SSHCommandInterface $command
@@ -219,8 +238,10 @@ class RemoteCommandRunner
      *
      * @param float $seconds
      */
-    protected function logCommandEnd(float $seconds): void
+    protected function logCommandEnd(): void
     {
+        $seconds = $this->getElapsedTime();
+
         if ($this->getConnection()->isTimeout()) {
             $this->notice('Command timed out after {seconds} seconds', [
                 'seconds' => $seconds,
