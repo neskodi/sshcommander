@@ -88,6 +88,7 @@ class RemoteCommandRunner
         $result = $this->collectResult($command);
         $this->recordCommandTiming($result);
         $result->logResult();
+
         $this->resultCollection[] = $result;
 
         // also reset the timer
