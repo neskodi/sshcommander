@@ -6,6 +6,7 @@ use Neskodi\SSHCommander\Interfaces\SSHCommandResultInterface;
 use Neskodi\SSHCommander\Interfaces\LoggerAwareInterface;
 use Neskodi\SSHCommander\Interfaces\SSHCommandInterface;
 use Neskodi\SSHCommander\Traits\Loggable;
+use DateTime;
 
 class SSHCommandResult implements
     SSHCommandResultInterface,
@@ -40,6 +41,21 @@ class SSHCommandResult implements
      * @var array
      */
     protected $errorLines;
+
+    /**
+     * @var float
+     */
+    protected $commandStartTime;
+
+    /**
+     * @var float
+     */
+    protected $commandEndTime;
+
+    /**
+     * @var float
+     */
+    protected $commandElapsedTime;
 
     /**
      * CommandResult constructor.
@@ -333,5 +349,77 @@ class SSHCommandResult implements
             $this->debug($line);
         }
         $this->debug('---');
+    }
+
+    /**
+     * Register the command start time.
+     *
+     * @param DateTime $time
+     *
+     * @return SSHCommandResultInterface
+     */
+    public function setCommandStartTime(float $time): SSHCommandResultInterface
+    {
+        $this->commandStartTime = $time;
+
+        return $this;
+    }
+
+    /**
+     * Register the command end time.
+     *
+     * @param DateTime $time
+     *
+     * @return SSHCommandResultInterface
+     */
+    public function setCommandEndTime(float $time): SSHCommandResultInterface
+    {
+        $this->commandEndTime = $time;
+
+        return $this;
+    }
+
+    /**
+     * Register the command elapsed time.
+     *
+     * @param float $time
+     *
+     * @return SSHCommandResultInterface
+     */
+    public function setCommandElapsedTime(float $time): SSHCommandResultInterface
+    {
+        $this->commandElapsedTime = $time;
+
+        return $this;
+    }
+
+    /**
+     * Get the command start time.
+     *
+     * @return DateTime
+     */
+    public function getCommandStartTime(): ?float
+    {
+        return $this->commandStartTime;
+    }
+
+    /**
+     * Get the command end time.
+     *
+     * @return DateTime
+     */
+    public function getCommandEndTime(): ?float
+    {
+        return $this->commandEndTime;
+    }
+
+    /**
+     * Get the command elapsed time.
+     *
+     * @return float
+     */
+    public function getCommandElapsedTime(): ?float
+    {
+        return $this->commandElapsedTime;
     }
 }

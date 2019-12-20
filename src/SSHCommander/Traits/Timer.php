@@ -35,11 +35,21 @@ trait Timer
     public function stopTimer(): float
     {
         $this->timerEnd = microtime(true);
-        $total          = $this->timerEnd - $this->timerStart;
 
-        $this->resetTimer();
+        return $this->getElapsedTime();
+    }
 
-        return round($total, $this->precision);
+    /**
+     * Get the time difference betweet timer start and end, with microseconds.
+     *
+     * @return float
+     */
+    public function getElapsedTime(): float
+    {
+        return round(
+            $this->timerEnd - $this->timerStart,
+            $this->precision
+        );
     }
 
     /**
