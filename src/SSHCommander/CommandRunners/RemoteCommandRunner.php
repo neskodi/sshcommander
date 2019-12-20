@@ -61,6 +61,9 @@ class RemoteCommandRunner
      */
     public function run(SSHCommandInterface $command): SSHCommandResultInterface
     {
+        // normal runner only stores one result per run
+        $this->resultCollection->wipe();
+
         // check that the connection is set and is ready to run the command
         // configure it to respect specific command settings
         $this->validateConnection()
@@ -76,6 +79,7 @@ class RemoteCommandRunner
         // collect, log and return the results
         $result = $this->collectResult($command);
         $result->logResult();
+        $this->resultCollection[] = $result;
 
         return $result;
     }
