@@ -202,8 +202,6 @@ class RemoteCommandRunner
      *
      * @param SSHCommandInterface       $command
      * @param SSHCommandResultInterface $result
-     *
-     * @return SSHCommandResultInterface
      */
     protected function recordCommandResults(
         SSHCommandInterface $command,
@@ -225,8 +223,6 @@ class RemoteCommandRunner
      * command result object.
      *
      * @param SSHCommandResultInterface $result
-     *
-     * @return SSHCommandResultInterface
      */
     protected function recordCommandTiming(
         SSHCommandResultInterface $result
@@ -252,8 +248,6 @@ class RemoteCommandRunner
 
     /**
      * Log command completion along with the time it took to run.
-     *
-     * @param float $seconds
      */
     protected function logCommandEnd(): void
     {
