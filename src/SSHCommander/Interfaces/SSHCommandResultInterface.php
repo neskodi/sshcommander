@@ -43,4 +43,8 @@ interface SSHCommandResultInterface
     public function getCommandEndTime(): ?float;
 
     public function getCommandElapsedTime(): ?float;
+
+    public function setIsTimeout(bool $isTimeout): SSHCommandResultInterface;
+
+    public function isTimeout(): ?bool;
 }

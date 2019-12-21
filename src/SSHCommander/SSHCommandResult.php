@@ -58,6 +58,11 @@ class SSHCommandResult implements
     protected $commandElapsedTime;
 
     /**
+     * @var bool
+     */
+    protected $isTimeout;
+
+    /**
      * CommandResult constructor.
      *
      * @param SSHCommandInterface $command     the command that was run
@@ -421,5 +426,29 @@ class SSHCommandResult implements
     public function getCommandElapsedTime(): ?float
     {
         return $this->commandElapsedTime;
+    }
+
+    /**
+     * Register the fact whether the command execution resulted in a timeout.
+     *
+     * @param bool $isTimeout
+     *
+     * @return SSHCommandResultInterface
+     */
+    public function setIsTimeout(bool $isTimeout): SSHCommandResultInterface
+    {
+        $this->isTimeout = $isTimeout;
+
+        return $this;
+    }
+
+    /**
+     * Check if the execution of command resulted in a timeout.
+     *
+     * @return bool|null
+     */
+    public function isTimeout(): ?bool
+    {
+        return $this->isTimeout;
     }
 }

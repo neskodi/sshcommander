@@ -7,7 +7,6 @@ use Neskodi\SSHCommander\Exceptions\ConnectionMissingException;
 use Neskodi\SSHCommander\Exceptions\InvalidConnectionException;
 use Neskodi\SSHCommander\Interfaces\SSHCommandResultInterface;
 use Neskodi\SSHCommander\Interfaces\SSHCommandRunnerInterface;
-use Neskodi\SSHCommander\Exceptions\AuthenticationException;
 use Neskodi\SSHCommander\Interfaces\SSHConnectionInterface;
 use Neskodi\SSHCommander\Interfaces\SSHCommandInterface;
 use Neskodi\SSHCommander\SSHCommandResult;
@@ -56,8 +55,6 @@ class RemoteCommandRunner
      *                                     run
      *
      * @return SSHCommandResultInterface
-     *
-     * @throws AuthenticationException
      */
     public function run(SSHCommandInterface $command): SSHCommandResultInterface
     {
@@ -68,6 +65,9 @@ class RemoteCommandRunner
         // configure it to respect specific command settings
         $this->validateConnection()
              ->prepareConnection($command);
+
+        // prepare the result
+        $result = $this->createResult($command);
 
         // log the event of command start and start the timer.
         $this->logCommandStart($command);
@@ -80,19 +80,16 @@ class RemoteCommandRunner
         $this->stopTimer();
         $this->logCommandEnd();
 
+        // collect and log the result information
+        $this->recordCommandResults($command, $result);
+        $this->recordCommandTiming($result);
+        $result->logResult();
+
         // reset connection to the default configuration, such as default
         // timeout and quiet mode
         $this->resetConnection();
 
-        // collect, log and return the results
-        $result = $this->collectResult($command);
-        $this->recordCommandTiming($result);
-        $result->logResult();
-
         $this->resultCollection[] = $result;
-
-        // also reset the timer
-        $this->resetTimer();
 
         return $result;
     }
@@ -186,20 +183,33 @@ class RemoteCommandRunner
      * @param SSHCommandInterface $command
      *
      * @return SSHCommandResultInterface
-     *
-     * @throws AuthenticationException
      */
-    protected function collectResult(
+    protected function createResult(
         SSHCommandInterface $command
     ): SSHCommandResultInterface {
-        $connection = $this->getConnection();
-
-        // structure the result
+        // construct the result
         $result = new SSHCommandResult($command);
 
         if ($logger = $this->getLogger()) {
             $result->setLogger($logger);
         }
+
+        return $result;
+    }
+
+    /**
+     * Save command exit code, stdout and stderr into the result object.
+     *
+     * @param SSHCommandInterface       $command
+     * @param SSHCommandResultInterface $result
+     *
+     * @return SSHCommandResultInterface
+     */
+    protected function recordCommandResults(
+        SSHCommandInterface $command,
+        SSHCommandResultInterface $result
+    ): void {
+        $connection = $this->getConnection();
 
         $result->setExitCode($connection->getLastExitCode())
                ->setOutput($connection->getStdOutLines());
@@ -208,8 +218,6 @@ class RemoteCommandRunner
         if ($command->getConfig('separate_stderr')) {
             $result->setErrorOutput($connection->getStdErrLines());
         }
-
-        return $result;
     }
 
     /**
@@ -217,12 +225,16 @@ class RemoteCommandRunner
      * command result object.
      *
      * @param SSHCommandResultInterface $result
+     *
+     * @return SSHCommandResultInterface
      */
-    protected function recordCommandTiming(SSHCommandResultInterface $result): void
-    {
-        $result->setCommandStartTime($this->timerStart);
-        $result->setCommandStartTime($this->timerEnd);
-        $result->setCommandElapsedTime($this->getElapsedTime());
+    protected function recordCommandTiming(
+        SSHCommandResultInterface $result
+    ): void {
+        $result->setCommandStartTime($this->timerStart)
+               ->setCommandEndTime($this->timerEnd)
+               ->setCommandElapsedTime($this->getElapsedTime())
+               ->setIsTimeout($this->getConnection()->getSSH2()->isTimeout());
     }
 
     /**
