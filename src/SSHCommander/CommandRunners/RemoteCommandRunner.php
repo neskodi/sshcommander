@@ -7,7 +7,6 @@ use Neskodi\SSHCommander\Exceptions\ConnectionMissingException;
 use Neskodi\SSHCommander\Exceptions\InvalidConnectionException;
 use Neskodi\SSHCommander\Interfaces\SSHCommandResultInterface;
 use Neskodi\SSHCommander\Interfaces\SSHCommandRunnerInterface;
-use Neskodi\SSHCommander\Exceptions\AuthenticationException;
 use Neskodi\SSHCommander\Interfaces\SSHConnectionInterface;
 use Neskodi\SSHCommander\Interfaces\SSHCommandInterface;
 use Neskodi\SSHCommander\SSHCommandResult;
@@ -56,8 +55,6 @@ class RemoteCommandRunner
      *                                     run
      *
      * @return SSHCommandResultInterface
-     *
-     * @throws AuthenticationException
      */
     public function run(SSHCommandInterface $command): SSHCommandResultInterface
     {
@@ -82,7 +79,7 @@ class RemoteCommandRunner
         $this->resetConnection();
 
         // collect, log and return the results
-        $result = $this->collectResult($command);
+        $result = $this->createResult($command);
         $this->recordCommandTiming($result);
         $result->logResult();
 
@@ -181,10 +178,8 @@ class RemoteCommandRunner
      * @param SSHCommandInterface $command
      *
      * @return SSHCommandResultInterface
-     *
-     * @throws AuthenticationException
      */
-    protected function collectResult(
+    protected function createResult(
         SSHCommandInterface $command
     ): SSHCommandResultInterface {
         $connection = $this->getConnection();
