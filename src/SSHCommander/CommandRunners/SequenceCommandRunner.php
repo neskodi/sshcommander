@@ -2,60 +2,46 @@
 
 namespace Neskodi\SSHCommander\CommandRunners;
 
-use Neskodi\SSHCommander\Exceptions\AuthenticationException;
-use Neskodi\SSHCommander\Interfaces\SSHCommandInterface;
+use Neskodi\SSHCommander\Interfaces\SSHSequenceCommandRunnerInterface;
 use Neskodi\SSHCommander\Interfaces\SSHCommandResultInterface;
-use Neskodi\SSHCommander\Interfaces\SSHRemoteCommandRunnerInterface;
+use Neskodi\SSHCommander\Interfaces\SSHCommandInterface;
+use Neskodi\SSHCommander\Traits\HasResultCollection;
 
 class SequenceCommandRunner
     extends RemoteCommandRunner
-    implements SSHRemoteCommandRunnerInterface
+    implements SSHSequenceCommandRunnerInterface
 {
+    use HasResultCollection;
+
     /**
-     * Run the command.
+     * @var array
+     */
+    protected $options = [];
+
+    /**
+     * Run the command and save the result to the collection.
      *
      * @param SSHCommandInterface $command the object containing the command to
      *                                     run
      *
      * @return SSHCommandResultInterface
-     *
-     * @throws AuthenticationException
      */
     public function run(SSHCommandInterface $command): SSHCommandResultInterface
     {
-        // check that the connection is set and is ready to run the command
-        // configure it to respect specific command settings
-        $this->validateConnection()
-             ->prepareConnection($command)
+        $result = parent::run($command);
 
-        // and fluently execute the command.
-             ->exec($command);
-
-        // reset connection to the default configuration, such as default
-        // timeout and quiet mode
-        $this->resetConnection();
-
-        // collect, log and return the results
-        $result = $this->collectResult($command);
-        $result->logResult();
         $this->resultCollection[] = $result;
 
         return $result;
     }
 
     /**
-     * Execute command using the timer and logger.
+     * Execute the command on the prepared connection.
      *
-     * @param $command
+     * @param SSHCommandInterface $command
      */
-    protected function exec($command)
+    public function exec(SSHCommandInterface $command): void
     {
-        $this->logCommandStart($command);
-        $this->startTimer();
 
-        $this->getConnection()->exec($command);
-
-        // stop the timer and log command end
-        $this->logCommandEnd($this->stopTimer());
     }
 }

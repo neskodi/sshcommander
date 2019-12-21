@@ -43,6 +43,13 @@ class RemoteCommandRunner
         return $this->getResult();
     }
 
+    /**
+     * Wrap this command runner with a decorator.
+     *
+     * @param string $class
+     *
+     * @return DecoratedCommandRunnerInterface
+     */
     public function with(string $class): DecoratedCommandRunnerInterface
     {
         return new $class($this);
@@ -51,7 +58,7 @@ class RemoteCommandRunner
     /**
      * Execute the command on the prepared connection.
      *
-     * @param $command
+     * @param SSHCommandInterface $command
      */
     public function exec(SSHCommandInterface $command): void
     {

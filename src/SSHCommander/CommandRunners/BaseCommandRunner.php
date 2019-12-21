@@ -2,6 +2,7 @@
 
 namespace Neskodi\SSHCommander\CommandRunners;
 
+use Neskodi\SSHCommander\Interfaces\SSHCommandResultInterface;
 use Neskodi\SSHCommander\Interfaces\ConfigAwareInterface;
 use Neskodi\SSHCommander\Interfaces\LoggerAwareInterface;
 use Neskodi\SSHCommander\Interfaces\SSHCommandInterface;
@@ -33,5 +34,5 @@ abstract class BaseCommandRunner implements
         }
     }
 
-    abstract public function run(SSHCommandInterface $command);
+    abstract public function run(SSHCommandInterface $command): SSHCommandResultInterface;
 }

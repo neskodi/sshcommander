@@ -191,7 +191,27 @@ class SSHCommander implements
         return $commandRunner->run($commandObject);
     }
 
-    /** @noinspection PhpRedundantCatchClauseInspection */
+    /**
+     * Run user's function that may call subsequent SSH commands in the context
+     * of a persistent SSH session.
+     *
+     * Unlike the simple RemoteCommandRunner that relies on the 'exec' method
+     * from phpseclib, this one will use 'write' and 'read' methods, thus
+     * working with a PTY and preserving session state
+     * such as working directory, current user change with sudo, variable
+     * assignments etc.
+     *
+     * @noinspection PhpRedundantCatchClauseInspection
+     *
+     * @param Closure $actions callable function that contains logic to run
+     * @param array   $options options that will be common for all commands
+     *                         during this session, unless overridden by a
+     *                         particular command.
+     *
+     * @return SSHResultCollectionInterface
+     *
+     * @throws AuthenticationException
+     */
     public function sequence(
         Closure $actions,
         array $options = []
@@ -201,16 +221,21 @@ class SSHCommander implements
         try {
             call_user_func($actions, $this, $options);
         } catch (CommandRunException $exception) {
-            $this->processSequenceError($exception);
+            $this->processSequenceError($exception, $options);
         }
 
-        $result = $this->commandRunner->collectResults();
+        $result = $this->getCommandRunner()->getResultCollection();
 
         $this->endSequence();
 
         return $result;
     }
 
+    /**
+     * Start the ssh session by creating an instance of SequenceCommandRunner.
+     *
+     * @throws AuthenticationException
+     */
     protected function startSequence(): void
     {
         $this->setCommandRunner(
@@ -220,13 +245,28 @@ class SSHCommander implements
         );
     }
 
-    protected function endSequence(): SSHResultCollectionInterface
+    /**
+     * End the sequence by destroying the SequenceCommandRunner.
+     *
+     * @return void
+     */
+    protected function endSequence(): void
     {
         $this->commandRunner = null;
     }
 
-    protected function processSequenceError(CommandRunException $exception)
-    {
+    /**
+     * Log any errors that happened in the middle of sequence and weren't
+     * discarded by 'break_on_error' => false, then throw an Exception
+     * to user's app.
+     *
+     * @param CommandRunException $exception
+     * @param array               $options
+     */
+    protected function processSequenceError(
+        CommandRunException $exception,
+        array $options
+    ): void {
         // TODO: implement
     }
 
