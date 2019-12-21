@@ -39,6 +39,11 @@ class SSHCommander implements
     protected $commandRunner;
 
     /**
+     * @var array
+     */
+    protected $sequenceLevelOptions = [];
+
+    /**
      * SSHCommander constructor.
      *
      * @param array|SSHConfig      $config
@@ -143,31 +148,16 @@ class SSHCommander implements
         $command,
         array $options = []
     ): SSHCommandInterface {
+        // Get the final set of options that apply to this command run.
+        $options = $this->getMergedOptions($options);
+
         if ($command instanceof SSHCommandInterface) {
-            // Override options with values that were directly passed with the
-            // command
             $command->setOptions($options);
-            // Add any missing default options
-            $command->setOptions($this->config->all(), true);
         } else {
-            $this->addDefaultCommandOptions($options);
             $command = new SSHCommand($command, $options);
         }
 
         return $command;
-    }
-
-    /**
-     * Pass some global options to command by default, unless they were
-     * specified with the command itself.
-     *
-     * @param array $options
-     */
-    protected function addDefaultCommandOptions(array &$options)
-    {
-        $config = $this->getConfig()->all();
-
-        $options = array_merge($config, $options);
     }
 
     /**
@@ -216,7 +206,7 @@ class SSHCommander implements
         Closure $actions,
         array $options = []
     ): SSHResultCollectionInterface {
-        $this->startSequence();
+        $this->startSequence($options);
 
         try {
             call_user_func($actions, $this, $options);
@@ -234,15 +224,19 @@ class SSHCommander implements
     /**
      * Start the ssh session by creating an instance of SequenceCommandRunner.
      *
+     * @param array $options
+     *
      * @throws AuthenticationException
      */
-    protected function startSequence(): void
+    protected function startSequence(array $options = []): void
     {
         $this->setCommandRunner(
             $this->createCommandRunner(
                 SequenceCommandRunner::class
             )
         );
+
+        $this->setSequenceLevelOptions($options);
     }
 
     /**
@@ -253,6 +247,8 @@ class SSHCommander implements
     protected function endSequence(): void
     {
         $this->commandRunner = null;
+
+        $this->setSequenceLevelOptions([]);
     }
 
     /**
@@ -302,5 +298,52 @@ class SSHCommander implements
         $commandRunner->setConnection($this->getConnection());
 
         return $commandRunner;
+    }
+
+    /**
+     * Set the options that must apply to the current sequence.
+     *
+     * @param array $options
+     */
+    protected function setSequenceLevelOptions(array $options): void
+    {
+        $this->sequenceLevelOptions = $options;
+    }
+
+    /**
+     * Get the options that must apply to the current sequence.
+     *
+     * @return array
+     */
+    protected function getSequenceLevelOptions(): array
+    {
+        return $this->sequenceLevelOptions;
+    }
+
+    /**
+     * Override most general set of options with more specific sets.
+     *
+     * First, the global options of this SSHCommander object are applied,
+     * then the sequence-level options (if any), then the options passed to
+     * the current running command.
+     *
+     * @param array $options
+     *
+     * @return array
+     */
+    protected function getMergedOptions(array $options): array
+    {
+        $options = array_merge(
+        // global config options of this SSHCommander instance
+            $this->getConfig()->all(),
+
+            // override with sequence-level options
+            $this->getSequenceLevelOptions(),
+
+            // and override by options specific to this command
+            $options
+        );
+
+        return $options;
     }
 }
