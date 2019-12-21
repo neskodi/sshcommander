@@ -11,6 +11,7 @@ use Neskodi\SSHCommander\Interfaces\SSHRemoteCommandRunnerInterface;
 use Neskodi\SSHCommander\Interfaces\SSHCommandResultInterface;
 use Neskodi\SSHCommander\Interfaces\SSHCommandInterface;
 use Neskodi\SSHCommander\Traits\HasConnection;
+use Neskodi\SSHCommander\Traits\HasResult;
 
 class RemoteCommandRunner
     extends BaseCommandRunner
@@ -18,11 +19,7 @@ class RemoteCommandRunner
                DecoratedCommandRunnerInterface
 {
     use HasConnection;
-
-    /**
-     * @var SSHCommandResultInterface
-     */
-    protected $result;
+    use HasResult;
 
     /**
      * Run the command.
@@ -40,6 +37,7 @@ class RemoteCommandRunner
              ->with(CRLoggerDecorator::class)
              ->with(CRResultDecorator::class)
              ->with(CRConnectionDecorator::class)
+
              ->exec($command);
 
         return $this->getResult();
@@ -58,26 +56,5 @@ class RemoteCommandRunner
     public function exec(SSHCommandInterface $command): void
     {
         $this->getConnection()->exec($command);
-    }
-
-    /**
-     * @return null|SSHCommandResultInterface
-     */
-    public function getResult(): ?SSHCommandResultInterface
-    {
-        return $this->result;
-    }
-
-    /**
-     * @param SSHCommandResultInterface $result
-     *
-     * @return $this
-     */
-    public function setResult(
-        SSHCommandResultInterface $result
-    ): SSHRemoteCommandRunnerInterface {
-        $this->result = $result;
-
-        return $this;
     }
 }
