@@ -69,4 +69,20 @@ trait Timer
     {
         $this->precision = $precision;
     }
+
+    /**
+     * @return null|float
+     */
+    public function getTimerStart(): ?float
+    {
+        return $this->timerStart;
+    }
+
+    /**
+     * @return null|float
+     */
+    public function getTimerEnd(): ?float
+    {
+        return $this->timerEnd;
+    }
 }
