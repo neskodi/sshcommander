@@ -57,6 +57,11 @@ class SSHConnection implements
     protected $command;
 
     /**
+     * @var bool
+     */
+    protected $isTimeout = false;
+
+    /**
      * SSHConnection constructor.
      *
      * @param SSHConfigInterface   $config
@@ -163,6 +168,9 @@ class SSHConnection implements
         } else {
             $this->info('Authenticated.');
             $this->authenticated = true;
+
+            // clean out the interactive buffer
+            $this->read();
         }
 
         // will only return true, because otherwise an Exception
@@ -309,10 +317,241 @@ class SSHConnection implements
         }
 
         $this->resetOutput();
+        $this->setConfig($command->getConfig());
 
         $this->sshExec($command);
 
         return $this;
+    }
+
+    /**
+     * Write command and read the output until we have a prompt or a timeout.
+     *
+     * Clean out the command itself and the prompt from the output and return it.
+     *
+     * @param SSHCommandInterface $command
+     *
+     * @return $this
+     *
+     * @throws AuthenticationException
+     */
+    public function execInteractive(SSHCommandInterface $command): SSHConnectionInterface
+    {
+        if (!$this->authenticated) {
+            $this->authenticate();
+        }
+
+        $this->resetOutput();
+        $this->isTimeout = false;
+        $this->setConfig($command->getConfig());
+        $this->cleanCommandBuffer();
+
+        // Commands MUST be glued by ';' to produce only one command prompt
+        // so we get all commands as single string
+        $this->writeAndSend($command->singleString());
+
+        $delim  = $command->getConfig('delimiter_split_output');
+        $output = $this->read();
+        $output = $this->cleanCommandOutput($output, $command);
+
+        $this->stdoutLines = explode($delim, $output);
+        $this->checkLastExitCode();
+
+        return $this;
+    }
+
+    protected function cleanCommandBuffer()
+    {
+        $ssh = $this->getSSH2();
+        $ssh->setTimeout(2);
+        $output = '';
+        while ($str = $this->sshRead('', SSH2::READ_NEXT)) {
+            if (is_bool($str)) {
+                break;
+            }
+
+            $output .= $str;
+            if ($this->hasPrompt($output)) {
+                break;
+            }
+        }
+
+        $ssh->setTimeout($this->getConfig('timeout_command'));
+    }
+
+    /** @noinspection PhpUnhandledExceptionInspection */
+    protected function checkLastExitCode(): void
+    {
+        if ($this->getConfig('disable_exit_code_check')) {
+            $this->lastExitCode = null;
+        } else {
+            $command = new SSHCommand('echo $?', $this->getConfig());
+            $this->writeAndSend($command);
+            $output             = $this->read();
+            $this->lastExitCode = (int)$this->cleanCommandOutput($output, $command);
+        }
+    }
+
+    /**
+     * SSH2::read() returns the entire interactive buffer, including the command
+     * itself and the command prompt in the end. We are only interested in the
+     * command output, so we will delete these artifacts.
+     *
+     * @param string              $output
+     * @param SSHCommandInterface $command
+     *
+     * @return false|string|string[]|null
+     */
+    protected function cleanCommandOutput(string $output, SSHCommandInterface $command)
+    {
+        // clean out the command itself from the beginning
+        $delim        = '\r?\n';
+        $commandChars = '^' . preg_quote($command->singleString(), '/') . $delim;
+        $commandRegex = "/$commandChars/";
+        $output       = preg_replace($commandRegex, '', $output);
+
+        $promptRegex = $this->getConfig()->getPromptRegex();
+        // clean out the command prompt from the end
+        $output = preg_replace($promptRegex, '', $output);
+
+        return $output;
+    }
+
+    public function read()
+    {
+        $this->startTimer();
+        $output = '';
+
+        while ($str = $this->sshRead('', SSH2::READ_NEXT)) {
+            $output .= $str;
+            if ($this->exceedsForcedTimeout()) {
+                $this->isTimeout = true;
+                break;
+            } elseif ($this->hasPrompt($output)) {
+                $this->isTimeout = false;
+                break;
+            }
+        }
+
+        $this->stopTimer();
+
+        return $output;
+    }
+
+    /**
+     * If user has decided to force the timeout via the 'force_timeout' config
+     * option, and we have already exceeded this timeout, return true.
+     *
+     * @return bool
+     */
+    protected function exceedsForcedTimeout(): bool
+    {
+        // see if we really need to force the timeout
+        if (!$this->getConfig('force_timeout')) {
+            return false;
+        }
+
+        $timeout = $this->getConfig('timeout_command');
+
+        // see if timeout is a falsy value, including false, 0, and null
+        // in this case we assume user doesn't want a timeout
+        if (!$timeout) {
+            return false;
+        }
+
+        return microtime(true) > ($this->getTimerStart() + $timeout);
+    }
+
+    /**
+     * See if current received output from the command contains a command
+     * prompt, as defined by the config value 'prompt_regex'.
+     *
+     * @param string $output
+     *
+     * @return bool
+     */
+    protected function hasPrompt(string $output): bool
+    {
+        $regex = $this->getConfig()->getPromptRegex();
+
+        return $this->hasExpectedOutputRegex($output, $regex);
+    }
+
+    /**
+     * Check if current received output from the command already contains a
+     * substring expected by user.
+     *
+     * @param string $output
+     * @param string $expect
+     *
+     * @return bool
+     */
+    protected function hasExpectedOutputSimple(string $output, string $expect)
+    {
+        $strPosFunction = function_exists('mb_Strpos') ? 'mb_Strpos' : 'strpos';
+
+        return false !== $strPosFunction($output, $expect);
+    }
+
+    /**
+     * Check if current received output matches the regular expression expected
+     * by user.
+     *
+     * @param string $output
+     * @param string $expect
+     *
+     * @return false|int
+     */
+    protected function hasExpectedOutputRegex(string $output, string $expect)
+    {
+        return preg_match($expect, $output);
+    }
+
+    /**
+     * Write characters to SSH PTY (interactive shell).
+     *
+     * Characters will be written exactly as provided, nothing is added or
+     * altered. If you don't provide the "line feed", for example, command
+     * will sit there on the command line but won't be submitted.
+     *
+     * @param string $chars
+     *
+     * @return bool
+     *
+     * @throws AuthenticationException
+     */
+    public function write(string $chars)
+    {
+        return $this->sshWrite($chars);
+    }
+
+    protected function sshWrite(string $chars)
+    {
+        return $this->getSSH2()->write($chars);
+    }
+
+    protected function sshRead(string $chars, int $mode)
+    {
+        return $this->getSSH2()->read($chars, $mode);
+    }
+
+    /**
+     * Write a sequence of characters into the command line and submit them for
+     * execution by appending a line feed "\n" at the end (if not already there)
+     *
+     * @param string $chars
+     *
+     * @return bool
+     *
+     * @throws AuthenticationException
+     */
+    public function writeAndSend(string $chars)
+    {
+        if ("\n" !== substr($chars, -1)) {
+            $chars .= "\n";
+        }
+
+        return $this->write($chars);
     }
 
     /**
@@ -440,30 +679,49 @@ class SSHConnection implements
 
     /**
      * Clear all traces of previous commands.
+     *
+     * @return $this
      */
-    public function resetOutput(): void
+    public function resetOutput(): SSHConnectionInterface
     {
-        $this->stdoutLines = $this->stderrLines = [];
-
+        $this->stdoutLines  = $this->stderrLines = [];
         $this->lastExitCode = null;
+
+        return $this;
     }
 
     /**
      * Reset some configuration after running a single command back to default
      * values.
+     *
+     * @return $this
      */
-    public function resetCommandConfig(): void
+    public function resetCommandConfig(): SSHConnectionInterface
     {
-        $this->resetTimeout();
-
-        $this->resetQuietMode();
+        return $this->resetTimeout()
+                    ->resetQuietMode();
     }
 
     /**
      * By default, quiet mode is disabled in phpseclib. Return it to that state.
+     *
+     * @return $this
      */
-    public function resetQuietMode(): void
+    public function resetQuietMode(): SSHConnectionInterface
     {
         $this->getSSH2()->disableQuietMode();
+
+        return $this;
+    }
+
+    /**
+     * Check if timeout flag has been set on this connection (in case of forced
+     * timeout) or by SSH2 object.
+     *
+     * @return bool
+     */
+    public function isTimeout(): bool
+    {
+        return $this->isTimeout || (bool)$this->getSSH2()->isTimeout();
     }
 }

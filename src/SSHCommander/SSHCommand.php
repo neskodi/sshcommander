@@ -31,7 +31,7 @@ class SSHCommand implements SSHCommandInterface, ConfigAwareInterface
      *                                          - multiple commands as array
      * @param array|SSHConfigInterface $config
      */
-    public function __construct($command, $config)
+    public function __construct($command, $config = [])
     {
         $this->setConfig($config)
              ->setCommand($command);
@@ -82,23 +82,47 @@ class SSHCommand implements SSHCommandInterface, ConfigAwareInterface
     /**
      * Get all commands as a string or an array.
      *
-     * @param bool $asString pass false to get commands as an array.
+     * @param bool $asString   pass false to get commands as an array.
      *
-     * @param bool $prepared perform preparation before actual run, for example
-     *                       prepend 'cd basedir' and 'sed -e' for breaking on
-     *                       errors.
+     * @param bool $prepared   perform preparation before actual run, for example
+     *                         prepend 'cd basedir' and 'sed -e' for breaking on
+     *                         errors.
+     *
+     * @param bool $singleLine replace all line breaks with ';'
      *
      * @return array|string
      */
-    public function getCommands(bool $asString = true, bool $prepared = true)
-    {
+    public function getCommands(
+        bool $asString = true,
+        bool $prepared = true,
+        bool $singleLine = false
+    ) {
         $commands = $prepared
             ? $this->getPreparedCommands()
             : $this->commands;
 
-        return $asString
-            ? implode($this->getConfig('delimiter_join_input'), $commands)
-            : $commands;
+        if (!$asString) {
+            return $commands;
+        }
+
+        // convert to string and optionally escape newlines
+        $strCommands = implode($this->getConfig('delimiter_join_input'), $commands);
+        if ($singleLine) {
+            $strCommands = preg_replace('/[\r\n]+/', ';', $strCommands);
+        }
+
+        return $strCommands;
+    }
+
+    /**
+     * Get all commands as a single string (separated by ';'), with newlines
+     * stripped.
+     *
+     * @return string
+     */
+    public function singleString(): string
+    {
+        return $this->getCommands(true, true, true);
     }
 
     /**

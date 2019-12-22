@@ -10,7 +10,9 @@ interface SSHCommandInterface
 
     public function setCommand($command): SSHCommandInterface;
 
-    public function getCommands(bool $asString = true, bool $prepared = true);
+    public function getCommands(bool $asString = true, bool $prepared = true, bool $singleLine = false);
+
+    public function singleString(): string;
 
     public function setOption(string $key, $value): SSHCommandInterface;
 

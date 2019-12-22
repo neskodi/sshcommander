@@ -149,7 +149,7 @@ class SSHCommander implements
         array $options = []
     ): SSHCommandInterface {
         // Get the final set of options that apply to this command run.
-        $options = $this->getMergedOptions($options);
+        $options = $this->getMergedOptions($command, $options);
 
         if ($command instanceof SSHCommandInterface) {
             $command->setOptions($options);
@@ -324,21 +324,28 @@ class SSHCommander implements
      * Override most general set of options with more specific sets.
      *
      * First, the global options of this SSHCommander object are applied,
-     * then the sequence-level options (if any), then the options passed to
-     * the current running command.
+     * then the sequence-level options (if any), then the options from the
+     * source command, then the options passed to the current running command.
      *
-     * @param array $options
+     * @param string|array|SSHCommandInterface $command
+     * @param array                            $options
      *
      * @return array
      */
-    protected function getMergedOptions(array $options): array
-    {
+    protected function getMergedOptions(
+        $command,
+        array $options
+    ): array {
         $options = array_merge(
         // global config options of this SSHCommander instance
             $this->getConfig()->all(),
 
             // override with sequence-level options
             $this->getSequenceLevelOptions(),
+
+            // if passed command is an object having its own options, they will
+            // apply
+            ($command instanceof SSHCommandInterface) ? $command->getConfig()->all() : [],
 
             // and override by options specific to this command
             $options

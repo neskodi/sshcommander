@@ -71,9 +71,6 @@ class CRConnectionDecorator
     ) {
         $connection = $this->getConnection();
 
-        // Enforce config from the command
-        $connection->setConfig($command->getConfig());
-
         // authenticate if necessary. We do it early so that any incurring time
         // does not count towards command execution time in the logs.
         if (!$connection->isAuthenticated()) {

@@ -28,7 +28,7 @@ return [
     'delimiter_join_input' => "\n",
 
     // Character or string used to split multiple lines of output returned by
-    // a command.
+    // a command. Don't change unless you know what you are doing.
     'delimiter_split_output' => "\n",
 
     // Character or string used to glue together multiple lines of output
@@ -52,4 +52,25 @@ return [
 
     // trim the last line of output if it is empty, which is almost always true
     'output_trim_last_empty_line' => true,
+
+    // regular expression used to detect command prompt
+    'prompt_regex' => '/[^@\s]+@[^:]+:.*[$%#>]\s?$/',
+
+    // if force_timeout is false, ssh connection won't time out as long as it
+    // is receiving new packets from the other side. For example, if our
+    // command is "ping google.com" and our timeout is 10 seconds, in fact the
+    // command will never time out because it keeps receiving packets every
+    // second or so.
+    // Set 'force_timeout' to true to force return control to your program after
+    // timeout_command elapses, regardless of whether new data is coming or not
+    // in the SSH channel. Note that due to SSH2 implementation peculiarities,
+    // this still doesn't ALWAYS work, the "sleep" command being a notable
+    // exception, since it will always retain SSH session for whatever number of
+    // seconds it's told to sleep.
+    'force_timeout' => false,
+
+    // if you disable this, interactive SSH sequence won't run an extra
+    // "echo $?" after each command to find out exit code, but it also won't be
+    // available in command result.
+    'disable_exit_code_check' => false,
 ];

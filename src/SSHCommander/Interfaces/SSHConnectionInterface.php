@@ -22,6 +22,14 @@ interface SSHConnectionInterface
 
     public function exec(SSHCommandInterface $command): SSHConnectionInterface;
 
+    public function execInteractive(SSHCommandInterface $command): SSHConnectionInterface;
+
+    public function read();
+
+    public function write(string $chars);
+
+    public function writeAndSend(string $chars);
+
     public function isAuthenticated(): bool;
 
     public function isValid(): bool;
@@ -32,9 +40,13 @@ interface SSHConnectionInterface
 
     public function getLastExitCode(): ?int;
 
-    public function resetOutput(): void;
+    public function isTimeout(): bool;
 
-    public function resetCommandConfig(): void;
+    public function resetOutput(): SSHConnectionInterface;
+
+    public function resetCommandConfig(): SSHConnectionInterface;
 
     public function resetTimeout(): SSHConnectionInterface;
+
+    public function resetQuietMode(): SSHConnectionInterface;
 }

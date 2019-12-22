@@ -82,6 +82,6 @@ class CRResultDecorator
         $result->setCommandStartTime($this->getTimerStart())
                ->setCommandEndTime($this->getTimerEnd())
                ->setCommandElapsedTime($this->getElapsedTime())
-               ->setIsTimeout($this->getConnection()->getSSH2()->isTimeout());
+               ->setIsTimeout($this->getConnection()->isTimeout());
     }
 }

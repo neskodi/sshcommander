@@ -30,9 +30,16 @@ class SequenceCommandRunner
     {
         $result = parent::run($command);
 
-        $this->resultCollection[] = $result;
+        $this->saveResultToCollection($result);
 
         return $result;
+    }
+
+    protected function saveResultToCollection(SSHCommandResultInterface $result): void
+    {
+        $collection = $this->getResultCollection();
+
+        $collection[] = $result;
     }
 
     /**
@@ -42,6 +49,6 @@ class SequenceCommandRunner
      */
     public function exec(SSHCommandInterface $command): void
     {
-
+        $this->getConnection()->execInteractive($command);
     }
 }

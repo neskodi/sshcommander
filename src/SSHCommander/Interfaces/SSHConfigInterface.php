@@ -32,6 +32,8 @@ interface SSHConfigInterface
 
     public function getPassword(): ?string;
 
+    public function getPromptRegex(): ?string;
+
     public static function setConfigFileLocation(string $location): void;
 
     public static function getConfigFileLocation(): ?string;

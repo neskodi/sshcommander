@@ -26,4 +26,7 @@ return [
     'log_file'                    => '/no/such/path/sshcommanderlog.txt',
     'log_level'                   => 'debug',
     'output_trim_last_empty_line' => true,
+    'prompt_regex' => '/[^@\s]+@[^:]+:.*[$%#>]\s?$/',
+    'force_timeout' => false,
+    'disable_exit_code_check' => false,
 ];

@@ -470,6 +470,16 @@ class SSHConfig implements SSHConfigInterface
     }
 
     /**
+     * Get the regular expression used to detect normal prompt in SSH output.
+     *
+     * @return string
+     */
+    public function getPromptRegex(): ?string
+    {
+        return $this->config['prompt_regex'] ?? null;
+    }
+
+    /**
      * Validate the value before adding it to the config. Normal validation
      * rules apply.
      *
