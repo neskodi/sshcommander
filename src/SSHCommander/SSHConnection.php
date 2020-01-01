@@ -347,7 +347,7 @@ class SSHConnection implements
         $this->cleanCommandBuffer();
 
         // Commands MUST be glued by ';' to produce only one command prompt
-        // so we get all commands as single string
+        // so let's join all commands into a single string
         $this->writeAndSend($command->singleString());
 
         $delim  = $command->getConfig('delimiter_split_output');
@@ -362,8 +362,10 @@ class SSHConnection implements
 
     protected function cleanCommandBuffer()
     {
+        $this->debug('Cleaning buffer...');
+
         $ssh = $this->getSSH2();
-        $ssh->setTimeout(2);
+        $ssh->setTimeout(1);
         $output = '';
         while ($str = $this->sshRead('', SSH2::READ_NEXT)) {
             if (is_bool($str)) {
@@ -377,6 +379,8 @@ class SSHConnection implements
         }
 
         $ssh->setTimeout($this->getConfig('timeout_command'));
+
+        $this->debug('End cleaning buffer...');
     }
 
     /** @noinspection PhpUnhandledExceptionInspection */
@@ -386,9 +390,11 @@ class SSHConnection implements
             $this->lastExitCode = null;
         } else {
             $command = new SSHCommand('echo $?', $this->getConfig());
+            $command->setOption('break_on_error', false);
             $this->writeAndSend($command);
             $output             = $this->read();
-            $this->lastExitCode = (int)$this->cleanCommandOutput($output, $command);
+            $this->lastExitCode = $this->cleanCommandOutput($output, $command);
+            $this->debug(var_export($this->lastExitCode, true));
         }
     }
 
@@ -420,6 +426,7 @@ class SSHConnection implements
     public function read()
     {
         $this->startTimer();
+
         $output = '';
 
         while ($str = $this->sshRead('', SSH2::READ_NEXT)) {
@@ -434,6 +441,8 @@ class SSHConnection implements
         }
 
         $this->stopTimer();
+
+        $this->debug('READ: ' . str_replace(["\r", "\n"], ['\r', '\n'], $output));
 
         return $output;
     }
@@ -522,6 +531,8 @@ class SSHConnection implements
      */
     public function write(string $chars)
     {
+        $this->debug('WRITE: ' . $chars);
+
         return $this->sshWrite($chars);
     }
 
