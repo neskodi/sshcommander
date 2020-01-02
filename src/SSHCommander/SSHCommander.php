@@ -139,31 +139,16 @@ class SSHCommander implements
         $command,
         array $options = []
     ): SSHCommandInterface {
+        // Get the final set of options that apply to this command run.
+        $options = $this->getMergedOptions($command, $options);
+
         if ($command instanceof SSHCommandInterface) {
-            // Override options with values that were directly passed with the
-            // command
             $command->setOptions($options);
-            // Add any missing default options
-            $command->setOptions($this->config->all(), true);
         } else {
-            $this->addDefaultCommandOptions($options);
             $command = new SSHCommand($command, $options);
         }
 
         return $command;
-    }
-
-    /**
-     * Pass some global options to command by default, unless they were
-     * specified with the command itself.
-     *
-     * @param array $options
-     */
-    protected function addDefaultCommandOptions(array &$options)
-    {
-        $config = $this->getConfig()->all();
-
-        $options = array_merge($config, $options);
     }
 
     /**
@@ -219,5 +204,36 @@ class SSHCommander implements
         $commandRunner->setConnection($this->getConnection());
 
         return $commandRunner;
+    }
+
+    /**
+     * Override most general set of options with more specific sets.
+     *
+     * First, the global options of this SSHCommander object are applied,
+     * then the sequence-level options (if any), then the options from the
+     * source command, then the options passed to the current running command.
+     *
+     * @param string|array|SSHCommandInterface $command
+     * @param array                            $options
+     *
+     * @return array
+     */
+    protected function getMergedOptions(
+        $command,
+        array $options
+    ): array {
+        $options = array_merge(
+            // global config options of this SSHCommander instance
+            $this->getConfig()->all(),
+
+            // if passed command is an object having its own options, they will
+            // apply
+            ($command instanceof SSHCommandInterface) ? $command->getConfig()->all() : [],
+
+            // and override by options specific to this command
+            $options
+        );
+
+        return $options;
     }
 }
