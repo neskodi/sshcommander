@@ -2,10 +2,10 @@
 
 namespace Neskodi\SSHCommander\CommandRunners;
 
-use Neskodi\SSHCommander\Interfaces\SSHCommandResultInterface;
 use Neskodi\SSHCommander\Interfaces\ConfigAwareInterface;
 use Neskodi\SSHCommander\Interfaces\LoggerAwareInterface;
 use Neskodi\SSHCommander\Interfaces\SSHCommandInterface;
+use Neskodi\SSHCommander\Interfaces\SSHCommandRunnerInterface;
 use Neskodi\SSHCommander\Interfaces\SSHConfigInterface;
 use Neskodi\SSHCommander\Traits\ConfigAware;
 use Neskodi\SSHCommander\Traits\Loggable;
@@ -13,7 +13,8 @@ use Psr\Log\LoggerInterface;
 
 abstract class BaseCommandRunner implements
     LoggerAwareInterface,
-    ConfigAwareInterface
+    ConfigAwareInterface,
+    SSHCommandRunnerInterface
 {
     use Loggable, ConfigAware;
 

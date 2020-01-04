@@ -2,6 +2,7 @@
 
 namespace Neskodi\SSHCommander;
 
+use Neskodi\SSHCommander\Interfaces\SSHSequenceCommandRunnerInterface;
 use Neskodi\SSHCommander\Interfaces\SSHResultCollectionInterface;
 use Neskodi\SSHCommander\CommandRunners\SequenceCommandRunner;
 use Neskodi\SSHCommander\Interfaces\SSHCommandResultInterface;
@@ -37,11 +38,6 @@ class SSHCommander implements
      * @var SSHCommandRunnerInterface
      */
     protected $commandRunner;
-
-    /**
-     * @var array
-     */
-    protected $sequenceLevelOptions = [];
 
     /**
      * SSHCommander constructor.
@@ -143,6 +139,8 @@ class SSHCommander implements
      *                                                  break_on_error
      *
      * @return SSHCommandInterface
+     *
+     * @throws AuthenticationException
      */
     public function createCommand(
         $command,
@@ -236,7 +234,10 @@ class SSHCommander implements
             )
         );
 
-        $this->setSequenceLevelOptions($options);
+        /** @var SSHSequenceCommandRunnerInterface $runner */
+        $runner = $this->getCommandRunner();
+
+        $runner->mergeConfig($options)->initSequence();
     }
 
     /**
@@ -247,8 +248,6 @@ class SSHCommander implements
     protected function endSequence(): void
     {
         $this->commandRunner = null;
-
-        $this->setSequenceLevelOptions([]);
     }
 
     /**
@@ -301,26 +300,6 @@ class SSHCommander implements
     }
 
     /**
-     * Set the options that must apply to the current sequence.
-     *
-     * @param array $options
-     */
-    protected function setSequenceLevelOptions(array $options): void
-    {
-        $this->sequenceLevelOptions = $options;
-    }
-
-    /**
-     * Get the options that must apply to the current sequence.
-     *
-     * @return array
-     */
-    protected function getSequenceLevelOptions(): array
-    {
-        return $this->sequenceLevelOptions;
-    }
-
-    /**
      * Override most general set of options with more specific sets.
      *
      * First, the global options of this SSHCommander object are applied,
@@ -331,26 +310,39 @@ class SSHCommander implements
      * @param array                            $options
      *
      * @return array
+     * @throws AuthenticationException
      */
     protected function getMergedOptions(
         $command,
         array $options
     ): array {
-        $options = array_merge(
-        // global config options of this SSHCommander instance
+        $commandRunner = $this->getCommandRunner();
+
+        $merged = array_merge(
+            // global config options of this SSHCommander instance
             $this->getConfig()->all(),
 
             // override with sequence-level options
-            $this->getSequenceLevelOptions(),
+            $commandRunner->getConfig()->all(),
 
             // if passed command is an object having its own options, they will
-            // apply
-            ($command instanceof SSHCommandInterface) ? $command->getConfig()->all() : [],
-
-            // and override by options specific to this command
-            $options
+            // apply here
+            ($command instanceof SSHCommandInterface) ? $command->getConfig()->all() : []
         );
 
-        return $options;
+        // Up to runner to clean any options that should not propagate
+        // to commands from above
+        if (
+            is_object($commandRunner) &&
+            method_exists($commandRunner, 'filterCommandOptionsBeforeRun')
+        ) {
+            $commandRunner->filterCommandOptionsBeforeRun($options);
+        }
+
+        // finally, merge command level options provided immediately at command
+        // run time
+        $merged = array_merge($merged, $options);
+
+        return $merged;
     }
 }
