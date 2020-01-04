@@ -4,6 +4,7 @@ namespace Neskodi\SSHCommander\CommandRunners;
 
 use Neskodi\SSHCommander\Interfaces\SSHSequenceCommandRunnerInterface;
 use Neskodi\SSHCommander\Interfaces\SSHCommandResultInterface;
+use Neskodi\SSHCommander\Exceptions\CommandRunException;
 use Neskodi\SSHCommander\Interfaces\SSHCommandInterface;
 use Neskodi\SSHCommander\Traits\HasResultCollection;
 use Neskodi\SSHCommander\SSHCommand;
@@ -26,12 +27,17 @@ class SequenceCommandRunner
      *                                     run
      *
      * @return SSHCommandResultInterface
+     * @throws CommandRunException
      */
     public function run(SSHCommandInterface $command): SSHCommandResultInterface
     {
         $result = parent::run($command);
 
         $this->saveResultToCollection($result);
+
+        if ($this->getConfig('break_on_error') && $result->isError()) {
+            throw new CommandRunException;
+        }
 
         return $result;
     }
@@ -95,12 +101,20 @@ class SequenceCommandRunner
     /**
      * Run the preliminary commands in the beginning of the sequence, such as
      * moving into basedir
+     *
+     * @throws CommandRunException
      */
     public function initSequence(): void
     {
         $this->initBasedir();
     }
 
+    /**
+     * Run the command to move into the basedir if one was specified for this
+     * sequence.
+     *
+     * @throws CommandRunException
+     */
     protected function initBasedir(): void
     {
         if ($basedir = $this->getConfig('basedir')) {

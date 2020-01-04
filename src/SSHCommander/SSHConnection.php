@@ -379,6 +379,7 @@ class SSHConnection implements
         $ssh = $this->getSSH2();
         $ssh->setTimeout(1);
         $output = '';
+
         while ($str = $this->sshRead('', SSH2::READ_NEXT)) {
             if (is_bool($str)) {
                 break;
@@ -401,11 +402,17 @@ class SSHConnection implements
         if ($this->getConfig('disable_exit_code_check')) {
             $this->lastExitCode = null;
         } else {
-            $command = new SSHCommand('echo $?', $this->getConfig());
-            $command->setOption('break_on_error', false);
+            $command = new SSHCommand('echo $?', ['break_on_error' => false]);
             $this->writeAndSend($command);
             $output             = $this->read();
             $this->lastExitCode = $this->cleanCommandOutput($output, $command);
+
+            if ('' === $this->lastExitCode) {
+                // probably shell has exited because of an error trap. We have
+                // no way to catch this so we have to emulate an error code.
+                $this->lastExitCode = 1;
+            }
+
             $this->debug(var_export($this->lastExitCode, true));
         }
     }
@@ -420,7 +427,7 @@ class SSHConnection implements
      *
      * @return false|string|string[]|null
      */
-    protected function cleanCommandOutput(string $output, SSHCommandInterface $command)
+    protected function cleanCommandOutput(string $output, SSHCommandInterface $command): string
     {
         // clean out the command itself from the beginning
         $delim        = '\r?\n';
