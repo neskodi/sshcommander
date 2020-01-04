@@ -30,7 +30,7 @@ class SequenceTest extends TestCase
             $host->run('cd /no/such/dir');
             $host->run('export A="lewolf"');
             $host->run('echo $A');
-        }, ['basedir' => 'tmp']);
+        }, ['basedir' => '/tmp']);
 
         $this->assertSame(0, $results[0]->getExitCode());
         $this->assertSame('/tmp', $results[0]->getOutput(true));

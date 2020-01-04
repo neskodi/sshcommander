@@ -124,4 +124,14 @@ class RemoteCommandRunner
     {
         $command->prependCommand('set -e');
     }
+
+    /**
+     * Command runner should be allowed to merge chunks of config without validation.
+     *
+     * @return bool
+     */
+    protected function skipConfigValidation(): bool
+    {
+        return true;
+    }
 }

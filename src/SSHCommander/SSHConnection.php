@@ -360,14 +360,13 @@ class SSHConnection implements
         $this->cleanCommandBuffer();
 
         // Commands MUST be glued by ';' to produce only one command prompt
-        // so let's join all commands into a single string
-        $this->writeAndSend($command->singleString());
+        // so let's join all commands into a single line
+        $this->writeAndSend($command->singleLine());
 
-        $delim  = $command->getConfig('delimiter_split_output');
         $output = $this->read();
         $output = $this->cleanCommandOutput($output, $command);
 
-        $this->stdoutLines = explode($delim, $output);
+        $this->stdoutLines = $this->processOutput($command, $output);
         $this->checkLastExitCode();
 
         return $this;
@@ -425,7 +424,7 @@ class SSHConnection implements
     {
         // clean out the command itself from the beginning
         $delim        = '\r?\n';
-        $commandChars = '^' . preg_quote($command->singleString(), '/') . $delim;
+        $commandChars = '^' . preg_quote($command->singleLine(), '/') . $delim;
         $commandRegex = "/$commandChars/";
         $output       = preg_replace($commandRegex, '', $output);
 

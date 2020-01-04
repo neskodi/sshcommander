@@ -58,5 +58,5 @@ interface SSHResultCollectionInterface extends ArrayAccess
 
     public function count(?callable $function = null): int;
 
-    public function wipe(): void;
+    public function clear(): void;
 }

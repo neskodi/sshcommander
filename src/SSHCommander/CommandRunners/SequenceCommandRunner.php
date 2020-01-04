@@ -108,6 +108,10 @@ class SequenceCommandRunner
             $command = new SSHCommand($command, $this->getConfig());
 
             $this->run($command);
+
+            // user doesn't expect this result to be included, so remove
+            // it from the collection
+            $this->getResultCollection()->clear();
         }
     }
 
@@ -120,11 +124,5 @@ class SequenceCommandRunner
     public function filterCommandOptionsBeforeRun(array &$config = []): void
     {
         unset($config['basedir']);
-    }
-
-
-    protected function skipConfigValidation(): bool
-    {
-        return true;
     }
 }

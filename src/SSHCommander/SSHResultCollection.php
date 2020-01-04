@@ -518,7 +518,7 @@ class SSHResultCollection implements SSHResultCollectionInterface
     /**
      * Make this collection empty.
      */
-    public function wipe(): void
+    public function clear(): void
     {
         $this->items = [];
     }
