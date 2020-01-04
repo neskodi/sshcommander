@@ -51,8 +51,8 @@ class SSHCommand implements SSHCommandInterface, ConfigAwareInterface
      * Fluent setter for the command to execute.
      *
      * @param array|string|SSHCommandInterface $command
-     *   - single command as string
-     *   - multiple commands as strings separated by delimiter_split_input
+     *   - single-line command as string
+     *   - multi-line command as string
      *   - multiple commands as array
      *
      * @return SSHCommandInterface

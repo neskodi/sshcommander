@@ -67,6 +67,16 @@ class MockSSHConnection extends SSHConnection implements
         $this->setExitCode();
     }
 
+    protected function sshRead(string $chars, int $mode)
+    {
+        return '';
+    }
+
+    protected function sshWrite(string $chars)
+    {
+        //
+    }
+
     protected function setExitCode()
     {
         $this->lastExitCode = static::expects(self::RESULT_ERROR)

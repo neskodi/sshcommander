@@ -19,10 +19,6 @@ return [
     // How long to wait for a command to complete.
     'timeout_command' => 10,
 
-    // Character or string used to separate commands if multiple commands are
-    // passed as one line.
-    'delimiter_split_input' => PHP_EOL,
-
     // Character or string used to glue multiple commands when passed to SSH2
     // for execution. Don't change unless you know what you are doing.
     'delimiter_join_input' => "\n",
@@ -75,7 +71,7 @@ return [
     'force_timeout' => false,
 
     // if you disable this, interactive SSH sequence won't run an extra
-    // "echo $?" after each command to find out exit code, but it also won't be
-    // available in command result.
+    // "echo $?" after each command to find out its exit code, but it also means
+    // that exit codes won't be available in command results.
     'disable_exit_code_check' => false,
 ];

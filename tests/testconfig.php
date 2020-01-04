@@ -17,7 +17,6 @@ return [
     'basedir'                      => '/tmp',
     'timeout_connect'              => 2,
     'timeout_command'              => 4,
-    'delimiter_split_input'        => ';',
     'delimiter_split_output_regex' => '/[\r\n]+/',
     'delimiter_split_output'       => ';',
     'delimiter_join_input'         => ';',

@@ -147,6 +147,7 @@ class SSHConfigTest extends IntegrationTestCase
         MockSSHConfig::setOverrides($timeoutConfig);
         $config    = new MockSSHConfig($this->sshOptions);
         $commander = new SSHCommander($config);
+        $this->assertTrue($commander->getConnection()->isAuthenticated());
 
         $this->assertEquals($timeoutValue, $commander->getConfig('timeout_command'));
 
@@ -174,6 +175,7 @@ class SSHConfigTest extends IntegrationTestCase
         $config        = array_merge($this->sshOptions, $timeoutConfig);
 
         $commander = new SSHCommander($config);
+        $this->assertTrue($commander->getConnection()->isAuthenticated());
 
         $this->startTimer();
         $commander->run('ping google.com');
@@ -196,6 +198,7 @@ class SSHConfigTest extends IntegrationTestCase
         $timeoutConfig = ['timeout_command' => $timeoutValue];
 
         $commander = new SSHCommander($this->sshOptions);
+        $this->assertTrue($commander->getConnection()->isAuthenticated());
 
         $this->startTimer();
         $commander->run('ping google.com', $timeoutConfig);
