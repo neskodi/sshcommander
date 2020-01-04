@@ -34,5 +34,7 @@ abstract class BaseCommandRunner implements
         }
     }
 
-    abstract public function run(SSHCommandInterface $command): SSHCommandResultInterface;
+    abstract public function prepareCommand(SSHCommandInterface $command): SSHCommandInterface;
+
+    abstract public function run(SSHCommandInterface $command);
 }

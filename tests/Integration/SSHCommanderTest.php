@@ -89,7 +89,7 @@ class SSHCommanderTest extends IntegrationTestCase
 
         $basedir = '/tmp';
 
-        $result = $commander->run("cd $basedir" . PHP_EOL . 'pwd');
+        $result = $commander->run("cd $basedir" . "\n" . 'pwd');
 
         $this->assertSame($basedir, (string)$result);
     }
@@ -162,30 +162,30 @@ class SSHCommanderTest extends IntegrationTestCase
         $this->assertTrue($connection->isAuthenticated());
     }
 
-    // public function testLoginWithProtectedKeyfileWorks(): void
-    // {
-    //     try {
-    //         $this->requireUser();
-    //     } catch (RuntimeException $e) {
-    //         $this->markTestSkipped($e->getMessage());
-    //     }
-    //
-    //     $options = [
-    //         'host'     => $this->sshOptions['host'],
-    //         'port'     => $this->sshOptions['port'] ?? 22,
-    //         'user'     => $this->sshOptions['user'],
-    //         'keyfile'  => $this->getProtectedPrivateKeyFile(),
-    //         'password' => 'secret',
-    //
-    //         'autologin' => true,
-    //     ];
-    //
-    //     $commander = new SSHCommander($options);
-    //
-    //     $connection = $commander->getConnection();
-    //
-    //     $this->assertTrue($connection->isAuthenticated());
-    // }
+    public function testLoginWithProtectedKeyfileWorks(): void
+    {
+        try {
+            $this->requireUser();
+        } catch (RuntimeException $e) {
+            $this->markTestSkipped($e->getMessage());
+        }
+
+        $options = [
+            'host'     => $this->sshOptions['host'],
+            'port'     => $this->sshOptions['port'] ?? 22,
+            'user'     => $this->sshOptions['user'],
+            'keyfile'  => $this->getProtectedPrivateKeyFile(),
+            'password' => 'secret',
+
+            'autologin' => true,
+        ];
+
+        $commander = new SSHCommander($options);
+
+        $connection = $commander->getConnection();
+
+        $this->assertTrue($connection->isAuthenticated());
+    }
 
     public function testLoginWithPasswordWorks(): void
     {

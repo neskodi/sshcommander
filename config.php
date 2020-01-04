@@ -28,7 +28,12 @@ return [
     'delimiter_join_input' => "\n",
 
     // Character or string used to split multiple lines of output returned by
-    // a command. Don't change unless you know what you are doing.
+    // a command. Default is to split by any sequence of \r and \n characters.
+    'delimiter_split_output_regex' => '/[\r\n]+/',
+
+    // Character or string used to split multiple lines of output returned by
+    // a command. Only used if 'delimiter_split_output_regex' is not specified
+    // (set to null).
     'delimiter_split_output' => "\n",
 
     // Character or string used to glue together multiple lines of output

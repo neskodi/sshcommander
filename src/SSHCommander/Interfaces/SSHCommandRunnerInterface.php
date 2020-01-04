@@ -11,4 +11,6 @@ interface SSHCommandRunnerInterface
     public function setConfig(SSHConfigInterface $config);
 
     public function getConfig(?string $param = null);
+
+    public function prepareCommand(SSHCommandInterface $command): SSHCommandInterface;
 }

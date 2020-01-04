@@ -18,12 +18,12 @@ class SSHCommandTest extends TestCase
         return $command;
     }
 
-    public function testSetOptions(): void
+    public function testmergeConfig(): void
     {
         $command = $this->createCommand('ls');
 
         $options = ['basedir' => '/test', 'timeout_command' => 12];
-        $command->setOptions($options);
+        $command->mergeConfig($options);
         $options = $command->getConfig();
 
         $this->assertEquals($options->get('basedir'), '/test');
@@ -46,29 +46,26 @@ class SSHCommandTest extends TestCase
 
         $commandToPrepend = 'cd /test';
         $command->prependCommand($commandToPrepend);
-        $result = $command->getCommands(false, false);
+        $result = $command->getCommand();
 
-        $this->assertEquals([
-            'cd /test',
-            'ls',
-        ], $result);
+        $this->assertEquals('cd /test;ls', $result);
     }
 
     public function testPrependCommandStringMulti(): void
     {
         $command = $this->createCommand('ls');
-        $command->setOption('delimiter_split_input', ';');
+        $command->setOption('delimiter_join_input', ';');
 
         $commandToPrepend = ['cd /test', 'pwd'];
 
         $command->prependCommand(implode(';', $commandToPrepend));
-        $result = $command->getCommands(false, false);
+        $result = $command->getCommand();
 
-        $this->assertEquals([
+        $this->assertEquals(implode(';', [
             'cd /test',
             'pwd',
             'ls',
-        ], $result);
+        ]), $result);
     }
 
     public function testPrependCommandArray(): void
@@ -77,13 +74,13 @@ class SSHCommandTest extends TestCase
 
         $commandToPrepend = ['cd /test', 'pwd'];
         $command->prependCommand($commandToPrepend);
-        $result = $command->getCommands(false, false);
+        $result = $command->getCommand();
 
-        $this->assertEquals([
+        $this->assertEquals(implode(';', [
             'cd /test',
             'pwd',
             'ls',
-        ], $result);
+        ]), $result);
     }
 
     public function testPrependCommandObject(): void
@@ -93,12 +90,9 @@ class SSHCommandTest extends TestCase
         $commandToPrepend = $this->createCommand('cd /test');
 
         $command->prependCommand($commandToPrepend);
-        $result = $command->getCommands(false, false);
+        $result = $command->getCommand();
 
-        $this->assertEquals([
-            'cd /test',
-            'ls',
-        ], $result);
+        $this->assertEquals('cd /test;ls', $result);
     }
 
     public function testPrependCommandInvalid(): void
@@ -116,27 +110,21 @@ class SSHCommandTest extends TestCase
 
         $commandToSet = 'cd /test';
         $command->setCommand($commandToSet);
-        $result = $command->getCommands(false, false);
+        $result = $command->getCommand();
 
-        $this->assertEquals([
-            'cd /test',
-        ], $result);
+        $this->assertEquals('cd /test', $result);
     }
 
     public function testSetCommandStringMulti(): void
     {
         $command = $this->createCommand('ls');
-        $command->setOption('delimiter_split_input', ';');
 
         $commandToSet = ['cd /test', 'pwd'];
-
         $command->setCommand(implode(';', $commandToSet));
-        $result = $command->getCommands(false, false);
 
-        $this->assertEquals([
-            'cd /test',
-            'pwd',
-        ], $result);
+        $result = $command->getCommand();
+
+        $this->assertEquals('cd /test;pwd', $result);
     }
 
     public function testSetCommandArray(): void
@@ -145,12 +133,9 @@ class SSHCommandTest extends TestCase
 
         $commandToSet = ['cd /test', 'pwd'];
         $command->setCommand($commandToSet);
-        $result = $command->getCommands(false, false);
+        $result = $command->getCommand();
 
-        $this->assertEquals([
-            'cd /test',
-            'pwd'
-        ], $result);
+        $this->assertEquals('cd /test;pwd', $result);
     }
 
     public function testSetCommandObject(): void
@@ -158,13 +143,11 @@ class SSHCommandTest extends TestCase
         $command = $this->createCommand('ls');
 
         $commandToSet = $this->createCommand('cd /test');
-
         $command->setCommand($commandToSet);
-        $result = $command->getCommands(false, false);
 
-        $this->assertEquals([
-            'cd /test',
-        ], $result);
+        $result = $command->getCommand();
+
+        $this->assertEquals('cd /test', $result);
     }
 
     public function testSetCommandInvalid(): void
@@ -182,29 +165,26 @@ class SSHCommandTest extends TestCase
 
         $commandToAppend = 'cd /test';
         $command->appendCommand($commandToAppend);
-        $result = $command->getCommands(false, false);
 
-        $this->assertEquals([
-            'ls',
-            'cd /test',
-        ], $result);
+        $result = $command->getCommand();
+
+        $this->assertEquals('ls;cd /test', $result);
     }
 
     public function testAppendCommandStringMulti(): void
     {
         $command = $this->createCommand('ls');
-        $command->setOption('delimiter_split_input', ';');
 
         $commandToAppend = ['cd /test', 'pwd'];
-
         $command->appendCommand(implode(';', $commandToAppend));
-        $result = $command->getCommands(false, false);
 
-        $this->assertEquals([
+        $result = $command->getCommand();
+
+        $this->assertEquals(implode(';', [
             'ls',
             'cd /test',
             'pwd',
-        ], $result);
+        ]), $result);
     }
 
     public function testAppendCommandArray(): void
@@ -214,13 +194,13 @@ class SSHCommandTest extends TestCase
         $commandToAppend = ['cd /test', 'pwd'];
 
         $command->appendCommand($commandToAppend);
-        $result = $command->getCommands(false, false);
+        $result = $command->getCommand();
 
-        $this->assertEquals([
+        $this->assertEquals(implode(';', [
             'ls',
             'cd /test',
             'pwd',
-        ], $result);
+        ]), $result);
     }
 
     public function testAppendCommandObject(): void
@@ -230,12 +210,12 @@ class SSHCommandTest extends TestCase
         $commandToAppend = $this->createCommand('cd /test');
 
         $command->appendCommand($commandToAppend);
-        $result = $command->getCommands(false, false);
+        $result = $command->getCommand();
 
-        $this->assertEquals([
+        $this->assertEquals(implode(';', [
             'ls',
             'cd /test',
-        ], $result);
+        ]), $result);
     }
 
     public function testAppendCommandInvalid(): void
@@ -251,24 +231,20 @@ class SSHCommandTest extends TestCase
     {
         $command = $this->createCommand(' ls ');
 
-        $result = $command->getCommands(false, false);
+        $result = $command->getCommand();
 
-        $this->assertEquals([
-            'ls',
-        ], $result);
+        $this->assertEquals('ls', $result);
     }
 
     public function testCreateCommandFromStringMulti(): void
     {
-        $command = $this->createCommand('cd /test; ls');
-        $command->setOption('delimiter_split_input', ';');
+        $multiCommandString = ' cd /test; ls ';
 
-        $result = $command->getCommands(false, false);
+        $command = $this->createCommand($multiCommandString);
 
-        $this->assertEquals([
-            'cd /test',
-            'ls',
-        ], $result);
+        $result = $command->getCommand();
+
+        $this->assertEquals(trim($multiCommandString), $result);
     }
 
     public function testCreateCommandFromArray(): void
@@ -278,12 +254,12 @@ class SSHCommandTest extends TestCase
             $this->getTestConfigAsArray()
         );
 
-        $result = $command->getCommands(false, false);
+        $result = $command->getCommand();
 
-        $this->assertEquals([
+        $this->assertEquals(implode(';', [
             'cd /test',
             'ls',
-        ], $result);
+        ]), $result);
     }
 
     public function testCreateCommandFromObject(): void
@@ -294,11 +270,9 @@ class SSHCommandTest extends TestCase
             $this->getTestConfigAsArray()
         );
 
-        $result = $command->getCommands(false, false);
+        $result = $command->getCommand();
 
-        $this->assertEquals([
-            'ls',
-        ], $result);
+        $this->assertEquals('ls', $result);
     }
 
     public function testCreateCommandFromInvalid(): void
@@ -313,112 +287,26 @@ class SSHCommandTest extends TestCase
     public function testToLoggableString(): void
     {
         $command = new SSHCommand(
-            ['cd /test', 'ls'],
+            ["echo \"continued \nstring\"", 'ls'],
             $this->getTestConfigAsArray()
         );
 
-        $command->setOptions([
-            'break_on_error' => true,
-            'basedir'        => '/start',
-        ]);
-
         $result = $command->toLoggableString();
-        $this->assertEquals('set -e;cd /start;cd /test;ls', $result);
-        $result = $command->toLoggableString('~~');
-        $this->assertEquals('set -e~~cd /start~~cd /test~~ls', $result);
+        $this->assertEquals('echo "continued \nstring";ls', $result);
     }
 
     public function test__toString(): void
     {
-        $command = new SSHCommand(
-            ['cd /test', 'ls'],
-            $this->getTestConfigAsArray()
-        );
+        $config = $this->getTestConfigAsArray();
+        $config['delimiter_join_input'] = '~~';
 
-        $command->setOptions([
-            'break_on_error'       => true,
-            'basedir'              => '/start',
-            'delimiter_join_input' => ';',
-        ]);
+        $command = new SSHCommand(
+            [' cd /test ', ' ls '],
+            $config
+        );
 
         $result = (string)$command;
-        $this->assertEquals('set -e;cd /start;cd /test;ls', $result);
-    }
-
-    public function testGetCommandsAsStringPrepared(): void
-    {
-        $command = new SSHCommand(
-            ['cd /test', 'ls'],
-            $this->getTestConfigAsArray()
-        );
-
-        $command->setOptions([
-            'break_on_error'       => true,
-            'basedir'              => '/start',
-            'delimiter_join_input' => ';',
-        ]);
-
-        $result = $command->getCommands(true, true);
-        $this->assertEquals('set -e;cd /start;cd /test;ls', $result);
-    }
-
-    public function testGetCommandsAsStringRaw(): void
-    {
-        $command = new SSHCommand(
-            ['cd /test', 'ls'],
-            $this->getTestConfigAsArray()
-        );
-
-        $command->setOptions([
-            'break_on_error'       => true,
-            'basedir'              => '/start',
-            'delimiter_join_input' => ';',
-        ]);
-
-        $result = $command->getCommands(true, false);
-        $this->assertEquals('cd /test;ls', $result);
-    }
-
-    public function testGetCommandsAsArrayPrepared(): void
-    {
-        $command = new SSHCommand(
-            ['cd /test', 'ls'],
-            $this->getTestConfigAsArray()
-        );
-
-        $command->setOptions([
-            'break_on_error'       => true,
-            'basedir'              => '/start',
-            'delimiter_join_input' => ';',
-        ]);
-
-        $result = $command->getCommands(false, true);
-        $this->assertEquals([
-            'set -e',
-            'cd /start',
-            'cd /test',
-            'ls',
-        ], $result);
-    }
-
-    public function testGetCommandsAsArrayRaw(): void
-    {
-        $command = new SSHCommand(
-            ['cd /test', 'ls'],
-            $this->getTestConfigAsArray()
-        );
-
-        $command->setOptions([
-            'break_on_error'       => true,
-            'basedir'              => '/start',
-            'delimiter_join_input' => ';',
-        ]);
-
-        $result = $command->getCommands(false, false);
-        $this->assertEquals([
-            'cd /test',
-            'ls',
-        ], $result);
+        $this->assertEquals('cd /test~~ls', $result);
     }
 }
 

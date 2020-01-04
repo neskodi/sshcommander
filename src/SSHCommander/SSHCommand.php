@@ -6,6 +6,7 @@
 namespace Neskodi\SSHCommander;
 
 use Neskodi\SSHCommander\Exceptions\InvalidCommandException;
+use Neskodi\SSHCommander\Exceptions\EmptyCommandException;
 use Neskodi\SSHCommander\Interfaces\ConfigAwareInterface;
 use Neskodi\SSHCommander\Interfaces\SSHCommandInterface;
 use Neskodi\SSHCommander\Interfaces\SSHConfigInterface;
@@ -13,15 +14,15 @@ use Neskodi\SSHCommander\Traits\ConfigAware;
 
 class SSHCommand implements SSHCommandInterface, ConfigAwareInterface
 {
-    use ConfigAware;
+    use ConfigAware {
+        setOption as protected configAwareSetOption;
+        mergeConfig as protected configAwareMergeConfig;
+    }
 
     /**
-     * One command object may hold multiple commands to execute in one run.
-     * Hence an array.
-     *
-     * @var array
+     * @var string
      */
-    protected $commands = [];
+    protected $command = '';
 
     /**
      * Command constructor.
@@ -33,8 +34,17 @@ class SSHCommand implements SSHCommandInterface, ConfigAwareInterface
      */
     public function __construct($command, $config = [])
     {
-        $this->setConfig($config)
-             ->setCommand($command);
+        $initialConfig = ($command instanceof SSHCommandInterface)
+            ? $command->getConfig()
+            : [];
+
+        $this->setConfig($initialConfig);
+
+        if (!empty($config)) {
+            $this->mergeConfig($config);
+        }
+
+        $this->setCommand($command);
     }
 
     /**
@@ -49,7 +59,9 @@ class SSHCommand implements SSHCommandInterface, ConfigAwareInterface
      */
     public function setCommand($command): SSHCommandInterface
     {
-        $this->commands = $this->sanitizeInput($command);
+        $command = $this->convertUserInputToCommandString($command);
+        $this->validateCommand($command);
+        $this->command = $command;
 
         return $this;
     }
@@ -61,105 +73,53 @@ class SSHCommand implements SSHCommandInterface, ConfigAwareInterface
      */
     public function __toString(): string
     {
-        return $this->getCommands(true, true);
+        return $this->getCommand();
     }
 
     /**
-     * Return the commands as a string in a format most appropriate to write to
-     * the log.
-     *
-     * @param string $delimiter the delimiter to use to separate commands.
+     * Return the commands as a string in a format suitable for logging.
      *
      * @return string
      */
-    public function toLoggableString($delimiter = ';'): string
+    public function toLoggableString(): string
     {
-        $preparedCommands = $this->getPreparedCommands();
-
-        return implode($delimiter, $preparedCommands);
+        return str_replace(["\r", "\n"], ['\r', '\n'], $this->getCommand());
     }
 
     /**
-     * Get all commands as a string or an array.
-     *
-     * @param bool $asString   pass false to get commands as an array.
-     *
-     * @param bool $prepared   perform preparation before actual run, for example
-     *                         prepend 'cd basedir' and 'sed -e' for breaking on
-     *                         errors.
-     *
-     * @param bool $singleLine replace all line breaks with ';'
-     *
-     * @return array|string
+     * Get command as a string.
      */
-    public function getCommands(
-        bool $asString = true,
-        bool $prepared = true,
-        bool $singleLine = false
-    ) {
-        $commands = $prepared
-            ? $this->getPreparedCommands()
-            : $this->commands;
-
-        if (!$asString) {
-            return $commands;
-        }
-
-        // convert to string and optionally escape newlines
-        $strCommands = implode($this->getConfig('delimiter_join_input'), $commands);
-        if ($singleLine) {
-            $strCommands = preg_replace('/[\r\n]+/', ';', $strCommands);
-        }
-
-        return $strCommands;
-    }
-
-    /**
-     * Get all commands as a single string (separated by ';'), with newlines
-     * stripped.
-     *
-     * @return string
-     */
-    public function singleString(): string
+    public function getCommand(): string
     {
-        return $this->getCommands(true, true, true);
+        return $this->command;
     }
 
     /**
-     * Set a specific option.
+     * This override is here so that SSHCommandInterface can declare the return
+     * type (trait is too generic and can't assume any return types).
      *
-     * @param string $key   the name of the option to set.
-     * @param mixed  $value the value of the option.
+     * @param string $key
+     * @param        $value
      *
      * @return SSHCommandInterface
      */
     public function setOption(string $key, $value): SSHCommandInterface
     {
-        $this->config->set($key, $value);
-
-        return $this;
+        return $this->configAwareSetOption($key, $value);
     }
 
     /**
-     * Set a specific option.
+     * This override is here so that SSHCommandInterface can declare the return
+     * type (trait is too generic and can't assume any return types).
      *
-     * @param array $options
-     *
-     * @param bool  $soft set each option only if it wasn't set before
+     * @param      $config
+     * @param bool $missingOnly
      *
      * @return SSHCommandInterface
      */
-    public function setOptions(array $options = [], bool $soft = false): SSHCommandInterface
+    public function mergeConfig($config, bool $missingOnly = false): SSHCommandInterface
     {
-        foreach ($options as $key => $value) {
-            if ($soft && $this->config->has($key)) {
-                continue;
-            }
-
-            $this->config->set($key, $value);
-        }
-
-        return $this;
+        return $this->configAwareMergeConfig($config, $missingOnly);
     }
 
     /**
@@ -171,9 +131,16 @@ class SSHCommand implements SSHCommandInterface, ConfigAwareInterface
      */
     public function appendCommand($command): SSHCommandInterface
     {
-        $commands = $this->sanitizeInput($command);
+        $command = $this->convertUserInputToCommandString($command);
+        $this->validateCommand($command);
 
-        $this->commands = array_merge($this->commands, $commands);
+        $this->command = implode(
+            $this->getConfig('delimiter_join_input'),
+            [
+                $this->command,
+                $command,
+            ]
+        );
 
         return $this;
     }
@@ -187,69 +154,64 @@ class SSHCommand implements SSHCommandInterface, ConfigAwareInterface
      */
     public function prependCommand($command): SSHCommandInterface
     {
-        $commands = $this->sanitizeInput($command);
+        $command = $this->convertUserInputToCommandString($command);
+        $this->validateCommand($command);
 
-        $this->commands = array_merge($commands, $this->commands);
+        $this->command = implode(
+            $this->getConfig('delimiter_join_input'),
+            [
+                $command,
+                $this->command,
+            ]
+        );
 
         return $this;
     }
 
     /**
-     * Inject user input, be it a string, an array or another command object.
-     * Throw an exception if input is invalid.
+     * Cast user's input from any permitted type to string, or throw an
+     * exception if this is not possible.
      *
-     * @param $command
+     * @param mixed $command
      *
-     * @return array
+     * @return string
      */
-    protected function sanitizeInput($command): array
+    protected function convertUserInputToCommandString($command): string
     {
-        if (
-            !is_array($command) &&
-            !is_string($command) &&
-            !$command instanceof SSHCommandInterface
-        ) {
-            throw new InvalidCommandException(gettype($command));
+        switch (gettype($command)) {
+            case 'string':
+                $result = trim($command);
+                break;
+            case 'array':
+                $result = implode(
+                    $this->getConfig('delimiter_join_input'),
+                    array_map('trim', $command)
+                );
+                break;
+            case 'object':
+                if (!$command instanceof SSHCommandInterface) {
+                    throw new InvalidCommandException(get_class($command));
+                }
+                $result = $command->getCommand();
+                break;
+            default:
+                throw new InvalidCommandException(gettype($command));
         }
 
-        if ($command instanceof SSHCommandInterface) {
-            $arrayCommands = $command->getCommands(false, false);
-        }
-
-        if (is_array($command)) {
-            $arrayCommands = $command;
-        }
-
-        if (is_string($command)) {
-            $delimiter = $this->getConfig('delimiter_split_input');
-
-            $arrayCommands = explode($delimiter, $command);
-        }
-
-        $arrayCommands = array_map('trim', $arrayCommands);
-
-        return $arrayCommands;
+        return trim($result);
     }
 
     /**
-     * Perform preparation before actual run, for example prepend 'cd basedir'
-     * and 'sed -e' for breaking on errors.
+     * Verify that the user has provided a non-empty string that can be supplied
+     * to shell as a command.
      *
-     * @return array
+     * @param string $command
      */
-    protected function getPreparedCommands(): array
+    protected function validateCommand(string $command): void
     {
-        $commands = $this->commands;
-
-        if ($basedir = $this->getConfig('basedir')) {
-            array_unshift($commands, 'cd ' . $basedir);
+        if (empty($command)) {
+            throw new EmptyCommandException;
         }
-
-        if ($this->getConfig('break_on_error')) {
-            array_unshift($commands, 'set -e');
-        }
-
-        return $commands;
     }
 
     /**

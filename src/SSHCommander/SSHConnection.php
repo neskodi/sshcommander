@@ -279,10 +279,23 @@ class SSHConnection implements
      */
     protected function processLoginError(): void
     {
-        $errorText = error_get_last();
-        $message   = $errorText ? $errorText['message'] : '';
+        $error = $this->getSSH2()->getLastError() ?? error_get_last();
 
-        $exception = new AuthenticationException($message);
+        if (is_array($error) && isset($errorText['message'])) {
+            $error = $error['message'];
+        }
+
+        if (!is_string($error)) {
+            // error is something unexpected, we will show the standard message
+            $error = '';
+        }
+
+        if (false !== strpos($error, 'SSH_MSG_USERAUTH_FAILURE')) {
+            // standard message about failed authentication is enough
+            $error = '';
+        }
+
+        $exception = new AuthenticationException($error);
         $this->error($exception->getMessage(), ['exception' => $exception]);
 
         throw $exception;
@@ -576,22 +589,58 @@ class SSHConnection implements
     {
         $ssh = $this->getSSH2();
 
-        // the delimiter used to split output lines, by default \n
-        $delim = $command->getConfig('delimiter_split_output');
-
-        $ssh->exec((string)$command, function ($str) use ($delim) {
+        $ssh->exec((string)$command, function ($str) use ($command) {
             $this->stdoutLines = array_merge(
                 $this->stdoutLines,
-                explode($delim, $str)
+                $this->processOutput($command, $str)
             );
         });
 
         // don't forget to collect the error stream too
         if ($command->getConfig('separate_stderr')) {
-            $this->stderrLines = explode($delim, $ssh->getStdError());
+            $this->stderrLines = $this->splitOutput($command, $ssh->getStdError());
         }
 
         $this->lastExitCode = $ssh->getExitStatus();
+    }
+
+    /**
+     * Process an intermediate sequence of output characters before merging it
+     * with the main array of output lines.
+     *
+     * @param SSHCommandInterface $command used to look up configuration
+     * @param string              $chars
+     *
+     * @return array
+     */
+    protected function processOutput(SSHCommandInterface $command, string $chars): array
+    {
+        return $this->splitOutput($command, $chars);
+    }
+
+    /**
+     * Split output lines by a regular expression or simple character(s),
+     * according to command configuraion.
+     *
+     * @param SSHCommandInterface $command
+     * @param string              $chars
+     *
+     * @return array
+     */
+    protected function splitOutput(SSHCommandInterface $command, string $chars): array
+    {
+        // see if user wants to split by regular expression
+        if ($delim = $command->getConfig('delimiter_split_output_regex')) {
+            return preg_split($delim, $chars) ?: [];
+        }
+
+        // see if user wants to explode by a simple delimiter
+        if ($delim = $command->getConfig('delimiter_split_output')) {
+            return explode($delim, $chars) ?: [];
+        }
+
+        // otherwise no splitting can be performed
+        return [$chars];
     }
 
     protected function sshLogin(string $username, $credential): bool

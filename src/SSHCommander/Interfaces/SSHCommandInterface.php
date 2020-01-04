@@ -10,17 +10,15 @@ interface SSHCommandInterface
 
     public function setCommand($command): SSHCommandInterface;
 
-    public function getCommands(bool $asString = true, bool $prepared = true, bool $singleLine = false);
-
-    public function singleString(): string;
+    public function getCommand(): string;
 
     public function setOption(string $key, $value): SSHCommandInterface;
 
-    public function setOptions(array $options = [], bool $soft = false): SSHCommandInterface;
+    public function mergeConfig($options, bool $missingOnly = false): SSHCommandInterface;
 
     public function appendCommand($command): SSHCommandInterface;
 
     public function prependCommand($command): SSHCommandInterface;
 
-    public function toLoggableString($delimiter = ';'): string;
+    public function toLoggableString(): string;
 }
