@@ -4,8 +4,8 @@
 
 namespace Neskodi\SSHCommander\Tests\Integration;
 
-use Neskodi\SSHCommander\Exceptions\CommandRunException;
 use Neskodi\SSHCommander\Interfaces\SSHResultCollectionInterface;
+use Neskodi\SSHCommander\Exceptions\CommandRunException;
 use Neskodi\SSHCommander\Tests\IntegrationTestCase;
 use Neskodi\SSHCommander\SSHResultCollection;
 use Neskodi\SSHCommander\SSHCommander;
