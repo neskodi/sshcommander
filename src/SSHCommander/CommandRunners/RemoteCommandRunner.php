@@ -89,7 +89,7 @@ class RemoteCommandRunner
         }
 
         if ($command->getConfig('break_on_error')) {
-            $this->prependErrorTrap($prepared);
+            $this->setErrexitFlag($prepared);
         }
 
         return $prepared;
@@ -113,7 +113,7 @@ class RemoteCommandRunner
      *
      * @param SSHCommandInterface $command
      */
-    protected function prependErrorTrap(SSHCommandInterface $command): void
+    protected function setErrexitFlag(SSHCommandInterface $command): void
     {
         $command->prependCommand('set -e');
     }
