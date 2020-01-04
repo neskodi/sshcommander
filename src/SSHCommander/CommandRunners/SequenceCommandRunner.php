@@ -121,4 +121,10 @@ class SequenceCommandRunner
     {
         unset($config['basedir']);
     }
+
+
+    protected function skipConfigValidation(): bool
+    {
+        return true;
+    }
 }
