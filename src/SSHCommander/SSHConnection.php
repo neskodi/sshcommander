@@ -271,10 +271,23 @@ class SSHConnection implements
      */
     protected function processLoginError(): void
     {
-        $errorText = error_get_last();
-        $message   = $errorText ? $errorText['message'] : '';
+        $error = $this->getSSH2()->getLastError() ?? error_get_last();
 
-        $exception = new AuthenticationException($message);
+        if (is_array($error) && isset($errorText['message'])) {
+            $error = $error['message'];
+        }
+
+        if (!is_string($error)) {
+            // error is something unexpected, we will show the standard message
+            $error = '';
+        }
+
+        if (false !== strpos($error, 'SSH_MSG_USERAUTH_FAILURE')) {
+            // standard message about failed authentication is enough
+            $error = '';
+        }
+
+        $exception = new AuthenticationException($error);
         $this->error($exception->getMessage(), ['exception' => $exception]);
 
         throw $exception;

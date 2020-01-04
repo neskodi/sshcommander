@@ -177,7 +177,7 @@ class SSHCommanderTest extends TestCase
 
         $this->assertEquals($command->getConfig('timeout_command'), 120);
         $this->assertEquals($command->getConfig('host'), $testConfig['host']);
-        $this->assertEquals($command->getCommands(true, false), $strcmd);
+        $this->assertEquals($command->getCommand(), $strcmd);
     }
 
     public function testCreateCommandFromCommand(): void
@@ -193,7 +193,7 @@ class SSHCommanderTest extends TestCase
         // properly merged
         $this->assertEquals($commandB->getConfig('timeout_command'), 120);
         $this->assertEquals($commandB->getConfig('host'), $config['host']);
-        $this->assertEquals($commandB->getCommands(true, false), $strcmd);
+        $this->assertEquals($commandB->getCommand(), $strcmd);
     }
 
     public function testDefaultConfigurationIsUsedByDefault(): void

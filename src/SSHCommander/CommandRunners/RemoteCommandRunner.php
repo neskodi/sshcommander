@@ -12,6 +12,7 @@ use Neskodi\SSHCommander\Interfaces\SSHCommandResultInterface;
 use Neskodi\SSHCommander\Interfaces\SSHCommandInterface;
 use Neskodi\SSHCommander\Traits\HasConnection;
 use Neskodi\SSHCommander\Traits\HasResult;
+use Neskodi\SSHCommander\SSHCommand;
 
 class RemoteCommandRunner
     extends BaseCommandRunner
@@ -31,6 +32,8 @@ class RemoteCommandRunner
      */
     public function run(SSHCommandInterface $command): SSHCommandResultInterface
     {
+        $prepared = $this->prepareCommand($command);
+
         // Add command decorators and execute the command.
         // !! ORDER MATTERS !!
         $this->with(CRTimerDecorator::class)
@@ -38,7 +41,7 @@ class RemoteCommandRunner
              ->with(CRResultDecorator::class)
              ->with(CRConnectionDecorator::class)
 
-             ->exec($command);
+             ->exec($prepared);
 
         return $this->getResult();
     }
@@ -56,5 +59,62 @@ class RemoteCommandRunner
     public function exec(SSHCommandInterface $command): void
     {
         $this->getConnection()->exec($command);
+    }
+
+    /**
+     * Prepend preliminary commands to the main command according to main
+     * command configuration. If any preparation is necessary, such as moving
+     * into basedir or setting the errexit option before running the main
+     * command, another instance will be returned that contains the prepended
+     * extra commands.
+     *
+     * @param SSHCommandInterface $command
+     *
+     * @return SSHCommandInterface
+     */
+    public function prepareCommand(SSHCommandInterface $command): SSHCommandInterface
+    {
+        if (
+            !$command->getConfig('break_on_error') &&
+            !$command->getConfig('basedir')
+        ) {
+            // no need to prepare
+            return $command;
+        }
+
+        $prepared = new SSHCommand($command);
+
+        if ($command->getConfig('basedir')) {
+            $this->prependBasedir($prepared);
+        }
+
+        if ($command->getConfig('break_on_error')) {
+            $this->prependErrorTrap($prepared);
+        }
+
+        return $prepared;
+    }
+
+    /**
+     * Prepend 'cd basedir' to the command so it starts running in the directory
+     * specified by user.
+     *
+     * @param SSHCommandInterface $command
+     */
+    protected function prependBasedir(SSHCommandInterface $command): void
+    {
+        $basedirCommand = sprintf('cd %s', $command->getConfig('basedir'));
+        $command->prependCommand($basedirCommand);
+    }
+
+    /**
+     * Set the errexit option to the shell, so that it stops running other
+     * subcommands when some command in chain returns a non-zero exit code.
+     *
+     * @param SSHCommandInterface $command
+     */
+    protected function prependErrorTrap(SSHCommandInterface $command): void
+    {
+        $command->prependCommand('set -e');
     }
 }

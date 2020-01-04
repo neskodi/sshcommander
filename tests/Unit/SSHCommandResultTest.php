@@ -196,7 +196,7 @@ class SSHCommandResultTest extends TestCase
             )
         );
 
-        $strCommand = $result->getCommand()->getCommands(true, false);
+        $strCommand = $result->getCommand()->getCommand();
 
         $this->assertEquals('cd /test', $strCommand);
     }

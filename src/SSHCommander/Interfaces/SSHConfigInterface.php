@@ -6,7 +6,7 @@ interface SSHConfigInterface
 {
     public function get(string $name, $default = null);
 
-    public function set(string $name, $value);
+    public function set(string $name, $value, bool $skipValidation = false, array $context = []);
 
     public function setFromArray(array $config): SSHConfigInterface;
 

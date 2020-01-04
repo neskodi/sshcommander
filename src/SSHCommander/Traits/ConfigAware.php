@@ -22,20 +22,51 @@ trait ConfigAware
      */
     public function setConfig($config)
     {
-        if (is_array($config)) {
-            $configObject = new SSHConfig(
-                $config,
-                $this->skipConfigValidation()
-            );
-        } elseif ($config instanceof SSHConfigInterface) {
-            $configObject = $config;
-        } else {
-            throw new InvalidConfigException(gettype($config));
-        }
+        $configObject = $this->toConfigObject($config);
 
         $this->config = $configObject;
 
         return $this;
+    }
+
+    /**
+     * Merge the new config values into the existing config object.
+     *
+     * @param array|SSHConfigInterface $config
+     *
+     * @param bool                     $missingOnly if true, skip options that
+     *                                              are already present in the
+     *                                              original array and only add
+     *                                              missing ones
+     *
+     * @return $this
+     */
+    public function mergeConfig($config, bool $missingOnly = false)
+    {
+        $options = $this->toConfigArray($config);
+
+        foreach ($options as $key => $value) {
+            if ($missingOnly && $this->config->has($key)) {
+                continue;
+            }
+
+            $this->config->set($key, $value, $this->skipConfigValidation(), $options);
+        }
+
+        return $this;
+    }
+
+    /**
+     * Set a single option.
+     *
+     * @param string $key
+     * @param        $value
+     */
+    public function setOption(string $key, $value)
+    {
+       $this->config->set($key, $value);
+
+       return $this;
     }
 
     /**
@@ -63,5 +94,40 @@ trait ConfigAware
     protected function skipConfigValidation(): bool
     {
         return false;
+    }
+
+    /**
+     * Given an array or an SSHConfigInterface object, return the object.
+     *
+     * @param array|SSHConfigInterface $config
+     *
+     * @return SSHConfigInterface|SSHConfig
+     */
+    protected function toConfigObject($config): SSHConfigInterface
+    {
+        if (is_array($config)) {
+            $configObject = new SSHConfig(
+                $config,
+                $this->skipConfigValidation()
+            );
+        } elseif ($config instanceof SSHConfigInterface) {
+            $configObject = $config;
+        } else {
+            throw new InvalidConfigException(gettype($config));
+        }
+
+        return $configObject;
+    }
+
+    /**
+     * Given an array or an SSHConfigInterface object, return the array.
+     *
+     * @param array|SSHConfigInterface $config
+     *
+     * @return array
+     */
+    protected function toConfigArray($config): array
+    {
+        return $this->toConfigObject($config)->all();
     }
 }

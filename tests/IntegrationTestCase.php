@@ -18,5 +18,4 @@ class IntegrationTestCase extends TestCase
             $this->markTestSkipped($e->getMessage());
         }
     }
-
 }

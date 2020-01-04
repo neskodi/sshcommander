@@ -143,7 +143,7 @@ class SSHCommander implements
         $options = $this->getMergedOptions($command, $options);
 
         if ($command instanceof SSHCommandInterface) {
-            $command->setOptions($options);
+            $command->mergeConfig($options);
         } else {
             $command = new SSHCommand($command, $options);
         }
