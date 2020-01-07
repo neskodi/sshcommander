@@ -2,8 +2,6 @@
 
 namespace Neskodi\SSHCommander\Interfaces;
 
-use Closure;
-
 interface SSHCommanderInterface
 {
     public static function setConfigFile(string $path);
@@ -30,8 +28,8 @@ interface SSHCommanderInterface
         array $options = []
     ): SSHCommandResultInterface;
 
-    public function sequence(
-        Closure $actions,
+    public function runIsolated(
+        $command,
         array $options = []
-    ): SSHResultCollectionInterface;
+    ): SSHCommandResultInterface;
 }

@@ -323,7 +323,7 @@ class SSHConnection implements
      *
      * @throws AuthenticationException
      */
-    public function exec(SSHCommandInterface $command): SSHConnectionInterface
+    public function execIsolated(SSHCommandInterface $command): SSHConnectionInterface
     {
         if (!$this->authenticated) {
             $this->authenticate();
@@ -344,12 +344,20 @@ class SSHConnection implements
      *
      * @param SSHCommandInterface $command
      *
+     * @param string              $endMarker if end marker is provided, we'll
+     *                                       check for it instead of prompt.
+     *                                       This is useful for compound commands
+     *                                       that produce multiple prompts when
+     *                                       fed to the shell.
+     *
      * @return $this
      *
      * @throws AuthenticationException
      */
-    public function execInteractive(SSHCommandInterface $command): SSHConnectionInterface
-    {
+    public function execInteractive(
+        SSHCommandInterface $command,
+        ?string $endMarker = null
+    ): SSHConnectionInterface {
         if (!$this->authenticated) {
             $this->authenticate();
         }
@@ -363,11 +371,10 @@ class SSHConnection implements
         // so let's join all commands into a single line
         $this->writeAndSend($command->singleLine());
 
-        $output = $this->read();
+        $output = $this->read($endMarker);
         $output = $this->cleanCommandOutput($output, $command);
 
         $this->stdoutLines = $this->processOutput($command, $output);
-        $this->checkLastExitCode();
 
         return $this;
     }
@@ -397,27 +404,6 @@ class SSHConnection implements
         $this->debug('End cleaning buffer...');
     }
 
-    /** @noinspection PhpUnhandledExceptionInspection */
-    protected function checkLastExitCode(): void
-    {
-        if ($this->getConfig('disable_exit_code_check')) {
-            $this->lastExitCode = null;
-        } else {
-            $command = new SSHCommand('echo $?', ['break_on_error' => false]);
-            $this->writeAndSend($command);
-            $output             = $this->read();
-            $this->lastExitCode = $this->cleanCommandOutput($output, $command);
-
-            if ('' === $this->lastExitCode) {
-                // probably shell has exited because of an error trap. We have
-                // no way to catch this so we have to emulate an error code.
-                $this->lastExitCode = 1;
-            }
-
-            $this->debug(var_export($this->lastExitCode, true));
-        }
-    }
-
     /**
      * SSH2::read() returns the entire interactive buffer, including the command
      * itself and the command prompt in the end. We are only interested in the
@@ -443,7 +429,7 @@ class SSHConnection implements
         return $output;
     }
 
-    public function read()
+    public function read(?string $marker = null): string
     {
         $this->startTimer();
 
@@ -453,6 +439,9 @@ class SSHConnection implements
             $output .= $str;
             if ($this->exceedsForcedTimeout()) {
                 $this->isTimeout = true;
+                break;
+            } elseif ($marker && $this->hasMarker($output, $marker)) {
+                $this->isTimeout = false;
                 break;
             } elseif ($this->hasPrompt($output)) {
                 $this->isTimeout = false;
@@ -504,6 +493,21 @@ class SSHConnection implements
         $regex = $this->getConfig()->getPromptRegex();
 
         return $this->hasExpectedOutputRegex($output, $regex);
+    }
+
+    /**
+     * See if current received output from the command contains the specified
+     * marker, which is matched via a regular expression, like prompt.
+     *
+     * @param string $output
+     *
+     * @param string $marker
+     *
+     * @return bool
+     */
+    protected function hasMarker(string $output, string $marker): bool
+    {
+        return $this->hasExpectedOutputRegex($output, $marker);
     }
 
     /**

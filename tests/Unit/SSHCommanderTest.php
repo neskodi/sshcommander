@@ -8,7 +8,7 @@
 namespace Neskodi\SSHCommander\Tests\Unit;
 
 use Neskodi\SSHCommander\Interfaces\SSHCommandResultInterface;
-use Neskodi\SSHCommander\CommandRunners\RemoteCommandRunner;
+use Neskodi\SSHCommander\CommandRunners\IsolatedCommandRunner;
 use Neskodi\SSHCommander\Exceptions\InvalidConfigException;
 use Neskodi\SSHCommander\Interfaces\SSHConnectionInterface;
 use Neskodi\SSHCommander\Tests\Mocks\MockSSHConnection;
@@ -122,7 +122,7 @@ class SSHCommanderTest extends TestCase
         );
 
         $commander = new SSHCommander($testConfigA);
-        $runner    = new RemoteCommandRunner($testConfigB);
+        $runner    = new IsolatedCommandRunner($testConfigB);
 
         $commander->setCommandRunner($runner);
 

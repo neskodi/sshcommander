@@ -5,7 +5,7 @@
 namespace Neskodi\SSHCommander\Tests\Unit;
 
 use Neskodi\SSHCommander\Interfaces\SSHCommandResultInterface;
-use Neskodi\SSHCommander\CommandRunners\RemoteCommandRunner;
+use Neskodi\SSHCommander\CommandRunners\IsolatedCommandRunner;
 use Neskodi\SSHCommander\Interfaces\SSHConnectionInterface;
 use Neskodi\SSHCommander\Interfaces\SSHConfigInterface;
 use Neskodi\SSHCommander\Tests\Mocks\MockSSHConnection;
@@ -22,7 +22,7 @@ class RemoteCommandRunnerTest extends TestCase
         $config = $this->getTestConfigAsObject();
         $logger = $this->getTestLogger(LogLevel::DEBUG);
 
-        $runner = new RemoteCommandRunner($config, $logger);
+        $runner = new IsolatedCommandRunner($config, $logger);
 
         $this->assertInstanceOf(LoggerInterface::class, $runner->getLogger());
         $this->assertInstanceOf(SSHConfigInterface::class, $runner->getConfig());
@@ -41,7 +41,7 @@ class RemoteCommandRunnerTest extends TestCase
         $logger     = $this->getTestLogger(LogLevel::DEBUG);
         $connection = new SSHConnection($config);
 
-        $runner = new RemoteCommandRunner($config, $logger);
+        $runner = new IsolatedCommandRunner($config, $logger);
 
         $this->assertNull($runner->getConnection());
 
@@ -66,7 +66,7 @@ class RemoteCommandRunnerTest extends TestCase
         $logger     = $this->getTestLogger(LogLevel::DEBUG);
         $connection = $this->getMockConnection();
 
-        $runner = new RemoteCommandRunner($config, $logger);
+        $runner = new IsolatedCommandRunner($config, $logger);
         $runner->setConnection($connection);
 
         $result = $runner->run(new SSHCommand('ls', $config));
@@ -90,7 +90,7 @@ class RemoteCommandRunnerTest extends TestCase
         // but expect failure when running command
         MockSSHConnection::expect(MockSSHConnection::RESULT_ERROR);
 
-        $runner = new RemoteCommandRunner($config, $logger);
+        $runner = new IsolatedCommandRunner($config, $logger);
         $runner->setConnection($connection);
 
         $result = $runner->run(new SSHCommand('ls', $config));

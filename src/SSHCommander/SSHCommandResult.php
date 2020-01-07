@@ -123,7 +123,7 @@ class SSHCommandResult implements
      *
      * @return SSHCommandResultInterface
      */
-    public function setExitCode(int $code): SSHCommandResultInterface
+    public function setExitCode(?int $code = null): SSHCommandResultInterface
     {
         $this->exitCode = $code;
 

@@ -184,7 +184,7 @@ class SSHConnectionTest extends TestCase
 
         $this->assertFalse($connection->isAuthenticated());
 
-        $connection->exec(new SSHCommand('ls', $config));
+        $connection->execIsolated(new SSHCommand('ls', $config));
     }
 
     public function testAuthenticateOnlyWithPassword(): void
@@ -270,7 +270,7 @@ class SSHConnectionTest extends TestCase
         $this->assertTrue($connection->isAuthenticated());
         $this->assertNull($connection->getLastExitCode());
 
-        $connection->exec(new SSHCommand('ls', $config));
+        $connection->execIsolated(new SSHCommand('ls', $config));
 
         $this->assertIsInt($connection->getLastExitCode());
     }
@@ -289,7 +289,7 @@ class SSHConnectionTest extends TestCase
 
         // we need stdout to be populated too
         MockSSHConnection::expect(MockSSHConnection::RESULT_ERROR);
-        $connection->exec(new SSHCommand('ls', $config));
+        $connection->execIsolated(new SSHCommand('ls', $config));
 
         $this->assertIsInt($connection->getLastExitCode());
         $this->assertNotEmpty($connection->getStdOutLines());
@@ -385,7 +385,7 @@ class SSHConnectionTest extends TestCase
         $this->assertFalse($connection->isAuthenticated());
 
         MockSSHConnection::expect(MockSSHConnection::RESULT_SUCCESS);
-        $connection->exec(new SSHCommand('ls', $config));
+        $connection->execIsolated(new SSHCommand('ls', $config));
 
         /** @var TestHandler $handler */
         $handler = $connection->getLogger()->popHandler();

@@ -54,7 +54,7 @@ class SSHCommanderTest extends IntegrationTestCase
         $this->assertStringContainsStringIgnoringCase('no such', $result);
     }
 
-    public function testCommandCanBeRunSuccessfully(): void
+    public function testIsolatedCommandRun(): void
     {
         try {
             $this->requireUser();
@@ -63,17 +63,30 @@ class SSHCommanderTest extends IntegrationTestCase
             $this->markTestSkipped($e->getMessage());
         }
 
-        $basedir = '/tmp';
+        $commander = new SSHCommander($this->sshOptions);
 
-        $options = array_merge($this->sshOptions, [
-            'basedir' => $basedir,
-        ]);
+        $result = $commander->runIsolated('echo AAA');
 
-        $commander = new SSHCommander($options);
+        $this->assertSame('AAA', (string)$result);
+        $this->assertTrue($result->isOk());
+    }
 
+    public function testInteractiveCommandRun(): void
+    {
+        try {
+            $this->requireUser();
+            $this->requireAuthCredential();
+        } catch (RuntimeException $e) {
+            $this->markTestSkipped($e->getMessage());
+        }
+
+        $commander = new SSHCommander($this->sshOptions);
+
+        $commander->run('cd /tmp');
         $result = $commander->run('pwd');
 
-        $this->assertSame($basedir, (string)$result);
+        $this->assertSame('/tmp', (string)$result);
+        $this->assertTrue($result->isOk());
     }
 
     public function testMultiCommandCanBeProvidedAsString(): void

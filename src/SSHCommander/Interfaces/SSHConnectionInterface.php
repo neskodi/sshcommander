@@ -20,11 +20,11 @@ interface SSHConnectionInterface
 
     public function getSSH2(): SSH2;
 
-    public function exec(SSHCommandInterface $command): SSHConnectionInterface;
+    public function execIsolated(SSHCommandInterface $command): SSHConnectionInterface;
 
-    public function execInteractive(SSHCommandInterface $command): SSHConnectionInterface;
+    public function execInteractive(SSHCommandInterface $command, ?string $endMarker = null): SSHConnectionInterface;
 
-    public function read();
+    public function read(?string $marker = null): string;
 
     public function write(string $chars);
 

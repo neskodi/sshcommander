@@ -4,7 +4,7 @@ namespace Neskodi\SSHCommander\Interfaces;
 
 interface SSHCommandResultInterface
 {
-    public function setExitCode(int $code): SSHCommandResultInterface;
+    public function setExitCode(?int $code = null): SSHCommandResultInterface;
 
     public function setOutput(array $lines): SSHCommandResultInterface;
 
