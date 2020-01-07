@@ -17,17 +17,21 @@ class SequenceTest extends IntegrationTestCase
     /** @noinspection PhpUnhandledExceptionInspection */
     public function testSequenceBasedir(): void
     {
-        $host = new SSHCommander($this->getDefaultConfig());
+        $config = $this->getDefaultConfig();
+
+        $host = new SSHCommander($config);
 
         $sequenceConfig = [
             'basedir'        => '/tmp',
             'break_on_error' => false,
         ];
 
+        $homedir = '/home/' . $config['user'];
+
         $results = $host->sequence(
-            function ($host) {
+            function ($host) use ($homedir) {
                 $host->run('pwd');
-                $host->run('cd /usr');
+                $host->run('cd ' . $homedir);
                 $host->run('pwd');
                 $host->run('ls -lA');
                 $host->run('pwd');
@@ -42,12 +46,12 @@ class SequenceTest extends IntegrationTestCase
         $this->assertSame(0, $results[1]->getExitCode());
 
         $this->assertSame(0, $results[2]->getExitCode());
-        $this->assertSame('/usr', $results[2]->getOutput(true));
+        $this->assertSame($homedir, $results[2]->getOutput(true));
 
         $this->assertSame(0, $results[3]->getExitCode());
 
         $this->assertSame(0, $results[4]->getExitCode());
-        $this->assertSame('/usr', $results[4]->getOutput(true));
+        $this->assertSame($homedir, $results[4]->getOutput(true));
     }
 
     public function testSequenceBreakOnErrorTrue(): void
@@ -59,7 +63,7 @@ class SequenceTest extends IntegrationTestCase
         try {
             $results = $host->sequence(
                 function ($host) {
-                    $host->run('echo A;');
+                    $host->run('echo A');
                     $host->run('cd /no/such/dir');
                     $host->run('echo B');
                 },
@@ -81,7 +85,7 @@ class SequenceTest extends IntegrationTestCase
 
         $results = $host->sequence(
             function ($host) {
-                $host->run('echo A;');
+                $host->run('echo A');
                 $host->run('cd /no/such/dir');
                 $host->run('echo B');
             },
