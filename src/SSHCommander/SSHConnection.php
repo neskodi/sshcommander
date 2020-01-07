@@ -377,6 +377,7 @@ class SSHConnection implements
         $this->debug('Cleaning buffer...');
 
         $ssh = $this->getSSH2();
+
         $ssh->setTimeout(1);
         $output = '';
 
