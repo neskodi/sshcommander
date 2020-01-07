@@ -169,20 +169,6 @@ class SSHCommand implements SSHCommandInterface, ConfigAwareInterface
     }
 
     /**
-     * If this command is a multi-line script, get it as a single line.
-     */
-    public function singleLine()
-    {
-        // TODO: implement real singleLine through tokenization
-        $command = $this->getCommand();
-
-        $command = preg_replace('/[\r\n]+/', ';', $command);
-
-        return $command;
-    }
-
-
-    /**
      * Cast user's input from any permitted type to string, or throw an
      * exception if this is not possible.
      *

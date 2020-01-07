@@ -369,7 +369,7 @@ class SSHConnection implements
 
         // Commands MUST be glued by ';' to produce only one command prompt
         // so let's join all commands into a single line
-        $this->writeAndSend($command->singleLine());
+        $this->writeAndSend((string)$command);
 
         $output = $this->read($endMarker);
         $output = $this->cleanCommandOutput($output, $command);
@@ -416,13 +416,21 @@ class SSHConnection implements
      */
     protected function cleanCommandOutput(string $output, SSHCommandInterface $command): string
     {
-        // clean out the command itself from the beginning
-        $delim        = '\r?\n';
-        $commandChars = '^' . preg_quote($command->singleLine(), '/') . $delim;
-        $commandRegex = "/$commandChars/";
-        $output       = preg_replace($commandRegex, '', $output);
+        $firstCommandRegex      = '/^.*?(\r\n|\r|\n)/';
+        $promptRegex            = $command->getConfig()->getPromptRegex();
+        // carefully inject command after prompt into prompt regex
+        $promptRegexWithCommand = preg_replace(
+            '/^(.)(.+?)(\\$)?\\1([a-z]*)$/',
+            '\1\2.*(\r\n|\r|\n)\1\4',
+            $promptRegex
+        );
 
-        $promptRegex = $this->getConfig()->getPromptRegex();
+        // clean out the first subcommand from the beginning
+        $output = preg_replace($firstCommandRegex, '', $output);
+
+        // clean out all subsequent prompts with following commands
+        $output = preg_replace($promptRegexWithCommand, '', $output);
+
         // clean out the command prompt from the end
         $output = preg_replace($promptRegex, '', $output);
 
@@ -609,7 +617,7 @@ class SSHConnection implements
 
         // don't forget to collect the error stream too
         if ($command->getConfig('separate_stderr')) {
-            $this->stderrLines = $this->splitOutput($command, $ssh->getStdError());
+            $this->stderrLines = $this->processOutput($command, $ssh->getStdError());
         }
 
         $this->lastExitCode = $ssh->getExitStatus();

@@ -4,6 +4,7 @@ namespace Neskodi\SSHCommander;
 
 use Neskodi\SSHCommander\CommandRunners\InteractiveCommandRunner;
 use Neskodi\SSHCommander\CommandRunners\IsolatedCommandRunner;
+use Neskodi\SSHCommander\Exceptions\CommandRunException;
 use Neskodi\SSHCommander\Interfaces\SSHCommandResultInterface;
 use Neskodi\SSHCommander\Interfaces\SSHCommandRunnerInterface;
 use Neskodi\SSHCommander\Exceptions\AuthenticationException;
@@ -163,6 +164,7 @@ class SSHCommander implements
      * @return SSHCommandResultInterface
      *
      * @throws Exceptions\AuthenticationException
+     * @throws CommandRunException
      */
     public function run(
         $command,
@@ -170,9 +172,7 @@ class SSHCommander implements
     ): SSHCommandResultInterface {
         $commandRunner = $this->getCommandRunner();
 
-        $commandObject = $this->createCommand($command, $options);
-
-        return $commandRunner->run($commandObject);
+        return $this->runWith($commandRunner, $command, $options);
     }
 
     /**
@@ -184,6 +184,7 @@ class SSHCommander implements
      * @return SSHCommandResultInterface
      *
      * @throws Exceptions\AuthenticationException
+     * @throws CommandRunException
      */
     public function runIsolated(
         $command,
@@ -191,9 +192,50 @@ class SSHCommander implements
     ): SSHCommandResultInterface {
         $commandRunner = $this->createCommandRunner(IsolatedCommandRunner::class);
 
+        return $this->runWith($commandRunner, $command, $options);
+    }
+
+    /**
+     * Check the result for error code, and if we are currently configured to
+     * break on error, throw the exception.
+     *
+     * @param SSHCommandInterface       $command
+     * @param SSHCommandResultInterface $result
+     *
+     * @throws CommandRunException
+     */
+    protected function checkForError(
+        SSHCommandInterface $command,
+        SSHCommandResultInterface $result
+    ): void {
+        if ($result->isError() && $command->getConfig('break_on_error')) {
+            throw new CommandRunException;
+        }
+    }
+
+    /**
+     * Run the command with the prepared runner.
+     *
+     * @param SSHCommandRunnerInterface $runner
+     * @param SSHCommandInterface       $command
+     * @param array                     $options
+     *
+     * @return SSHCommandResultInterface
+     * @throws AuthenticationException
+     * @throws CommandRunException
+     */
+    protected function runWith(
+        SSHCommandRunnerInterface $runner,
+        $command,
+        array $options = []
+    ): SSHCommandResultInterface {
         $commandObject = $this->createCommand($command, $options);
 
-        return $commandRunner->run($commandObject);
+        $result = $runner->run($commandObject);
+
+        $this->checkForError($commandObject, $result);
+
+        return $result;
     }
 
     /**
@@ -250,7 +292,7 @@ class SSHCommander implements
         $commandRunner = $this->getCommandRunner();
 
         $merged = array_merge(
-            // global config options of this SSHCommander instance
+        // global config options of this SSHCommander instance
             $this->getConfig()->all(),
 
             // override with sequence-level options

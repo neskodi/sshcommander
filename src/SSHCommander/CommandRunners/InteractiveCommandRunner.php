@@ -19,7 +19,7 @@ class InteractiveCommandRunner
      */
     protected $options = [];
 
-    protected $marker = 'NOSCE TE IPSUM, ET NOSCES UNIVERSUM ET DEOS';
+    protected $marker = '';
 
     /**
      * Run the command and save the result to the collection.
@@ -35,10 +35,6 @@ class InteractiveCommandRunner
         $result = parent::run($command);
 
         $this->readCommandExitCode($result);
-
-        if ($result->isError() && $this->getConfig('break_on_error')) {
-            throw new CommandRunException;
-        }
 
         return $result;
     }
@@ -85,23 +81,47 @@ class InteractiveCommandRunner
      */
     protected function appendCommandEndMarker(SSHCommandInterface $command)
     {
+        // set the marker to a unique string
         $this->marker = uniqid();
 
+        // make shell display the last command exit code and the marker
         $append = sprintf('echo "$?:%s"', $this->marker);
 
+        // append to command
         $command->appendCommand($append);
     }
 
-    protected function getEndMarkerRegex()
+    /**
+     * Get the regular expression used to detect our marker in the output
+     * produced by the command.
+     *
+     * @return string|null
+     */
+    protected function getEndMarkerRegex(): ?string
     {
-        $regex = '([\s\t\r\n]+|\d+):' . $this->marker;
+        if (empty($this->marker)) {
+            return null;
+        }
+
+        $regex = '(\d+):' . $this->marker;
         $regex = sprintf('/%s/', $regex);
 
         return $regex;
     }
 
+    /**
+     * Try to find our end command marker in command result and detect the
+     * last command exit code.
+     *
+     * @param SSHCommandResultInterface $result
+     */
     protected function readCommandExitCode(SSHCommandResultInterface $result): void
     {
+        if (empty($this->marker)) {
+            // we won't be able to read the code
+            return;
+        }
+
         $outputLines = $result->getOutput();
 
         if (!count($outputLines)) {
@@ -110,17 +130,22 @@ class InteractiveCommandRunner
         }
 
         $matches = [];
-        preg_match_all($this->getEndMarkerRegex(), end($outputLines), $matches);
+        $lastLine = end($outputLines);
+        preg_match_all($this->getEndMarkerRegex(), $lastLine, $matches);
 
         if (empty($matches[0])) {
-            // end marker is not found in command output
-            return;
-        }
-
-        if (is_numeric($matches[1][0])) {
+            // we have provided the end marker to the runner but it is not found
+            // in the final output.
+            // we assume something bad happened in the middle of command
+            // execution and we consider this command failed.
+            $exitCode = intval($lastLine) ?: 1;
+            $result->setExitCode($exitCode);
+        } elseif (is_numeric($matches[1][0])) {
             // this is the exit code
-            $result->setOutput(array_slice($outputLines, 0, -1));
             $result->setExitCode((int)$matches[1][0]);
         }
+
+        // finally, remove that last line from the output
+        $result->setOutput(array_slice($outputLines, 0, -1));
     }
 }
