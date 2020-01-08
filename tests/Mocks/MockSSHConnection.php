@@ -32,6 +32,8 @@ class MockSSHConnection extends SSHConnection implements
 
     protected static $expectedResult = self::RESULT_SUCCESS;
 
+    protected $marker = null;
+
     public static function expect(string $resultType): void
     {
         static::$expectedResult = (self::RESULT_ERROR === $resultType)
@@ -69,12 +71,24 @@ class MockSSHConnection extends SSHConnection implements
 
     protected function sshRead(string $chars, int $mode)
     {
-        return '';
+        if (!$this->marker) {
+            return '';
+        }
+
+        $exitCode = static::expects(self::RESULT_ERROR) ? 1 : 0;
+
+        return sprintf('%s:%s', $exitCode, $this->marker);
     }
 
     protected function sshWrite(string $chars)
     {
-        //
+        // detect the marker
+        $matches = [];
+        preg_match_all('/echo "\\$\\?:([^"]+)"/', $chars, $matches);
+
+        if (!empty($matches[0])) {
+            $this->marker = $matches[1][0];
+        }
     }
 
     protected function setExitCode()
