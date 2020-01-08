@@ -4,7 +4,6 @@
 
 namespace Neskodi\SSHCommander\Tests\Integration;
 
-use Neskodi\SSHCommander\Exceptions\AuthenticationException;
 use Neskodi\SSHCommander\Exceptions\CommandRunException;
 use Neskodi\SSHCommander\Tests\IntegrationTestCase;
 use Neskodi\SSHCommander\SSHCommander;
@@ -23,7 +22,9 @@ class ErrorHandlingTest extends IntegrationTestCase
         }
 
         $config = new SSHConfig($this->sshOptions);
-        $config->setFromArray(['break_on_error' => false]);
+        $config->setFromArray([
+            'break_on_error' => SSHConfig::BREAK_ON_ERROR_NEVER
+        ]);
 
         $commander = new SSHCommander($config);
 
@@ -45,34 +46,16 @@ class ErrorHandlingTest extends IntegrationTestCase
         }
 
         $config = new SSHConfig($this->sshOptions);
-        $config->setFromArray(['break_on_error' => true]);
+        $config->setFromArray([
+            'break_on_error' => SSHConfig::BREAK_ON_ERROR_ALWAYS
+        ]);
 
         $commander = new SSHCommander($config);
 
         $commander->runIsolated('cd /no/such/dir');
     }
 
-    public function testIsolatedSimpleErrexit()
-    {
-        try {
-            $this->requireUser();
-            $this->requireAuthCredential();
-        } catch (RuntimeException $e) {
-            $this->markTestSkipped($e->getMessage());
-        }
-
-        $config = new SSHConfig($this->sshOptions);
-        $config->setFromArray(['break_on_error' => false]);
-
-        $commander = new SSHCommander($config);
-
-        $result = $commander->runIsolated('set -e;cd /no/such/dir');
-
-        $this->assertStringContainsStringIgnoringCase('no such', (string)$result);
-        $this->assertTrue($result->isError());
-    }
-
-    public function testIsolatedSimpleBOEErrexit()
+    public function testIsolatedSimpleBOESoftfail()
     {
         $this->expectException(CommandRunException::class);
 
@@ -84,11 +67,13 @@ class ErrorHandlingTest extends IntegrationTestCase
         }
 
         $config = new SSHConfig($this->sshOptions);
-        $config->setFromArray(['break_on_error' => true]);
+        $config->setFromArray([
+            'break_on_error' => SSHConfig::BREAK_ON_ERROR_LAST_SUBCOMMAND
+        ]);
 
         $commander = new SSHCommander($config);
 
-        $commander->runIsolated('set -e;cd /no/such/dir');
+        $commander->runIsolated('cd /no/such/dir');
     }
 
     public function testIsolatedCompound()
@@ -101,7 +86,9 @@ class ErrorHandlingTest extends IntegrationTestCase
         }
 
         $config = new SSHConfig($this->sshOptions);
-        $config->setFromArray(['break_on_error' => false]);
+        $config->setFromArray([
+            'break_on_error' => SSHConfig::BREAK_ON_ERROR_NEVER
+        ]);
 
         $commander = new SSHCommander($config);
 
@@ -114,13 +101,6 @@ class ErrorHandlingTest extends IntegrationTestCase
         $this->assertTrue($result->isOk());
     }
 
-    /**
-     * We do not expect exception here despite BOE, because the last command
-     * in the compound returns success.
-     *
-     * @throws AuthenticationException
-     * @throws CommandRunException
-     */
     public function testIsolatedCompoundBOE()
     {
         try {
@@ -131,57 +111,53 @@ class ErrorHandlingTest extends IntegrationTestCase
         }
 
         $config = new SSHConfig($this->sshOptions);
-        $config->setFromArray(['break_on_error' => true]);
+        $config->setFromArray([
+            'break_on_error' => SSHConfig::BREAK_ON_ERROR_ALWAYS
+        ]);
+
+        $commander = new SSHCommander($config);
+
+        $exceptionWasThrown = false;
+
+        try {
+            $commander->runIsolated('cd /no/such/dir;echo AAA');
+        } catch (CommandRunException $e) {
+            $exceptionWasThrown = true;
+            $result = $commander->getIsolatedCommandRunner()->getResult();
+            $lines  = $result->getOutput();
+
+            $this->assertNotContains('AAA', $lines);
+        } finally {
+            $this->assertTrue($exceptionWasThrown);
+        }
+
+    }
+
+    public function testIsolatedCompoundBOESoftfail()
+    {
+        try {
+            $this->requireUser();
+            $this->requireAuthCredential();
+        } catch (RuntimeException $e) {
+            $this->markTestSkipped($e->getMessage());
+        }
+
+        $config = new SSHConfig($this->sshOptions);
+        $config->setFromArray([
+            'break_on_error' => SSHConfig::BREAK_ON_ERROR_LAST_SUBCOMMAND
+        ]);
 
         $commander = new SSHCommander($config);
 
         $result = $commander->runIsolated('cd /no/such/dir;echo AAA');
         $lines  = $result->getOutput();
 
-        $this->assertEquals('AAA', end($lines));
+        $this->assertStringContainsStringIgnoringCase('no such', (string)$result);
+        $this->assertContains('AAA', $lines);
         $this->assertTrue($result->isOk());
     }
 
-    public function testIsolatedCompoundErrexit()
-    {
-        try {
-            $this->requireUser();
-            $this->requireAuthCredential();
-        } catch (RuntimeException $e) {
-            $this->markTestSkipped($e->getMessage());
-        }
 
-        $config = new SSHConfig($this->sshOptions);
-        $config->setFromArray(['break_on_error' => false]);
-
-        $commander = new SSHCommander($config);
-
-        $result = $commander->runIsolated('set -e;cd /no/such/dir;echo AAA');
-        $lines  = $result->getOutput();
-
-        $this->assertStringContainsStringIgnoringCase('no such', (string)$result);
-        $this->assertNotContains('AAA', $lines);
-        $this->assertTrue($result->isError());
-    }
-
-    public function testIsolatedCompoundBOEErrexit()
-    {
-        $this->expectException(CommandRunException::class);
-
-        try {
-            $this->requireUser();
-            $this->requireAuthCredential();
-        } catch (RuntimeException $e) {
-            $this->markTestSkipped($e->getMessage());
-        }
-
-        $config = new SSHConfig($this->sshOptions);
-        $config->setFromArray(['break_on_error' => true]);
-
-        $commander = new SSHCommander($config);
-
-        $commander->runIsolated('set -e;cd /no/such/dir;echo AAA');
-    }
 
     public function testInteractiveSimple()
     {
@@ -193,23 +169,24 @@ class ErrorHandlingTest extends IntegrationTestCase
         }
 
         $config = new SSHConfig($this->sshOptions);
-        $config->setFromArray(['break_on_error' => false]);
+        $config->setFromArray([
+            'break_on_error' => SSHConfig::BREAK_ON_ERROR_NEVER
+        ]);
 
         $commander = new SSHCommander($config);
         $results   = [];
 
-        $results[] = $commander->run('echo AAA');
+        $results[] = $commander->run('cd /tmp');
         $results[] = $commander->run('cd /no/such/dir');
-        $results[] = $commander->run('echo BBB');
+        $results[] = $commander->run('pwd');
 
         $this->assertTrue($results[0]->isOk());
-        $this->assertEquals('AAA', (string)$results[0]);
 
         $this->assertTrue($results[1]->isError());
         $this->assertStringContainsStringIgnoringCase('no such', (string)$results[1]);
 
         $this->assertTrue($results[2]->isOk());
-        $this->assertEquals('BBB', (string)$results[2]);
+        $this->assertEquals('/tmp', (string)$results[2]);
     }
 
     public function testInteractiveSimpleBOE()
@@ -222,7 +199,9 @@ class ErrorHandlingTest extends IntegrationTestCase
         }
 
         $config = new SSHConfig($this->sshOptions);
-        $config->setFromArray(['break_on_error' => true]);
+        $config->setFromArray([
+            'break_on_error' => SSHConfig::BREAK_ON_ERROR_ALWAYS
+        ]);
 
         $commander = new SSHCommander($config);
 
@@ -233,7 +212,7 @@ class ErrorHandlingTest extends IntegrationTestCase
             $results['AAA']   = $commander->run('echo AAA');
             $results['error'] = $commander->run('cd /no/such/dir');
             $results['BBB']   = $commander->run('echo BBB');
-        } catch (CommandRunException $exceptionWasThrown) {
+        } catch (CommandRunException $exception) {
             $exceptionWasThrown = true;
 
             $this->assertTrue($results['AAA']->isOk());
@@ -245,7 +224,7 @@ class ErrorHandlingTest extends IntegrationTestCase
         }
     }
 
-    public function testInteractiveSimpleErrexit()
+    public function testInteractiveSimpleBOESoftfail()
     {
         try {
             $this->requireUser();
@@ -255,47 +234,9 @@ class ErrorHandlingTest extends IntegrationTestCase
         }
 
         $config = new SSHConfig($this->sshOptions);
-        $config->setFromArray(['break_on_error' => false]);
-
-        $commander = new SSHCommander($config);
-
-        $results = [];
-
-        try {
-            $results[] = $commander->run('set -e;');
-            $results[] = $commander->run('echo AAA');
-            $results[] = $commander->run('cd /no/such/dir'); // <-error
-            $results[] = $commander->run('echo BBB');
-        } catch (CommandRunException $exception) {
-            $this->fail('CommandRunException was thrown improperly');
-        }
-
-        // set -e
-        $this->assertTrue($results[0]->isOk());
-
-        // echo AAA
-        $this->assertEquals('AAA', (string)$results[1]);
-        $this->assertTrue($results[1]->isOk());
-
-        // cd /no/such/dir
-        $this->assertTrue($results[2]->isError());
-
-        // echo BBB
-        $this->assertEquals('BBB', (string)$results[3]);
-        $this->assertTrue($results[3]->isOk());
-    }
-
-    public function testInteractiveSimpleBOEErrexit()
-    {
-        try {
-            $this->requireUser();
-            $this->requireAuthCredential();
-        } catch (RuntimeException $e) {
-            $this->markTestSkipped($e->getMessage());
-        }
-
-        $config = new SSHConfig($this->sshOptions);
-        $config->setFromArray(['break_on_error' => true]);
+        $config->setFromArray([
+            'break_on_error' => SSHConfig::BREAK_ON_ERROR_LAST_SUBCOMMAND
+        ]);
 
         $commander = new SSHCommander($config);
 
@@ -303,21 +244,18 @@ class ErrorHandlingTest extends IntegrationTestCase
         $exceptionWasThrown = false;
 
         try {
-            $results[] = $commander->run('set -e;');
-            $results[] = $commander->run('echo AAA');
-            $results[] = $commander->run('cd /no/such/dir'); // <-error
-            $results[] = $commander->run('echo BBB');
+            $results[] = $commander->run('cd /tmp');
+            $results[] = $commander->run('cd /no/such/dir;');
         } catch (CommandRunException $exception) {
             $exceptionWasThrown = true;
 
-            // set -e
             $this->assertTrue($results[0]->isOk());
 
-            // echo AAA
-            $this->assertEquals('AAA', (string)$results[1]);
-            $this->assertTrue($results[1]->isOk());
+            $this->assertCount(1, $results);
 
-            $this->assertCount(2, $results);
+            // test that the environment was preserved
+            $further = $commander->run('pwd');
+            $this->assertEquals('/tmp', (string)$further);
         } finally {
             $this->assertTrue($exceptionWasThrown);
         }
@@ -333,7 +271,9 @@ class ErrorHandlingTest extends IntegrationTestCase
         }
 
         $config = new SSHConfig($this->sshOptions);
-        $config->setFromArray(['break_on_error' => false]);
+        $config->setFromArray([
+            'break_on_error' => SSHConfig::BREAK_ON_ERROR_NEVER
+        ]);
 
         $commander = new SSHCommander($config);
 
@@ -352,16 +292,8 @@ class ErrorHandlingTest extends IntegrationTestCase
 
         $this->assertTrue($results[2]->isOk());
         $this->assertEquals('CCC', (string)$results[2]);
-
     }
 
-    /**
-     * We do not expect exception here despite BOE, because the last command
-     * in the compound returns success.
-     *
-     * @throws AuthenticationException
-     * @throws CommandRunException
-     */
     public function testInteractiveCompoundBOE()
     {
         try {
@@ -372,7 +304,82 @@ class ErrorHandlingTest extends IntegrationTestCase
         }
 
         $config = new SSHConfig($this->sshOptions);
-        $config->setFromArray(['break_on_error' => true]);
+        $config->setFromArray([
+            'break_on_error' => SSHConfig::BREAK_ON_ERROR_ALWAYS
+        ]);
+
+        $commander = new SSHCommander($config);
+
+        $results = [];
+        $exceptionWasThrown = false;
+
+        try {
+            $results[] = $commander->run('cd /tmp');
+            $results[] = $commander->run('cd /no/such/dir;echo BBB');
+            $results[] = $commander->run('echo CCC');
+        } catch (CommandRunException $exception) {
+            $exceptionWasThrown = true;
+
+            $this->assertTrue($results[0]->isOk());
+            $this->assertCount(1, $results);
+            $this->assertStringNotContainsString('BBB', (string)$results[0]);
+            $this->assertStringNotContainsString('CCC', (string)$results[0]);
+        } finally {
+            $this->assertTrue($exceptionWasThrown);
+        }
+    }
+
+    public function testInteractiveCompoundBOESoftfail()
+    {
+        try {
+            $this->requireUser();
+            $this->requireAuthCredential();
+        } catch (RuntimeException $e) {
+            $this->markTestSkipped($e->getMessage());
+        }
+
+        $config = new SSHConfig($this->sshOptions);
+        $config->setFromArray([
+            'break_on_error' => SSHConfig::BREAK_ON_ERROR_LAST_SUBCOMMAND
+        ]);
+
+        $commander = new SSHCommander($config);
+
+        $results = [];
+        $exceptionWasThrown = false;
+
+        try {
+            $results[] = $commander->run('cd /tmp');
+            $results[] = $commander->run('cd /no/such/dir');
+            $results[] = $commander->run('echo BBB');
+        } catch (CommandRunException $exception) {
+            $exceptionWasThrown = true;
+
+            $this->assertCount(1, $results);
+            $this->assertTrue($results[0]->isOk());
+            $this->assertStringNotContainsString('BBB', (string)$results[0]);
+
+            // check that the environment was preserved
+            $further = $commander->run('pwd');
+            $this->assertEquals('/tmp', (string)$further);
+        } finally {
+            $this->assertTrue($exceptionWasThrown);
+        }
+    }
+
+    public function testInteractiveCompoundBOESoftfailNotLast()
+    {
+        try {
+            $this->requireUser();
+            $this->requireAuthCredential();
+        } catch (RuntimeException $e) {
+            $this->markTestSkipped($e->getMessage());
+        }
+
+        $config = new SSHConfig($this->sshOptions);
+        $config->setFromArray([
+            'break_on_error' => SSHConfig::BREAK_ON_ERROR_LAST_SUBCOMMAND
+        ]);
 
         $commander = new SSHCommander($config);
 
@@ -382,93 +389,14 @@ class ErrorHandlingTest extends IntegrationTestCase
         $results[] = $commander->run('cd /no/such/dir;echo BBB');
         $results[] = $commander->run('echo CCC');
 
-        $this->assertTrue($results[0]->isOk());
         $this->assertEquals('AAA', (string)$results[0]);
-
-        $this->assertTrue($results[1]->isOk());
-        $this->assertStringContainsString('BBB', (string)$results[1]);
-        $this->assertStringContainsStringIgnoringCase('no such', (string)$results[1]);
-
-        $this->assertTrue($results[2]->isOk());
-        $this->assertEquals('CCC', (string)$results[2]);
-    }
-
-    public function testInteractiveCompoundErrexit()
-    {
-        try {
-            $this->requireUser();
-            $this->requireAuthCredential();
-        } catch (RuntimeException $e) {
-            $this->markTestSkipped($e->getMessage());
-        }
-
-        $config = new SSHConfig($this->sshOptions);
-        $config->setFromArray(['break_on_error' => false]);
-
-        $commander = new SSHCommander($config);
-
-        $results = [];
-
-        try {
-            $results[] = $commander->run('set -e;');
-            $results[] = $commander->run('echo AAA');
-            $results[] = $commander->run('cd /no/such/dir'); // <-error
-            $results[] = $commander->run('echo BBB');
-        } catch (CommandRunException $exception) {
-            $this->fail('CommandRunException was thrown improperly');
-        }
-
-        // set -e
         $this->assertTrue($results[0]->isOk());
 
-        // echo AAA
-        $this->assertEquals('AAA', (string)$results[1]);
-        $this->assertTrue($results[1]->isOk());
+        $lines = $results[1]->getOutput();
+        $this->assertEquals('BBB', end($lines));
+        $this->assertStringContainsStringIgnoringCase('no such', reset($lines));
 
-        // cd /no/such/dir
-        $this->assertTrue($results[2]->isError());
-        $this->assertStringContainsStringIgnoringCase('no such', (string)$results[2]);
-
-        // echo BBB
-        $this->assertEquals('BBB', (string)$results[3]);
-        $this->assertTrue($results[3]->isOk());
-    }
-
-    public function testInteractiveCompoundBOEErrexit()
-    {
-        try {
-            $this->requireUser();
-            $this->requireAuthCredential();
-        } catch (RuntimeException $e) {
-            $this->markTestSkipped($e->getMessage());
-        }
-
-        $config = new SSHConfig($this->sshOptions);
-        $config->setFromArray(['break_on_error' => true]);
-
-        $commander = new SSHCommander($config);
-
-        $results = [];
-        $exceptionWasThrown = false;
-
-        try {
-            $results[] = $commander->run('set -e;');
-            $results[] = $commander->run('echo AAA');
-            $results[] = $commander->run('cd /no/such/dir'); // <-error
-            $results[] = $commander->run('echo BBB');
-        } catch (CommandRunException $exception) {
-            $exceptionWasThrown = true;
-
-            // set -e
-            $this->assertTrue($results[0]->isOk());
-
-            // echo AAA
-            $this->assertEquals('AAA', (string)$results[1]);
-            $this->assertTrue($results[1]->isOk());
-
-            $this->assertCount(2, $results);
-        } finally {
-            $this->assertTrue($exceptionWasThrown);
-        }
+        $this->assertEquals('CCC', (string)$results[2]);
+        $this->assertTrue($results[2]->isOk());
     }
 }

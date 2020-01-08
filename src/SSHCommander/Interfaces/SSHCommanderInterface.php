@@ -18,6 +18,8 @@ interface SSHCommanderInterface
 
     public function getCommandRunner(): SSHCommandRunnerInterface;
 
+    public function getIsolatedCommandRunner(): SSHCommandRunnerInterface;
+
     public function createCommand(
         $command,
         array $options = []

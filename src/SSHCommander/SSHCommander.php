@@ -37,6 +37,11 @@ class SSHCommander implements
     protected $commandRunner;
 
     /**
+     * @var SSHCommandRunnerInterface
+     */
+    protected $isolatedCommandRunner;
+
+    /**
      * SSHCommander constructor.
      *
      * @param array|SSHConfig      $config
@@ -49,9 +54,10 @@ class SSHCommander implements
     {
         $this->setConfig($config);
 
-        if ($logger instanceof LoggerInterface) {
-            $this->setLogger($logger);
-        } elseif ($logger = LoggerFactory::makeLogger($this->config)) {
+        if (
+            ($logger instanceof LoggerInterface) ||
+            ($logger = LoggerFactory::makeLogger($this->config))
+        ) {
             $this->setLogger($logger);
         }
     }
@@ -127,6 +133,18 @@ class SSHCommander implements
     }
 
     /**
+     * Get the isolated command runner object.
+     *
+     * @return SSHCommandRunnerInterface
+     *
+     * @throws Exceptions\AuthenticationException
+     */
+    public function getIsolatedCommandRunner(): SSHCommandRunnerInterface
+    {
+        return $this->isolatedCommandRunner;
+    }
+
+    /**
      * Create a command object from the provided string or array of commands.
      * If a Command object was already provided, short circuit.
      *
@@ -190,9 +208,11 @@ class SSHCommander implements
         $command,
         array $options = []
     ): SSHCommandResultInterface {
-        $commandRunner = $this->createCommandRunner(IsolatedCommandRunner::class);
+        $this->isolatedCommandRunner = $this->createCommandRunner(
+            IsolatedCommandRunner::class
+        );
 
-        return $this->runWith($commandRunner, $command, $options);
+        return $this->runWith($this->isolatedCommandRunner, $command, $options);
     }
 
     /**
@@ -289,33 +309,17 @@ class SSHCommander implements
         $command,
         array $options
     ): array {
-        $commandRunner = $this->getCommandRunner();
-
-        $merged = array_merge(
+        return array_merge(
         // global config options of this SSHCommander instance
             $this->getConfig()->all(),
 
-            // override with sequence-level options
-            $commandRunner->getConfig()->all(),
-
             // if passed command is an object having its own options, they will
             // apply here
-            ($command instanceof SSHCommandInterface) ? $command->getConfig()->all() : []
+            ($command instanceof SSHCommandInterface) ? $command->getConfig()->all() : [],
+
+            // finally, merge command level options provided immediately at command
+            // run time
+            $options
         );
-
-        // Up to runner to clean any options that should not propagate
-        // to commands from above
-        if (
-            is_object($commandRunner) &&
-            method_exists($commandRunner, 'filterCommandOptionsBeforeRun')
-        ) {
-            $commandRunner->filterCommandOptionsBeforeRun($options);
-        }
-
-        // finally, merge command level options provided immediately at command
-        // run time
-        $merged = array_merge($merged, $options);
-
-        return $merged;
     }
 }

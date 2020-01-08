@@ -5,15 +5,10 @@ namespace Neskodi\SSHCommander\CommandRunners;
 use Neskodi\SSHCommander\Interfaces\SSHCommandResultInterface;
 use Neskodi\SSHCommander\Exceptions\CommandRunException;
 use Neskodi\SSHCommander\Interfaces\SSHCommandInterface;
-use Neskodi\SSHCommander\Traits\HasConnection;
-use Neskodi\SSHCommander\Traits\HasResult;
 
 class InteractiveCommandRunner
     extends BaseCommandRunner
 {
-    use HasConnection;
-    use HasResult;
-
     /**
      * @var array
      */

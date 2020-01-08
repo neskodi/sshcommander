@@ -16,6 +16,10 @@ class SSHConfig implements SSHConfigInterface
     const CREDENTIAL_KEYFILE  = 'keyfile';
     const CREDENTIAL_PASSWORD = 'password';
 
+    const BREAK_ON_ERROR_NEVER           = false;
+    const BREAK_ON_ERROR_ALWAYS          = true;
+    const BREAK_ON_ERROR_LAST_SUBCOMMAND = 'softfail';
+
     /**
      * Location of the config file.
      *

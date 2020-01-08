@@ -13,9 +13,12 @@ use Neskodi\SSHCommander\Interfaces\ConfigAwareInterface;
 use Neskodi\SSHCommander\Interfaces\LoggerAwareInterface;
 use Neskodi\SSHCommander\Interfaces\SSHCommandInterface;
 use Neskodi\SSHCommander\Interfaces\SSHConfigInterface;
-use Neskodi\SSHCommander\SSHCommand;
+use Neskodi\SSHCommander\Traits\HasConnection;
 use Neskodi\SSHCommander\Traits\ConfigAware;
+use Neskodi\SSHCommander\Traits\HasResult;
 use Neskodi\SSHCommander\Traits\Loggable;
+use Neskodi\SSHCommander\SSHCommand;
+use Neskodi\SSHCommander\SSHConfig;
 use Psr\Log\LoggerInterface;
 
 abstract class BaseCommandRunner implements
@@ -24,7 +27,7 @@ abstract class BaseCommandRunner implements
     SSHCommandRunnerInterface,
     DecoratedCommandRunnerInterface
 {
-    use Loggable, ConfigAware;
+    use Loggable, ConfigAware, HasConnection, HasResult;
 
     /**
      * BaseCommandRunner constructor.
@@ -73,7 +76,6 @@ abstract class BaseCommandRunner implements
              ->with(CRLoggerDecorator::class)
              ->with(CRResultDecorator::class)
              ->with(CRConnectionDecorator::class)
-
              ->exec($prepared);
 
         return $this->getResult();
@@ -94,14 +96,11 @@ abstract class BaseCommandRunner implements
      */
     public function prepareCommand(SSHCommandInterface $command): SSHCommandInterface
     {
-        if (!$command->getConfig('basedir')) {
-            // no need to prepare
-            return $command;
-        }
-
         $prepared = new SSHCommand($command);
 
         $this->prependBasedir($prepared);
+
+        $this->prependErrexit($prepared);
 
         return $prepared;
     }
@@ -114,8 +113,28 @@ abstract class BaseCommandRunner implements
      */
     protected function prependBasedir(SSHCommandInterface $command): void
     {
-        $basedirCommand = sprintf('cd %s', $command->getConfig('basedir'));
-        $command->prependCommand($basedirCommand);
+        if ($basedir = $command->getConfig('basedir')) {
+            $basedirCommand = sprintf('cd %s', $basedir);
+            $command->prependCommand($basedirCommand);
+        }
+
+    }
+
+    /**
+     * Prepend 'set -e' to the command if user wants to always break on error.
+     *
+     * @param SSHCommandInterface $command
+     */
+    protected function prependErrexit(SSHCommandInterface $command): void
+    {
+        if (SSHConfig::BREAK_ON_ERROR_ALWAYS === $command->getConfig('break_on_error')) {
+            // turn on errexit mode
+            $command->prependCommand('set -e');
+        } else {
+            // turn off this mode because it may possibly be enabled by previous
+            // commands
+            $command->prependCommand('set +e');
+        }
     }
 
     /**
