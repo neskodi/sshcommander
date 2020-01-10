@@ -131,7 +131,6 @@ class SSHConfigTest extends IntegrationTestCase
 
     /***** TIMEOUT TESTS *****/
 
-    /** @noinspection PhpUnhandledExceptionInspection */
     public function testCommandTimeoutFromConfigFile(): void
     {
         try {
@@ -160,7 +159,6 @@ class SSHConfigTest extends IntegrationTestCase
         MockSSHConfig::resetOverrides();
     }
 
-    /** @noinspection PhpUnhandledExceptionInspection */
     public function testCommandTimeoutFromGlobalConfig(): void
     {
         try {
@@ -184,7 +182,6 @@ class SSHConfigTest extends IntegrationTestCase
         $this->assertEquals($timeoutValue, (int)$elapsed);
     }
 
-    /** @noinspection PhpUnhandledExceptionInspection */
     public function testCommandTimeoutInCommandConfig(): void
     {
         try {

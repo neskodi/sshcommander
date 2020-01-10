@@ -47,8 +47,12 @@ class SSHCommanderTest extends IntegrationTestCase
             $this->markTestSkipped($e->getMessage());
         }
 
-        $commander = new SSHCommander($this->sshOptions);
-        $result    = $commander->run('cd /no!/such!/directory!');
+        $config = $this->sshOptions;
+        $config['break_on_error'] = false;
+
+        $commander  = new SSHCommander($config);
+
+        $result    = $commander->run('cd /no/such/dir');
 
         $this->assertTrue($result->isError());
         $this->assertStringContainsStringIgnoringCase('no such', $result);

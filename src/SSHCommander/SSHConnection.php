@@ -367,8 +367,6 @@ class SSHConnection implements
         $this->setConfig($command->getConfig());
         $this->cleanCommandBuffer();
 
-        // Commands MUST be glued by ';' to produce only one command prompt
-        // so let's join all commands into a single line
         $this->writeAndSend((string)$command);
 
         $output = $this->read($endMarker);
@@ -444,14 +442,21 @@ class SSHConnection implements
         $output = '';
 
         while ($str = $this->sshRead('', SSH2::READ_NEXT)) {
+            if (true === $str) {
+                // timeout
+                $this->isTimeout = true;
+                break;
+            }
+
             $output .= $str;
+
             if ($this->exceedsForcedTimeout()) {
                 $this->isTimeout = true;
                 break;
             } elseif ($marker && $this->hasMarker($output, $marker)) {
                 $this->isTimeout = false;
                 break;
-            } elseif ($this->hasPrompt($output)) {
+            } elseif (!$marker && $this->hasPrompt($output)) {
                 $this->isTimeout = false;
                 break;
             }

@@ -5,6 +5,7 @@ namespace Neskodi\SSHCommander\CommandRunners;
 use Neskodi\SSHCommander\Interfaces\SSHCommandResultInterface;
 use Neskodi\SSHCommander\Exceptions\CommandRunException;
 use Neskodi\SSHCommander\Interfaces\SSHCommandInterface;
+use Neskodi\SSHCommander\SSHConfig;
 
 class InteractiveCommandRunner
     extends BaseCommandRunner
@@ -67,6 +68,27 @@ class InteractiveCommandRunner
         return $prepared;
     }
 
+    protected function createEndMarker()
+    {
+        $this->marker = uniqid();
+    }
+
+    protected function getEndMarker()
+    {
+        if (!$this->marker) {
+            $this->createEndMarker();
+        }
+
+        return $this->marker;
+    }
+
+    protected function getEndMarkerEchoCommand()
+    {
+        $marker = $this->getEndMarker();
+
+        return sprintf('echo "$?:%s"', $marker);
+    }
+
     /**
      * Generate a unique command end marker so we can catch it in the shell
      * output and know when to continue. In this output, we'll also capture the
@@ -76,11 +98,11 @@ class InteractiveCommandRunner
      */
     protected function appendCommandEndMarker(SSHCommandInterface $command)
     {
-        // set the marker to a unique string
-        $this->marker = uniqid();
+        // make sure the marker is unique for this command
+        $this->createEndMarker();
 
         // make shell display the last command exit code and the marker
-        $append = sprintf('echo "$?:%s"', $this->marker);
+        $append = $this->getEndMarkerEchoCommand();
 
         // append to command
         $command->appendCommand($append);
@@ -98,7 +120,7 @@ class InteractiveCommandRunner
             return null;
         }
 
-        $regex = '(\d+):' . $this->marker;
+        $regex = '(\d+):' . $this->getEndMarker();
         $regex = sprintf('/%s/', $regex);
 
         return $regex;
@@ -142,5 +164,26 @@ class InteractiveCommandRunner
 
         // finally, remove that last line from the output
         $result->setOutput(array_slice($outputLines, 0, -1));
+    }
+
+    /**
+     * Prepend 'set -e' to the command if user wants to always break on error.
+     *
+     * @param SSHCommandInterface $command
+     */
+    protected function prependErrexit(SSHCommandInterface $command): void
+    {
+        if (SSHConfig::BREAK_ON_ERROR_ALWAYS === $command->getConfig('break_on_error')) {
+            // add a trap so we can detect the exit code
+            $endMarkerCommand = $this->getEndMarkerEchoCommand();
+            $command->prependCommand("trap '$endMarkerCommand' ERR");
+
+            // turn on errexit mode
+            $command->prependCommand('set -e');
+        } else {
+            // turn off this mode because it may possibly be enabled by previous
+            // commands
+            $command->prependCommand('set +e');
+        }
     }
 }
