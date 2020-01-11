@@ -4,7 +4,6 @@ namespace Neskodi\SSHCommander;
 
 use Neskodi\SSHCommander\CommandRunners\InteractiveCommandRunner;
 use Neskodi\SSHCommander\CommandRunners\IsolatedCommandRunner;
-use Neskodi\SSHCommander\Exceptions\CommandRunException;
 use Neskodi\SSHCommander\Interfaces\SSHCommandResultInterface;
 use Neskodi\SSHCommander\Interfaces\SSHCommandRunnerInterface;
 use Neskodi\SSHCommander\Exceptions\AuthenticationException;
@@ -12,6 +11,7 @@ use Neskodi\SSHCommander\Interfaces\SSHConnectionInterface;
 use Neskodi\SSHCommander\Interfaces\SSHCommanderInterface;
 use Neskodi\SSHCommander\Interfaces\ConfigAwareInterface;
 use Neskodi\SSHCommander\Interfaces\LoggerAwareInterface;
+use Neskodi\SSHCommander\Exceptions\CommandRunException;
 use Neskodi\SSHCommander\Interfaces\SSHCommandInterface;
 use Neskodi\SSHCommander\Factories\LoggerFactory;
 use Neskodi\SSHCommander\Traits\ConfigAware;
@@ -324,5 +324,13 @@ class SSHCommander implements
             // run time
             $options
         );
+    }
+
+    public function breakOnError(
+        $value = SSHConfig::BREAK_ON_ERROR_ALWAYS
+    ): SSHCommanderInterface {
+        $this->set('break_on_error', $value);
+
+        return $this;
     }
 }

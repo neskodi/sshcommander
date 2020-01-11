@@ -5,20 +5,17 @@
 namespace Neskodi\SSHCommander\Tests\Integration;
 
 use Neskodi\SSHCommander\Exceptions\CommandRunException;
+use Neskodi\SSHCommander\Interfaces\SSHCommanderInterface;
 use Neskodi\SSHCommander\Tests\IntegrationTestCase;
 use Neskodi\SSHCommander\SSHCommander;
 use Neskodi\SSHCommander\SSHConfig;
-use RuntimeException;
 
 class ErrorHandlingTest extends IntegrationTestCase
 {
-    public function testIsolatedSimple()
+    public function testIsolatedSimple(): void
     {
-        try {
-            $this->requireUser();
-            $this->requireAuthCredential();
-        } catch (RuntimeException $e) {
-            $this->markTestSkipped($e->getMessage());
+        if (!$this->hasAuthCredentials()) {
+            $this->markTestSkipped('Authentication credenitals required to run this test');
         }
 
         $config = new SSHConfig($this->sshOptions);
@@ -32,15 +29,12 @@ class ErrorHandlingTest extends IntegrationTestCase
         $this->assertTrue($result->isError());
     }
 
-    public function testIsolatedSimpleBOE()
+    public function testIsolatedSimpleBOE(): void
     {
         $this->expectException(CommandRunException::class);
 
-        try {
-            $this->requireUser();
-            $this->requireAuthCredential();
-        } catch (RuntimeException $e) {
-            $this->markTestSkipped($e->getMessage());
+        if (!$this->hasAuthCredentials()) {
+            $this->markTestSkipped('Authentication credenitals required to run this test');
         }
 
         $config = new SSHConfig($this->sshOptions);
@@ -51,15 +45,12 @@ class ErrorHandlingTest extends IntegrationTestCase
         $commander->runIsolated('cd /no/such/dir');
     }
 
-    public function testIsolatedSimpleBOESoftfail()
+    public function testIsolatedSimpleBOESoftfail(): void
     {
         $this->expectException(CommandRunException::class);
 
-        try {
-            $this->requireUser();
-            $this->requireAuthCredential();
-        } catch (RuntimeException $e) {
-            $this->markTestSkipped($e->getMessage());
+        if (!$this->hasAuthCredentials()) {
+            $this->markTestSkipped('Authentication credenitals required to run this test');
         }
 
         $config = new SSHConfig($this->sshOptions);
@@ -70,13 +61,10 @@ class ErrorHandlingTest extends IntegrationTestCase
         $commander->runIsolated('cd /no/such/dir');
     }
 
-    public function testIsolatedCompound()
+    public function testIsolatedCompound(): void
     {
-        try {
-            $this->requireUser();
-            $this->requireAuthCredential();
-        } catch (RuntimeException $e) {
-            $this->markTestSkipped($e->getMessage());
+        if (!$this->hasAuthCredentials()) {
+            $this->markTestSkipped('Authentication credenitals required to run this test');
         }
 
         $config = new SSHConfig($this->sshOptions);
@@ -93,13 +81,10 @@ class ErrorHandlingTest extends IntegrationTestCase
         $this->assertTrue($result->isOk());
     }
 
-    public function testIsolatedCompoundBOE()
+    public function testIsolatedCompoundBOE(): void
     {
-        try {
-            $this->requireUser();
-            $this->requireAuthCredential();
-        } catch (RuntimeException $e) {
-            $this->markTestSkipped($e->getMessage());
+        if (!$this->hasAuthCredentials()) {
+            $this->markTestSkipped('Authentication credenitals required to run this test');
         }
 
         $config = new SSHConfig($this->sshOptions);
@@ -113,8 +98,8 @@ class ErrorHandlingTest extends IntegrationTestCase
             $commander->runIsolated('cd /no/such/dir;echo AAA');
         } catch (CommandRunException $e) {
             $exceptionWasThrown = true;
-            $result = $commander->getIsolatedCommandRunner()->getResult();
-            $lines  = $result->getOutput();
+            $result             = $commander->getIsolatedCommandRunner()->getResult();
+            $lines              = $result->getOutput();
 
             $this->assertNotContains('AAA', $lines);
         } finally {
@@ -123,13 +108,10 @@ class ErrorHandlingTest extends IntegrationTestCase
 
     }
 
-    public function testIsolatedCompoundBOESoftfail()
+    public function testIsolatedCompoundBOESoftfail(): void
     {
-        try {
-            $this->requireUser();
-            $this->requireAuthCredential();
-        } catch (RuntimeException $e) {
-            $this->markTestSkipped($e->getMessage());
+        if (!$this->hasAuthCredentials()) {
+            $this->markTestSkipped('Authentication credenitals required to run this test');
         }
 
         $config = new SSHConfig($this->sshOptions);
@@ -145,15 +127,10 @@ class ErrorHandlingTest extends IntegrationTestCase
         $this->assertTrue($result->isOk());
     }
 
-
-
-    public function testInteractiveSimple()
+    public function testInteractiveSimple(): void
     {
-        try {
-            $this->requireUser();
-            $this->requireAuthCredential();
-        } catch (RuntimeException $e) {
-            $this->markTestSkipped($e->getMessage());
+        if (!$this->hasAuthCredentials()) {
+            $this->markTestSkipped('Authentication credenitals required to run this test');
         }
 
         $config = new SSHConfig($this->sshOptions);
@@ -175,13 +152,10 @@ class ErrorHandlingTest extends IntegrationTestCase
         $this->assertEquals('/tmp', (string)$results[2]);
     }
 
-    public function testInteractiveSimpleBOE()
+    public function testInteractiveSimpleBOE(): void
     {
-        try {
-            $this->requireUser();
-            $this->requireAuthCredential();
-        } catch (RuntimeException $e) {
-            $this->markTestSkipped($e->getMessage());
+        if (!$this->hasAuthCredentials()) {
+            $this->markTestSkipped('Authentication credenitals required to run this test');
         }
 
         $config = new SSHConfig($this->sshOptions);
@@ -208,13 +182,10 @@ class ErrorHandlingTest extends IntegrationTestCase
         }
     }
 
-    public function testInteractiveSimpleBOESoftfail()
+    public function testInteractiveSimpleBOESoftfail(): void
     {
-        try {
-            $this->requireUser();
-            $this->requireAuthCredential();
-        } catch (RuntimeException $e) {
-            $this->markTestSkipped($e->getMessage());
+        if (!$this->hasAuthCredentials()) {
+            $this->markTestSkipped('Authentication credenitals required to run this test');
         }
 
         $config = new SSHConfig($this->sshOptions);
@@ -243,13 +214,10 @@ class ErrorHandlingTest extends IntegrationTestCase
         }
     }
 
-    public function testInteractiveCompound()
+    public function testInteractiveCompound(): void
     {
-        try {
-            $this->requireUser();
-            $this->requireAuthCredential();
-        } catch (RuntimeException $e) {
-            $this->markTestSkipped($e->getMessage());
+        if (!$this->hasAuthCredentials()) {
+            $this->markTestSkipped('Authentication credenitals required to run this test');
         }
 
         $config = new SSHConfig($this->sshOptions);
@@ -274,13 +242,10 @@ class ErrorHandlingTest extends IntegrationTestCase
         $this->assertEquals('CCC', (string)$results[2]);
     }
 
-    public function testInteractiveCompoundBOE()
+    public function testInteractiveCompoundBOE(): void
     {
-        try {
-            $this->requireUser();
-            $this->requireAuthCredential();
-        } catch (RuntimeException $e) {
-            $this->markTestSkipped($e->getMessage());
+        if (!$this->hasAuthCredentials()) {
+            $this->markTestSkipped('Authentication credenitals required to run this test');
         }
 
         $config = new SSHConfig($this->sshOptions);
@@ -288,7 +253,7 @@ class ErrorHandlingTest extends IntegrationTestCase
 
         $commander = new SSHCommander($config);
 
-        $results = [];
+        $results            = [];
         $exceptionWasThrown = false;
 
         try {
@@ -307,13 +272,10 @@ class ErrorHandlingTest extends IntegrationTestCase
         }
     }
 
-    public function testInteractiveCompoundBOESoftfail()
+    public function testInteractiveCompoundBOESoftfail(): void
     {
-        try {
-            $this->requireUser();
-            $this->requireAuthCredential();
-        } catch (RuntimeException $e) {
-            $this->markTestSkipped($e->getMessage());
+        if (!$this->hasAuthCredentials()) {
+            $this->markTestSkipped('Authentication credenitals required to run this test');
         }
 
         $config = new SSHConfig($this->sshOptions);
@@ -321,7 +283,7 @@ class ErrorHandlingTest extends IntegrationTestCase
 
         $commander = new SSHCommander($config);
 
-        $results = [];
+        $results            = [];
         $exceptionWasThrown = false;
 
         try {
@@ -343,13 +305,10 @@ class ErrorHandlingTest extends IntegrationTestCase
         }
     }
 
-    public function testInteractiveCompoundBOESoftfailNotLast()
+    public function testInteractiveCompoundBOESoftfailNotLast(): void
     {
-        try {
-            $this->requireUser();
-            $this->requireAuthCredential();
-        } catch (RuntimeException $e) {
-            $this->markTestSkipped($e->getMessage());
+        if (!$this->hasAuthCredentials()) {
+            $this->markTestSkipped('Authentication credenitals required to run this test');
         }
 
         $config = new SSHConfig($this->sshOptions);
@@ -372,5 +331,127 @@ class ErrorHandlingTest extends IntegrationTestCase
 
         $this->assertEquals('CCC', (string)$results[2]);
         $this->assertTrue($results[2]->isOk());
+    }
+
+    public function testSetBOEOnTheFly(): void
+    {
+        if (!$this->hasAuthCredentials()) {
+            $this->markTestSkipped('Authentication credenitals required to run this test');
+        }
+
+        $config    = new SSHConfig($this->sshOptions);
+        $commander = new SSHCommander($config);
+
+        // set to false and run a few commands
+        $this->chainTestWithBOEFalse($commander);
+
+        // set to true and run a few commands
+        $this->chainTestWithBOETrue($commander);
+
+        // set to softfail and run a few commands
+        $this->chainTestWithBOESoftfail($commander);
+    }
+
+    public function testSetBOEPerCommand(): void
+    {
+        if (!$this->hasAuthCredentials()) {
+            $this->markTestSkipped('Authentication credenitals required to run this test');
+        }
+
+        $commander = new SSHCommander($this->sshOptions);
+        $commander->breakOnError(SSHConfig::BREAK_ON_ERROR_NEVER);
+
+        $exceptionWasThrown = false;
+        $results            = [];
+
+        try {
+            $results[] = $commander->run('cd /no/such/dir');
+            $results[] = $commander->run(
+                'cd /no/such/dir/1;echo BBB',
+                ['break_on_error' => SSHConfig::BREAK_ON_ERROR_LAST_SUBCOMMAND]
+            );
+            $results[] = $commander->run(
+                'cd /no/such/dir/2;echo CCC',
+                ['break_on_error' => SSHConfig::BREAK_ON_ERROR_ALWAYS]
+            );
+        } catch (CommandRunException $exception) {
+            $exceptionWasThrown = true;
+            $strResults = implode(PHP_EOL, $results);
+
+            $this->assertCount(2, $results);
+            $this->assertStringContainsString('BBB', $strResults);
+            $this->assertStringNotContainsString('CCC', $strResults);
+        } finally {
+            $this->assertTrue($exceptionWasThrown);
+        }
+    }
+
+    protected function chainTestWithBOEFalse(SSHCommanderInterface $commander): void
+    {
+        $commander->breakOnError(SSHConfig::BREAK_ON_ERROR_NEVER);
+        $this->assertEquals(
+            SSHConfig::BREAK_ON_ERROR_NEVER,
+            $commander->getConfig('break_on_error')
+        );
+
+        $results = [];
+
+        $results[] = $commander->run('cd /no/such/dir/1');
+        $results[] = $commander->run('cd /no/such/dir/2');
+        $this->assertCount(2, $results);
+        $this->assertTrue($results[0]->isError());
+        $this->assertTrue($results[1]->isError());
+    }
+
+    /** @noinspection PhpRedundantCatchClauseInspection */
+    protected function chainTestWithBOETrue(SSHCommanderInterface $commander): void
+    {
+        $commander->breakOnError(SSHConfig::BREAK_ON_ERROR_ALWAYS);
+        $this->assertEquals(
+            SSHConfig::BREAK_ON_ERROR_ALWAYS,
+            $commander->getConfig('break_on_error')
+        );
+
+        $exceptionWasThrown = false;
+        $results            = [];
+
+        try {
+            $results[] = $commander->run('echo AAA');
+            $results[] = $commander->run('cd /no/such/dir');
+            $results[] = $commander->run('echo BBB');
+        } catch (CommandRunException $exception) {
+            $exceptionWasThrown = true;
+            $this->assertCount(1, $results);
+            $this->assertEquals('AAA', (string)$results[0]);
+        } finally {
+            $this->assertTrue($exceptionWasThrown);
+        }
+    }
+
+    /** @noinspection PhpRedundantCatchClauseInspection */
+    protected function chainTestWithBOESoftfail(SSHCommanderInterface $commander): void
+    {
+        $commander->breakOnError(SSHConfig::BREAK_ON_ERROR_LAST_SUBCOMMAND);
+        $this->assertEquals(
+            SSHConfig::BREAK_ON_ERROR_LAST_SUBCOMMAND,
+            $commander->getConfig('break_on_error')
+        );
+
+        $exceptionWasThrown = false;
+        $results            = [];
+
+        try {
+            $results[] = $commander->run('echo AAA');
+            $results[] = $commander->run('cd /no/such/dir/1;echo BBB');
+            $results[] = $commander->run('cd /no/such/dir/2;');
+            $results[] = $commander->run('echo CCC');
+        } catch (CommandRunException $exception) {
+            $exceptionWasThrown = true;
+            $this->assertCount(2, $results);
+            $this->assertEquals('AAA', (string)$results[0]);
+            $this->assertStringContainsString('BBB', (string)$results[1]);
+        } finally {
+            $this->assertTrue($exceptionWasThrown);
+        }
     }
 }
