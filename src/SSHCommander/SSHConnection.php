@@ -142,6 +142,8 @@ class SSHConnection implements
      */
     public function authenticate(): bool
     {
+        $this->getConfig()->validate();
+
         $this->setLoginTimeout();
 
         $this->logConnecting();

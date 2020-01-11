@@ -27,7 +27,10 @@ abstract class BaseCommandRunner implements
     SSHCommandRunnerInterface,
     DecoratedCommandRunnerInterface
 {
-    use Loggable, ConfigAware, HasConnection, HasResult;
+    use Loggable, HasConnection, HasResult;
+    use ConfigAware {
+        set as protected configAwareSet;
+    }
 
     /**
      * BaseCommandRunner constructor.
@@ -79,6 +82,22 @@ abstract class BaseCommandRunner implements
              ->exec($prepared);
 
         return $this->getResult();
+    }
+
+    /**
+     * This delegation is here because SSHCommandInterface declares a specific
+     * return type which the trait is not aware about.
+     *
+     * @param      $param
+     * @param null $value
+     *
+     * @return SSHCommandRunnerInterface
+     * @noinspection PhpHierarchyChecksInspection - PHPStorm bug
+     * @noinspection PhpIncompatibleReturnTypeInspection
+     */
+    public function set($param, $value = null): SSHCommandRunnerInterface
+    {
+        return $this->configAwareSet($param, $value);
     }
 
     abstract public function exec(SSHCommandInterface $command): void;
@@ -135,15 +154,5 @@ abstract class BaseCommandRunner implements
             // commands
             $command->prependCommand('set +e');
         }
-    }
-
-    /**
-     * Command runner should be allowed to merge chunks of config without validation.
-     *
-     * @return bool
-     */
-    protected function skipConfigValidation(): bool
-    {
-        return true;
     }
 }

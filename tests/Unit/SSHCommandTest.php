@@ -18,12 +18,12 @@ class SSHCommandTest extends TestCase
         return $command;
     }
 
-    public function testmergeConfig(): void
+    public function testSetConfigArray(): void
     {
         $command = $this->createCommand('ls');
 
         $options = ['basedir' => '/test', 'timeout_command' => 12];
-        $command->mergeConfig($options);
+        $command->set($options);
         $options = $command->getConfig();
 
         $this->assertEquals($options->get('basedir'), '/test');
@@ -34,7 +34,7 @@ class SSHCommandTest extends TestCase
     {
         $command = $this->createCommand('ls');
 
-        $command->setOption('basedir', '/test');
+        $command->set('basedir', '/test');
         $option = $command->getConfig('basedir');
 
         $this->assertEquals($option, '/test');
@@ -54,7 +54,7 @@ class SSHCommandTest extends TestCase
     public function testPrependCommandStringMulti(): void
     {
         $command = $this->createCommand('ls');
-        $command->setOption('delimiter_join_input', ';');
+        $command->set('delimiter_join_input', ';');
 
         $commandToPrepend = ['cd /test', 'pwd'];
 

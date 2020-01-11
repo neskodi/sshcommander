@@ -1,15 +1,15 @@
-<?php
+<?php /** @noinspection PhpUnhandledExceptionInspection */
 
 namespace Neskodi\SSHCommander\Tests\Unit;
 
+use Neskodi\SSHCommander\Tests\Mocks\MockSSHConfigMissingDefaultFile;
 use Neskodi\SSHCommander\Exceptions\ConfigFileMissingException;
 use Neskodi\SSHCommander\Exceptions\ConfigValidationException;
 use Neskodi\SSHCommander\Interfaces\SSHConfigInterface;
-use Neskodi\SSHCommander\Tests\Mocks\MockSSHConfigMissingDefaultFile;
 use Neskodi\SSHCommander\Tests\TestCase;
+use Neskodi\SSHCommander\SSHCommander;
 use Neskodi\SSHCommander\SSHConfig;
 use BadMethodCallException;
-use Exception;
 
 class SSHConfigTest extends TestCase
 {
@@ -27,29 +27,6 @@ class SSHConfigTest extends TestCase
         return $base;
     }
 
-    public function testConstructorWithEmptyConnectionInfo(): void
-    {
-        $arrConfig = $this->getTestConfigAsArray(
-            self::CONFIG_SECONDARY_ONLY
-        );
-
-        $this->expectException(ConfigValidationException::class);
-
-        new SSHConfig($arrConfig);
-    }
-
-    public function testConstructorWithDisabledValidation(): void
-    {
-        $arrConfig         = $this->getTestConfigAsArray(
-            self::CONFIG_SECONDARY_ONLY
-        );
-        $arrConfig['port'] = 22;
-
-        $config = new SSHConfig($arrConfig, true);
-
-        $this->assertEquals($arrConfig, $config->all());
-    }
-
     public function testConstructorWithEmptyHost(): void
     {
         $arrConfig             = $this->getTestConfigAsArray(
@@ -59,9 +36,12 @@ class SSHConfigTest extends TestCase
         $arrConfig['user']     = 'valid';
         $arrConfig['password'] = 'valid';
 
+        $config = new SSHConfig($arrConfig);
+        $config->set('autologin', true);
+        $this->assertInstanceOf(SSHConfigInterface::class, $config);
         $this->expectException(ConfigValidationException::class);
 
-        new SSHConfig($arrConfig);
+        new SSHCommander($config);
     }
 
     public function testConstructorWithBlankHost(): void
@@ -73,9 +53,12 @@ class SSHConfigTest extends TestCase
         $arrConfig['user']     = 'valid';
         $arrConfig['password'] = 'valid';
 
+        $config = new SSHConfig($arrConfig);
+        $config->set('autologin', true);
+        $this->assertInstanceOf(SSHConfigInterface::class, $config);
         $this->expectException(ConfigValidationException::class);
 
-        new SSHConfig($arrConfig);
+        new SSHCommander($config);
     }
 
     public function testConstructorWithWrongHostVartype(): void
@@ -87,9 +70,12 @@ class SSHConfigTest extends TestCase
         $arrConfig['user']     = 'valid';
         $arrConfig['password'] = 'valid';
 
+        $config = new SSHConfig($arrConfig);
+        $config->set('autologin', true);
+        $this->assertInstanceOf(SSHConfigInterface::class, $config);
         $this->expectException(ConfigValidationException::class);
 
-        new SSHConfig($arrConfig);
+        new SSHCommander($config);
     }
 
     public function testConstructorWithEmptyUser(): void
@@ -101,9 +87,12 @@ class SSHConfigTest extends TestCase
         $arrConfig['user']     = '';
         $arrConfig['password'] = 'valid';
 
+        $config = new SSHConfig($arrConfig);
+        $config->set('autologin', true);
+        $this->assertInstanceOf(SSHConfigInterface::class, $config);
         $this->expectException(ConfigValidationException::class);
 
-        new SSHConfig($arrConfig);
+        new SSHCommander($config);
     }
 
     public function testConstructorWithBlankUser(): void
@@ -115,9 +104,12 @@ class SSHConfigTest extends TestCase
         $arrConfig['user']     = '     ';
         $arrConfig['password'] = 'valid';
 
+        $config = new SSHConfig($arrConfig);
+        $config->set('autologin', true);
+        $this->assertInstanceOf(SSHConfigInterface::class, $config);
         $this->expectException(ConfigValidationException::class);
 
-        new SSHConfig($arrConfig);
+        new SSHCommander($config);
     }
 
     public function testConstructorWithWrongUserVartype(): void
@@ -129,9 +121,12 @@ class SSHConfigTest extends TestCase
         $arrConfig['user']     = ['invalid'];
         $arrConfig['password'] = 'valid';
 
+        $config = new SSHConfig($arrConfig);
+        $config->set('autologin', true);
+        $this->assertInstanceOf(SSHConfigInterface::class, $config);
         $this->expectException(ConfigValidationException::class);
 
-        new SSHConfig($arrConfig);
+        new SSHCommander($config);
     }
 
     public function testConstructorAcceptsEmptyPassword(): void
@@ -157,9 +152,12 @@ class SSHConfigTest extends TestCase
         $arrConfig['user']     = 'valid';
         $arrConfig['password'] = ['invalid'];
 
+        $config = new SSHConfig($arrConfig);
+        $config->set('autologin', true);
+        $this->assertInstanceOf(SSHConfigInterface::class, $config);
         $this->expectException(ConfigValidationException::class);
 
-        new SSHConfig($arrConfig);
+        new SSHCommander($config);
     }
 
     public function testConstructorWithEmptyKey(): void
@@ -171,9 +169,12 @@ class SSHConfigTest extends TestCase
         $arrConfig['user'] = 'valid';
         $arrConfig['key']  = '';
 
+        $config = new SSHConfig($arrConfig);
+        $config->set('autologin', true);
+        $this->assertInstanceOf(SSHConfigInterface::class, $config);
         $this->expectException(ConfigValidationException::class);
 
-        new SSHConfig($arrConfig);
+        new SSHCommander($config);
     }
 
     public function testConstructorWithBlankKey(): void
@@ -185,9 +186,12 @@ class SSHConfigTest extends TestCase
         $arrConfig['user'] = 'valid';
         $arrConfig['key']  = '     ';
 
+        $config = new SSHConfig($arrConfig);
+        $config->set('autologin', true);
+        $this->assertInstanceOf(SSHConfigInterface::class, $config);
         $this->expectException(ConfigValidationException::class);
 
-        new SSHConfig($arrConfig);
+        new SSHCommander($config);
     }
 
     public function testConstructorWithWrongKeyVartype(): void
@@ -199,9 +203,12 @@ class SSHConfigTest extends TestCase
         $arrConfig['user'] = 'valid';
         $arrConfig['key']  = ['invalid'];
 
+        $config = new SSHConfig($arrConfig);
+        $config->set('autologin', true);
+        $this->assertInstanceOf(SSHConfigInterface::class, $config);
         $this->expectException(ConfigValidationException::class);
 
-        new SSHConfig($arrConfig);
+        new SSHCommander($config);
     }
 
     public function testConstructorWithEmptyKeyfile(): void
@@ -213,9 +220,12 @@ class SSHConfigTest extends TestCase
         $arrConfig['user']    = 'valid';
         $arrConfig['keyfile'] = '';
 
+        $config = new SSHConfig($arrConfig);
+        $config->set('autologin', true);
+        $this->assertInstanceOf(SSHConfigInterface::class, $config);
         $this->expectException(ConfigValidationException::class);
 
-        new SSHConfig($arrConfig);
+        new SSHCommander($config);
     }
 
     public function testConstructorWithInaccessibleKeyfile(): void
@@ -227,9 +237,12 @@ class SSHConfigTest extends TestCase
         $arrConfig['user']    = 'valid';
         $arrConfig['keyfile'] = '/no/such/file';
 
+        $config = new SSHConfig($arrConfig);
+        $config->set('autologin', true);
+        $this->assertInstanceOf(SSHConfigInterface::class, $config);
         $this->expectException(ConfigValidationException::class);
 
-        new SSHConfig($arrConfig);
+        new SSHCommander($config);
     }
 
     public function testConstructorWithoutCredential(): void
@@ -240,9 +253,12 @@ class SSHConfigTest extends TestCase
         $arrConfig['host'] = 'valid';
         $arrConfig['user'] = 'valid';
 
+        $config = new SSHConfig($arrConfig);
+        $config->set('autologin', true);
+        $this->assertInstanceOf(SSHConfigInterface::class, $config);
         $this->expectException(ConfigValidationException::class);
 
-        new SSHConfig($arrConfig);
+        new SSHCommander($config);
     }
 
     public function testConstructorWithValidPortAsString(): void
@@ -285,9 +301,12 @@ class SSHConfigTest extends TestCase
         $arrConfig['user']     = 'valid';
         $arrConfig['password'] = 'valid';
 
+        $config = new SSHConfig($arrConfig);
+        $config->set('autologin', true);
+        $this->assertInstanceOf(SSHConfigInterface::class, $config);
         $this->expectException(ConfigValidationException::class);
 
-        new SSHConfig($arrConfig);
+        new SSHCommander($config);
     }
 
     public function testConstructorWithBlankPort(): void
@@ -300,9 +319,12 @@ class SSHConfigTest extends TestCase
         $arrConfig['user']     = 'valid';
         $arrConfig['password'] = 'valid';
 
+        $config = new SSHConfig($arrConfig);
+        $config->set('autologin', true);
+        $this->assertInstanceOf(SSHConfigInterface::class, $config);
         $this->expectException(ConfigValidationException::class);
 
-        new SSHConfig($arrConfig);
+        new SSHCommander($config);
     }
 
     public function testConstructorWithWrongPortVartype(): void
@@ -315,9 +337,12 @@ class SSHConfigTest extends TestCase
         $arrConfig['user']     = 'valid';
         $arrConfig['password'] = 'valid';
 
+        $config = new SSHConfig($arrConfig);
+        $config->set('autologin', true);
+        $this->assertInstanceOf(SSHConfigInterface::class, $config);
         $this->expectException(ConfigValidationException::class);
 
-        new SSHConfig($arrConfig);
+        new SSHCommander($config);
     }
 
     public function testSet(): void
@@ -329,17 +354,6 @@ class SSHConfigTest extends TestCase
         $config->set('testkey', 'testvalue');
 
         $this->assertEquals('testvalue', $config->get('testkey'));
-    }
-
-    public function testSetInvalidValue(): void
-    {
-        $arrConfig = $this->getTestConfigAsArray();
-
-        $config = new SSHConfig($arrConfig);
-
-        $this->expectException(ConfigValidationException::class);
-
-        $config->set('port', 'San Marino');
     }
 
     public function testSetFromArray(): void
@@ -357,7 +371,7 @@ class SSHConfigTest extends TestCase
 
         $config = new SSHConfig($arrConfig);
 
-        $config->setFromArray($arrNewValues, true);
+        $config->set($arrNewValues);
 
         $this->assertEquals($arrNewValues['host'], $config->getHost());
         $this->assertEquals($arrNewValues['port'], $config->getPort());
@@ -490,11 +504,11 @@ class SSHConfigTest extends TestCase
             self::CONFIG_SECONDARY_ONLY
         );
 
-        $config = new SSHConfig([], true);
+        $config = new SSHConfig($arrConfig);
 
         $this->expectException(ConfigValidationException::class);
 
-        $config->validate($arrConfig);
+        $config->validate();
     }
 
     public function testInaccessibleDefaultConfigFile(): void
@@ -508,29 +522,21 @@ class SSHConfigTest extends TestCase
         new MockSSHConfigMissingDefaultFile($arrConfig);
     }
 
-    /** @noinspection PhpUndefinedVariableInspection */
     public function testValidateValidConfig(): void
     {
         $arrConfig = $this->getTestConfigAsArray(
             self::CONFIG_CONNECTION_ONLY
         );
 
-        $config = new SSHConfig([], true);
+        $config = new SSHConfig($arrConfig);
+        $config->validate();
 
-        try {
-            $result = $config->validate($arrConfig);
-        } catch (Exception $e) {
-            $this->fail(
-                'Validation of valid config array still throws an Exception'
-            );
-        }
-
-        $this->assertInstanceOf(SSHConfigInterface::class, $result);
+        $this->assertInstanceOf(SSHConfigInterface::class, $config);
     }
 
     public function testGetPortReturnsNullIfPortIsNotSet(): void
     {
-        $config = new SSHConfig(['port' => null], true);
+        $config = new SSHConfig(['port' => null]);
 
         $this->assertNull($config->getPort());
     }

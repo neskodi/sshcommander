@@ -22,9 +22,7 @@ class ErrorHandlingTest extends IntegrationTestCase
         }
 
         $config = new SSHConfig($this->sshOptions);
-        $config->setFromArray([
-            'break_on_error' => SSHConfig::BREAK_ON_ERROR_NEVER
-        ]);
+        $config->set('break_on_error', SSHConfig::BREAK_ON_ERROR_NEVER);
 
         $commander = new SSHCommander($config);
 
@@ -46,9 +44,7 @@ class ErrorHandlingTest extends IntegrationTestCase
         }
 
         $config = new SSHConfig($this->sshOptions);
-        $config->setFromArray([
-            'break_on_error' => SSHConfig::BREAK_ON_ERROR_ALWAYS
-        ]);
+        $config->set('break_on_error', SSHConfig::BREAK_ON_ERROR_ALWAYS);
 
         $commander = new SSHCommander($config);
 
@@ -67,9 +63,7 @@ class ErrorHandlingTest extends IntegrationTestCase
         }
 
         $config = new SSHConfig($this->sshOptions);
-        $config->setFromArray([
-            'break_on_error' => SSHConfig::BREAK_ON_ERROR_LAST_SUBCOMMAND
-        ]);
+        $config->set('break_on_error', SSHConfig::BREAK_ON_ERROR_LAST_SUBCOMMAND);
 
         $commander = new SSHCommander($config);
 
@@ -86,9 +80,7 @@ class ErrorHandlingTest extends IntegrationTestCase
         }
 
         $config = new SSHConfig($this->sshOptions);
-        $config->setFromArray([
-            'break_on_error' => SSHConfig::BREAK_ON_ERROR_NEVER
-        ]);
+        $config->set('break_on_error', SSHConfig::BREAK_ON_ERROR_NEVER);
 
         $commander = new SSHCommander($config);
 
@@ -111,9 +103,7 @@ class ErrorHandlingTest extends IntegrationTestCase
         }
 
         $config = new SSHConfig($this->sshOptions);
-        $config->setFromArray([
-            'break_on_error' => SSHConfig::BREAK_ON_ERROR_ALWAYS
-        ]);
+        $config->set('break_on_error', SSHConfig::BREAK_ON_ERROR_ALWAYS);
 
         $commander = new SSHCommander($config);
 
@@ -143,9 +133,7 @@ class ErrorHandlingTest extends IntegrationTestCase
         }
 
         $config = new SSHConfig($this->sshOptions);
-        $config->setFromArray([
-            'break_on_error' => SSHConfig::BREAK_ON_ERROR_LAST_SUBCOMMAND
-        ]);
+        $config->set('break_on_error', SSHConfig::BREAK_ON_ERROR_LAST_SUBCOMMAND);
 
         $commander = new SSHCommander($config);
 
@@ -169,9 +157,7 @@ class ErrorHandlingTest extends IntegrationTestCase
         }
 
         $config = new SSHConfig($this->sshOptions);
-        $config->setFromArray([
-            'break_on_error' => SSHConfig::BREAK_ON_ERROR_NEVER
-        ]);
+        $config->set('break_on_error', SSHConfig::BREAK_ON_ERROR_NEVER);
 
         $commander = new SSHCommander($config);
         $results   = [];
@@ -199,9 +185,7 @@ class ErrorHandlingTest extends IntegrationTestCase
         }
 
         $config = new SSHConfig($this->sshOptions);
-        $config->setFromArray([
-            'break_on_error' => SSHConfig::BREAK_ON_ERROR_ALWAYS
-        ]);
+        $config->set('break_on_error', SSHConfig::BREAK_ON_ERROR_ALWAYS);
 
         $commander = new SSHCommander($config);
 
@@ -234,9 +218,7 @@ class ErrorHandlingTest extends IntegrationTestCase
         }
 
         $config = new SSHConfig($this->sshOptions);
-        $config->setFromArray([
-            'break_on_error' => SSHConfig::BREAK_ON_ERROR_LAST_SUBCOMMAND
-        ]);
+        $config->set('break_on_error', SSHConfig::BREAK_ON_ERROR_LAST_SUBCOMMAND);
 
         $commander = new SSHCommander($config);
 
@@ -271,9 +253,7 @@ class ErrorHandlingTest extends IntegrationTestCase
         }
 
         $config = new SSHConfig($this->sshOptions);
-        $config->setFromArray([
-            'break_on_error' => SSHConfig::BREAK_ON_ERROR_NEVER
-        ]);
+        $config->set('break_on_error', SSHConfig::BREAK_ON_ERROR_NEVER);
 
         $commander = new SSHCommander($config);
 
@@ -304,9 +284,7 @@ class ErrorHandlingTest extends IntegrationTestCase
         }
 
         $config = new SSHConfig($this->sshOptions);
-        $config->setFromArray([
-            'break_on_error' => SSHConfig::BREAK_ON_ERROR_ALWAYS
-        ]);
+        $config->set('break_on_error', SSHConfig::BREAK_ON_ERROR_ALWAYS);
 
         $commander = new SSHCommander($config);
 
@@ -339,9 +317,7 @@ class ErrorHandlingTest extends IntegrationTestCase
         }
 
         $config = new SSHConfig($this->sshOptions);
-        $config->setFromArray([
-            'break_on_error' => SSHConfig::BREAK_ON_ERROR_LAST_SUBCOMMAND
-        ]);
+        $config->set('break_on_error', SSHConfig::BREAK_ON_ERROR_LAST_SUBCOMMAND);
 
         $commander = new SSHCommander($config);
 
@@ -377,9 +353,7 @@ class ErrorHandlingTest extends IntegrationTestCase
         }
 
         $config = new SSHConfig($this->sshOptions);
-        $config->setFromArray([
-            'break_on_error' => SSHConfig::BREAK_ON_ERROR_LAST_SUBCOMMAND
-        ]);
+        $config->set('break_on_error', SSHConfig::BREAK_ON_ERROR_LAST_SUBCOMMAND);
 
         $commander = new SSHCommander($config);
 

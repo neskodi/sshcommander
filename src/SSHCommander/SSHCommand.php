@@ -15,8 +15,7 @@ use Neskodi\SSHCommander\Traits\ConfigAware;
 class SSHCommand implements SSHCommandInterface, ConfigAwareInterface
 {
     use ConfigAware {
-        setOption as protected configAwareSetOption;
-        mergeConfig as protected configAwareMergeConfig;
+        set as protected configAwareSet;
     }
 
     /**
@@ -40,10 +39,12 @@ class SSHCommand implements SSHCommandInterface, ConfigAwareInterface
 
         $this->setConfig($initialConfig);
 
+        // override with the argument we are provided right now
         if (!empty($config)) {
-            $this->mergeConfig($config);
+            $this->set($config);
         }
 
+        // set the command itself
         $this->setCommand($command);
     }
 
@@ -95,34 +96,6 @@ class SSHCommand implements SSHCommandInterface, ConfigAwareInterface
     }
 
     /**
-     * This override is here so that SSHCommandInterface can declare the return
-     * type (trait is too generic and can't assume any return types).
-     *
-     * @param string $key
-     * @param        $value
-     *
-     * @return SSHCommandInterface
-     */
-    public function setOption(string $key, $value): SSHCommandInterface
-    {
-        return $this->configAwareSetOption($key, $value);
-    }
-
-    /**
-     * This override is here so that SSHCommandInterface can declare the return
-     * type (trait is too generic and can't assume any return types).
-     *
-     * @param      $config
-     * @param bool $missingOnly
-     *
-     * @return SSHCommandInterface
-     */
-    public function mergeConfig($config, bool $missingOnly = false): SSHCommandInterface
-    {
-        return $this->configAwareMergeConfig($config, $missingOnly);
-    }
-
-    /**
      * Appends a command or commands to the end of the execution sequence.
      *
      * @param string|array $command
@@ -169,6 +142,22 @@ class SSHCommand implements SSHCommandInterface, ConfigAwareInterface
     }
 
     /**
+     * This delegation is here because SSHCommandInterface declares a specific
+     * return type which the trait is not aware about.
+     *
+     * @param      $param
+     * @param null $value
+     *
+     * @return SSHCommandInterface
+     * @noinspection PhpHierarchyChecksInspection - PHPStorm bug
+     * @noinspection PhpIncompatibleReturnTypeInspection
+     */
+    public function set($param, $value = null): SSHCommandInterface
+    {
+        return $this->configAwareSet($param, $value);
+    }
+
+    /**
      * Cast user's input from any permitted type to string, or throw an
      * exception if this is not possible.
      *
@@ -212,17 +201,5 @@ class SSHCommand implements SSHCommandInterface, ConfigAwareInterface
         if (empty($command)) {
             throw new EmptyCommandException;
         }
-    }
-
-    /**
-     * Config passed to command is not required to contain valid
-     * or any at all connection information, so ask SSHConfig to skip
-     * validation.
-     *
-     * @return bool
-     */
-    protected function skipConfigValidation(): bool
-    {
-        return true;
     }
 }

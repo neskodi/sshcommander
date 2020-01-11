@@ -60,6 +60,9 @@ class SSHCommander implements
         ) {
             $this->setLogger($logger);
         }
+
+        // initiate a connection at once, to make the autologin option useful
+        $this->getConnection();
     }
 
     /**
@@ -165,7 +168,7 @@ class SSHCommander implements
         $options = $this->getMergedOptions($command, $options);
 
         if ($command instanceof SSHCommandInterface) {
-            $command->mergeConfig($options);
+            $command->set($options);
         } else {
             $command = new SSHCommand($command, $options);
         }

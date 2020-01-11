@@ -8,13 +8,11 @@ interface SSHCommandInterface
 
     public function getConfig(?string $param = null);
 
+    public function set($param, $value = null): SSHCommandInterface;
+
     public function setCommand($command): SSHCommandInterface;
 
     public function getCommand(): string;
-
-    public function setOption(string $key, $value): SSHCommandInterface;
-
-    public function mergeConfig($options, bool $missingOnly = false): SSHCommandInterface;
 
     public function appendCommand($command): SSHCommandInterface;
 

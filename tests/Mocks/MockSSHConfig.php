@@ -18,7 +18,7 @@ class MockSSHConfig extends SSHConfig implements SSHConfigInterface
 
         $values = array_merge($values, static::$overrides);
 
-        $this->setFromArray($values);
+        $this->set($values);
 
         return $this;
     }

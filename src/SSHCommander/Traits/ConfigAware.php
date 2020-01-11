@@ -30,46 +30,6 @@ trait ConfigAware
     }
 
     /**
-     * Merge the new config values into the existing config object.
-     *
-     * @param array|SSHConfigInterface $config
-     *
-     * @param bool                     $missingOnly if true, skip options that
-     *                                              are already present in the
-     *                                              original array and only add
-     *                                              missing ones
-     *
-     * @return $this
-     */
-    public function mergeConfig($config, bool $missingOnly = false)
-    {
-        $options = $this->toConfigArray($config);
-
-        foreach ($options as $key => $value) {
-            if ($missingOnly && $this->config->has($key)) {
-                continue;
-            }
-
-            $this->config->set($key, $value, $this->skipConfigValidation(), $options);
-        }
-
-        return $this;
-    }
-
-    /**
-     * Set a single option.
-     *
-     * @param string $key
-     * @param        $value
-     */
-    public function setOption(string $key, $value)
-    {
-       $this->config->set($key, $value);
-
-       return $this;
-    }
-
-    /**
      * Get the SSHConfig object used by this connection, or a specific key from
      * that config object.
      *
@@ -85,15 +45,20 @@ trait ConfigAware
     }
 
     /**
-     * If a new instance of SSHConfig is created by setConfig,
-     * tell us whether it needs to validate connection information
-     * (host, username, etd) for this particular class.
+     * Set a single option or a number of options.
      *
-     * @return bool
+     * See the documentation for SSHConfig::set()
+     *
+     * @param string|array|SSHConfigInterface $param
+     * @param mixed                           $value
+     *
+     * @return ConfigAware
      */
-    protected function skipConfigValidation(): bool
+    public function set($param, $value = null)
     {
-        return false;
+        $this->config->set($param, $value);
+
+        return $this;
     }
 
     /**
@@ -106,10 +71,7 @@ trait ConfigAware
     protected function toConfigObject($config): SSHConfigInterface
     {
         if (is_array($config)) {
-            $configObject = new SSHConfig(
-                $config,
-                $this->skipConfigValidation()
-            );
+            $configObject = new SSHConfig($config);
         } elseif ($config instanceof SSHConfigInterface) {
             $configObject = $config;
         } else {

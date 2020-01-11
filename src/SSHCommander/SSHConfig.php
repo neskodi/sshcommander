@@ -1,20 +1,22 @@
-<?php /** @noinspection PhpIncludeInspection */
+<?php
 
 namespace Neskodi\SSHCommander;
 
 use Neskodi\SSHCommander\Exceptions\ConfigFileMissingException;
 use Neskodi\SSHCommander\Exceptions\ConfigValidationException;
+use Neskodi\SSHCommander\Exceptions\InvalidConfigException;
 use Neskodi\SSHCommander\Traits\ValidatesConnectionInfo;
 use Neskodi\SSHCommander\Interfaces\SSHConfigInterface;
+use InvalidArgumentException;
 use BadMethodCallException;
 
 class SSHConfig implements SSHConfigInterface
 {
     use ValidatesConnectionInfo;
 
-    const CREDENTIAL_KEY      = 'key';
-    const CREDENTIAL_KEYFILE  = 'keyfile';
-    const CREDENTIAL_PASSWORD = 'password';
+    const CREDENTIAL_KEY                 = 'key';
+    const CREDENTIAL_KEYFILE             = 'keyfile';
+    const CREDENTIAL_PASSWORD            = 'password';
 
     const BREAK_ON_ERROR_NEVER           = false;
     const BREAK_ON_ERROR_ALWAYS          = true;
@@ -48,19 +50,12 @@ class SSHConfig implements SSHConfigInterface
      * @param bool  $skipValidation
      */
     public function __construct(
-        array $config = [],
-        bool $skipValidation = false
+        array $config = []
     ) {
         $this->loadDefaultConfigFile()
              ->loadUserConfigFile();
 
-        // Now that the entire configuration is in place, we can validate
-        // connection information if necessary.
-        if (!$skipValidation) {
-            $this->validate($config);
-        }
-
-        $this->setFromArray($config);
+        $this->set($config);
     }
 
     /**
@@ -104,45 +99,20 @@ class SSHConfig implements SSHConfigInterface
     protected function loadConfigFile(string $file): void
     {
         if (file_exists($file) && is_readable($file)) {
-            $this->setFromArray((array)include($file));
+            $this->set((array)include($file));
         }
     }
 
     /**
-     * Import the provided array into $this->config.
-     *
-     * @param array $config
-     *
-     * @param bool  $skipValidation
-     *
-     * @return SSHConfigInterface
-     */
-    public function setFromArray(
-        array $config,
-        bool $skipValidation = false
-    ): SSHConfigInterface {
-        foreach ($config as $key => $value) {
-            $this->set(
-                $key,
-                $this->prepare($config, $key),
-                $skipValidation,
-                $config
-            );
-        }
-
-        return $this;
-    }
-
-    /**
-     * If the initial validation was skipped, see if all data provided for
-     * authentication was provided.
+     * See if all data needed for authentication was provided. Do not throw an
+     * exception, just return false.
      *
      * @return bool
      */
     public function isValid(): bool
     {
         try {
-            $this->validate($this->config);
+            $this->validate();
         } catch (ConfigValidationException $exception) {
             return false;
         }
@@ -151,41 +121,18 @@ class SSHConfig implements SSHConfigInterface
     }
 
     /**
-     * Validate the passed config array. In case of invalid input,
-     * exceptions will be thrown.
+     * Validate the configuration and throw an Exception if something is wrong.
      *
+     * This is normally done before establishing a connection.
      *
-     * @param array $config
-     *
-     * @return SSHConfigInterface
      * @throws ConfigValidationException
      */
-    public function validate(array $config = []): SSHConfigInterface
+    public function validate(): void
     {
-        $this->validateHost($config)
-             ->validatePort($config)
-             ->validateUser($config)
-             ->validateLoginCredential($config);
-
-        return $this;
-    }
-
-    /**
-     * Sanitize the values that arrived from user.
-     *
-     * @param array  $config array with all values to provide context.
-     * @param string $param  the parameter that we are sanitizing now.
-     *
-     * @return mixed|null
-     */
-    protected function prepare(array $config, string $param)
-    {
-        switch ($param) {
-            case 'port':
-                return (int)$config[$param];
-            default:
-                return $config[$param];
-        }
+        $this->validateHost($this->config)
+             ->validatePort($this->config)
+             ->validateUser($this->config)
+             ->validateLoginCredential($this->config);
     }
 
     /**
@@ -247,30 +194,64 @@ class SSHConfig implements SSHConfigInterface
     }
 
     /**
-     * Set an arbitrary config parameter.
+     * Set an arbitrary config parameter or a number of parameters.
      *
-     * @param string $param the name of parameter to set.
-     * @param mixed  $value the value to set the parameter to.
-     * @param bool   $skipValidation
-     * @param array  $context
+     * Ways to use:
+     *
+     * $config->set('key', $value);
+     * $config->set(['key1' => $value1, 'key2' => $value2]);
+     * $config->set($fromAnotherSSHConfigObject);
+     *
+     * @param string|array|SSHConfigInterface $param - string: the name of parameter to set, the value
+     *                                               will be provided as second argument
+     *                                               - array or SSHConfigInterface: a map of params and
+     *                                               values to set
+     * @param null|mixed                      $value if $param is a string (key to set), this is the value
+     *                                               to set for that key. Otherwise this parameter is
+     *                                               ignored.
      */
     public function set(
-        string $param,
-        $value,
-        bool $skipValidation = false,
-        array $context = []
+        $param,
+        $value = null
     ): void {
-        $method = 'set' . Utils::camelCase($param);
-        if (method_exists($this, $method)) {
-            // we have a special setter for this
-            $this->$method($value);
-        } else {
-            if (!$skipValidation) {
-                $this->validateBeforeSet($param, $value, $context);
-            }
+        if (is_string($param)) {
+            $this->setSingle($param, $value);
+            return;
+        }
 
-            // just throw the value into the config
-            $this->config[$param] = $value;
+        if ($param instanceof SSHConfigInterface) {
+            $param = $param->all();
+        }
+
+        if (!is_array($param)) {
+            throw new InvalidArgumentException(sprintf(
+                'First parameter to SSHConfig::set() must be a string, an ' .
+                'array or an SSHConfigInterface; %s given',
+                gettype($param)
+            ));
+        }
+
+        foreach ($param as $key => $value) {
+            $this->setSingle($key, $value);
+        }
+    }
+
+    /**
+     * Set a single config parameter by its name.
+     *
+     * @param string $param
+     * @param null   $value
+     */
+    protected function setSingle(string $param, $value = null): void
+    {
+        if (is_string($param)) {
+            $method = 'set' . Utils::camelCase($param);
+            if (method_exists($this, $method)) {
+                // we have a special setter for this
+                $this->$method($value);
+            } else {
+                $this->config[$param] = $value;
+            }
         }
     }
 
@@ -298,18 +279,18 @@ class SSHConfig implements SSHConfigInterface
 
     /**
      * This method is here mainly to intercept calls to getters such as
-     * "getHost()" or "getPassword()"
+     * "getBreakOnError()"
      *
      * @param string $name      the parameter to get
      * @param array  $arguments arguments as array
      *
      * @return mixed|null
      */
-    public function __call(string $name, array $arguments)
+    public function __call(string $name, array $arguments = [])
     {
         if (0 === strpos($name, 'get')) {
             $param   = Utils::snakeCase(substr($name, 3));
-            $default = count($arguments) ? $arguments[0] : null;
+            $default = $arguments[0] ?? null;
 
             return $this->get($param, $default);
         }
@@ -390,16 +371,6 @@ class SSHConfig implements SSHConfigInterface
     }
 
     /**
-     * Get the SSH host.
-     *
-     * @return string|null
-     */
-    public function getHost(): ?string
-    {
-        return $this->config['host'] ?? null;
-    }
-
-    /**
      * Get the SSH port.
      *
      * @return int|null
@@ -414,26 +385,6 @@ class SSHConfig implements SSHConfigInterface
     }
 
     /**
-     * Get the SSH key.
-     *
-     * @return string|null
-     */
-    public function getKey(): ?string
-    {
-        return $this->config['key'] ?? null;
-    }
-
-    /**
-     * Get the SSH keyfile.
-     *
-     * @return string|null
-     */
-    public function getKeyfile(): ?string
-    {
-        return $this->config['keyfile'] ?? null;
-    }
-
-    /**
      * Get private key contents from the config object. May be stored directly
      * under 'key' or in the file pointed to by 'keyfile'.
      *
@@ -444,74 +395,18 @@ class SSHConfig implements SSHConfigInterface
         $keyContents = null;
 
         if ($key = $this->getKey()) {
+            if (!is_scalar($key)) {
+                throw new InvalidConfigException(sprintf(
+                    'Invalid SSH key provided (string expected, got %s)',
+                    gettype($key)
+                ));
+            }
+
             $keyContents = (string)$key;
         } elseif ($keyfile = $this->getKeyfile()) {
             $keyContents = (string)file_get_contents($keyfile);
         }
 
         return $keyContents;
-    }
-
-    /**
-     * Get the SSH user.
-     *
-     * @return string|null
-     */
-    public function getUser(): ?string
-    {
-        return $this->config['user'] ?? null;
-    }
-
-    /**
-     * Get the password used for password-based authentication or for unlocking
-     * the key.
-     *
-     * @return string|null
-     */
-    public function getPassword(): ?string
-    {
-        return $this->config['password'] ?? null;
-    }
-
-    /**
-     * Get the regular expression used to detect normal prompt in SSH output.
-     *
-     * @return string
-     */
-    public function getPromptRegex(): ?string
-    {
-        return $this->config['prompt_regex'] ?? null;
-    }
-
-    /**
-     * Validate the value before adding it to the config. Normal validation
-     * rules apply.
-     *
-     * @param string $param
-     * @param        $value
-     * @param array  $context
-     */
-    protected function validateBeforeSet(
-        string $param,
-        $value,
-        array $context = []
-    ): void {
-        $validationMethod = 'validate' . ucfirst(strtolower($param));
-        if (method_exists($this, $validationMethod)) {
-            $validatedArray = array_merge(
-                $this->all(),
-                $context,
-                [$param => $value]
-            );
-
-            try {
-                $this->$validationMethod($validatedArray);
-            } catch (ConfigValidationException $e) {
-                $message = 'Unable to add "%s" with value "%s" to config. ' .
-                           $e->getMessage();
-                $message = sprintf($message, $param, $value);
-                throw new ConfigValidationException($message);
-            }
-        }
     }
 }
