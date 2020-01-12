@@ -6,7 +6,6 @@
 namespace Neskodi\SSHCommander;
 
 use Neskodi\SSHCommander\Exceptions\InvalidCommandException;
-use Neskodi\SSHCommander\Exceptions\EmptyCommandException;
 use Neskodi\SSHCommander\Interfaces\ConfigAwareInterface;
 use Neskodi\SSHCommander\Interfaces\SSHCommandInterface;
 use Neskodi\SSHCommander\Interfaces\SSHConfigInterface;
@@ -191,15 +190,14 @@ class SSHCommand implements SSHCommandInterface, ConfigAwareInterface
     }
 
     /**
-     * Verify that the user has provided a non-empty string that can be supplied
-     * to shell as a command.
+     * You may use this hook in the extended classes to impose validation rules
+     * and restrictions on commands, but out of the box it doesn't do any
+     * validation.
      *
      * @param string $command
      */
     protected function validateCommand(string $command): void
     {
-        if (empty($command)) {
-            throw new EmptyCommandException;
-        }
+        //
     }
 }
