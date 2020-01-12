@@ -12,7 +12,6 @@ use Neskodi\SSHCommander\Tests\IntegrationTestCase;
 use Neskodi\SSHCommander\SSHCommander;
 use Monolog\Handler\TestHandler;
 use Psr\Log\LogLevel;
-use Monolog\Logger;
 use Exception;
 
 class LoggingTest extends IntegrationTestCase
@@ -20,7 +19,13 @@ class LoggingTest extends IntegrationTestCase
     const EXPECTED_OUTCOME_SUCCESS = 'success';
     const EXPECTED_OUTCOME_FAILURE = 'failure';
 
-    const TEST_OUTPUT_STRING       = 'quick brown fox jumps over the lazy dog';
+    const MATCHING_MODE_REGULAR = 'regular';
+    const MATCHING_MODE_REGEXP  = 'regexp';
+
+    const RUNNING_MODE_INTERACTIVE = 'interactive';
+    const RUNNING_MODE_ISOLATED    = 'isolated';
+
+    const TEST_OUTPUT_STRING = 'quick brown fox jumps over the lazy dog';
 
     const LOGIN_SUCCESS_MARKER     = 'Authenticated';
     const LOGIN_FAILED_MARKER      = 'Failed to authenticate to remote host';
@@ -159,6 +164,50 @@ class LoggingTest extends IntegrationTestCase
         return $handler;
     }
 
+    protected function runCommandAndCheckMarkerPresent(
+        string $level,
+        string $outcome,
+        string $marker,
+        string $runningMode = self::RUNNING_MODE_INTERACTIVE,
+        string $matchingMode = self::MATCHING_MODE_REGULAR,
+        array $options = []
+    ): void {
+        $handler = $this->runCommandAndGetLogRecords(
+            $level,
+            $outcome,
+            (self::RUNNING_MODE_ISOLATED == $runningMode),
+            $options
+        );
+
+        $result = (self::MATCHING_MODE_REGEXP == $matchingMode)
+            ? $handler->hasRecordThatMatches($marker, $level)
+            : $handler->hasRecordThatContains($marker, $level);
+
+        $this->assertTrue($result);
+    }
+
+    protected function runCommandAndCheckMarkerAbsent(
+        string $level,
+        string $outcome,
+        string $marker,
+        string $runningMode = self::RUNNING_MODE_INTERACTIVE,
+        string $matchingMode = self::MATCHING_MODE_REGULAR,
+        array $options = []
+    ): void {
+        $handler = $this->runCommandAndGetLogRecords(
+            $level,
+            $outcome,
+            (self::RUNNING_MODE_ISOLATED == $runningMode),
+            $options
+        );
+
+        $result = (self::MATCHING_MODE_REGEXP == $matchingMode)
+            ? $handler->hasRecordThatMatches($marker, $level)
+            : $handler->hasRecordThatContains($marker, $level);
+
+        $this->assertFalse($result);
+    }
+
     /**
      * Build a regular expression to test the presence of test output string
      * in command log.
@@ -202,71 +251,73 @@ class LoggingTest extends IntegrationTestCase
 
     public function testCommandOutputIsLoggedOnDebugLevel(): void
     {
-        $level = LogLevel::DEBUG;
-
-        $handler = $this->runCommandAndGetLogRecords(
-            $level,
-            self::EXPECTED_OUTCOME_SUCCESS
+        // test the interactive runner
+        $this->runCommandAndCheckMarkerPresent(
+            LogLevel::DEBUG,
+            self::EXPECTED_OUTCOME_SUCCESS,
+            self::COMMAND_OUTPUT_MARKER
         );
 
-        $this->assertEquals(Logger::DEBUG, $handler->getLevel());
-
-        $this->assertTrue(
-            $handler->hasRecordThatContains(self::COMMAND_OUTPUT_MARKER, $level)
+        // test the isolated runner
+        $this->runCommandAndCheckMarkerPresent(
+            LogLevel::DEBUG,
+            self::EXPECTED_OUTCOME_SUCCESS,
+            self::COMMAND_OUTPUT_MARKER,
+            self::RUNNING_MODE_ISOLATED
         );
     }
 
     public function testCommandOutputIsNotLoggedAboveDebugLevel(): void
     {
-        $level = LogLevel::INFO;
-
-        $handler = $this->runCommandAndGetLogRecords(
-            $level,
-            self::EXPECTED_OUTCOME_SUCCESS
+        // test the interactive runner
+        $this->runCommandAndCheckMarkerAbsent(
+            LogLevel::INFO,
+            self::EXPECTED_OUTCOME_SUCCESS,
+            self::COMMAND_OUTPUT_MARKER
         );
 
-        $this->assertEquals(Logger::INFO, $handler->getLevel());
-
-        $this->assertFalse(
-            $handler->hasRecordThatContains(self::COMMAND_OUTPUT_MARKER, $level)
+        // test the isolated runner
+        $this->runCommandAndCheckMarkerAbsent(
+            LogLevel::INFO,
+            self::EXPECTED_OUTCOME_SUCCESS,
+            self::COMMAND_OUTPUT_MARKER,
+            self::RUNNING_MODE_ISOLATED
         );
     }
 
     public function testCommandSuccessIsLoggedOnDebugLevel(): void
     {
-        $level = LogLevel::DEBUG;
-
-        $handler = $this->runCommandAndGetLogRecords(
-            $level,
-            self::EXPECTED_OUTCOME_SUCCESS
+        // test the interactive runner
+        $this->runCommandAndCheckMarkerPresent(
+            LogLevel::DEBUG,
+            self::EXPECTED_OUTCOME_SUCCESS,
+            self::COMMAND_SUCCESS_MARKER
         );
 
-        $this->assertEquals(Logger::DEBUG, $handler->getLevel());
-
-        $this->assertTrue(
-            $handler->hasRecordThatContains(
-                self::COMMAND_SUCCESS_MARKER,
-                $level
-            )
+        // test the isolated runner
+        $this->runCommandAndCheckMarkerPresent(
+            LogLevel::DEBUG,
+            self::EXPECTED_OUTCOME_SUCCESS,
+            self::COMMAND_SUCCESS_MARKER,
+            self::RUNNING_MODE_ISOLATED
         );
     }
 
     public function testCommandSuccessIsNotLoggedAboveDebugLevel(): void
     {
-        $level = LogLevel::INFO;
-
-        $handler = $this->runCommandAndGetLogRecords(
-            $level,
-            self::EXPECTED_OUTCOME_SUCCESS
+        // test the interactive runner
+        $this->runCommandAndCheckMarkerAbsent(
+            LogLevel::INFO,
+            self::EXPECTED_OUTCOME_SUCCESS,
+            self::COMMAND_SUCCESS_MARKER
         );
 
-        $this->assertEquals(Logger::INFO, $handler->getLevel());
-
-        $this->assertFalse(
-            $handler->hasRecordThatContains(
-                self::COMMAND_SUCCESS_MARKER,
-                $level
-            )
+        // test the isolated runner
+        $this->runCommandAndCheckMarkerAbsent(
+            LogLevel::INFO,
+            self::EXPECTED_OUTCOME_SUCCESS,
+            self::COMMAND_SUCCESS_MARKER,
+            self::RUNNING_MODE_ISOLATED
         );
     }
 
@@ -277,8 +328,6 @@ class LoggingTest extends IntegrationTestCase
         $logger    = $this->getTestLogger($level);
         $commander = new SSHCommander($this->sshOptions, $logger);
         $handler   = $commander->getLogger()->popHandler();
-
-        $this->assertEquals(Logger::INFO, $handler->getLevel());
 
         $this->assertTrue(
             $handler->hasRecordThatContains(
@@ -296,8 +345,6 @@ class LoggingTest extends IntegrationTestCase
         $commander = new SSHCommander($this->sshOptions, $logger);
         $handler   = $commander->getLogger()->popHandler();
 
-        $this->assertEquals(Logger::NOTICE, $handler->getLevel());
-
         $this->assertFalse(
             $handler->hasRecordThatContains(
                 self::LOGIN_SUCCESS_MARKER,
@@ -308,113 +355,115 @@ class LoggingTest extends IntegrationTestCase
 
     public function testCommandIsLoggedOnInfoLevel(): void
     {
-        $level = LogLevel::INFO;
-
-        $handler = $this->runCommandAndGetLogRecords(
-            $level,
-            self::EXPECTED_OUTCOME_SUCCESS
+        // test the interactive runner
+        $this->runCommandAndCheckMarkerPresent(
+            LogLevel::INFO,
+            self::EXPECTED_OUTCOME_SUCCESS,
+            self::COMMAND_RUNNING_MARKER
         );
 
-        $this->assertEquals(Logger::INFO, $handler->getLevel());
-
-        $regex = $this->getTestOutputStringRegex(self::COMMAND_RUNNING_MARKER);
-
-        $this->assertTrue(
-            $handler->hasRecordThatMatches($regex, $level)
+        // test the isolated runner
+        $this->runCommandAndCheckMarkerPresent(
+            LogLevel::INFO,
+            self::EXPECTED_OUTCOME_SUCCESS,
+            self::COMMAND_RUNNING_MARKER,
+            self::RUNNING_MODE_ISOLATED
         );
     }
 
     public function testCommandIsNotLoggedAboveInfoLevel(): void
     {
-        $level = LogLevel::NOTICE;
-
-        $handler = $this->runCommandAndGetLogRecords(
-            $level,
-            self::EXPECTED_OUTCOME_SUCCESS
+        // test the interactive runner
+        $this->runCommandAndCheckMarkerAbsent(
+            LogLevel::NOTICE,
+            self::EXPECTED_OUTCOME_SUCCESS,
+            self::COMMAND_RUNNING_MARKER
         );
 
-        $this->assertEquals(Logger::NOTICE, $handler->getLevel());
-
-        $regex = $this->getTestOutputStringRegex(self::COMMAND_RUNNING_MARKER);
-
-        $this->assertFalse(
-            $handler->hasRecordThatMatches($regex, $level)
+        // test the isolated runner
+        $this->runCommandAndCheckMarkerAbsent(
+            LogLevel::NOTICE,
+            self::EXPECTED_OUTCOME_SUCCESS,
+            self::COMMAND_RUNNING_MARKER,
+            self::RUNNING_MODE_ISOLATED
         );
     }
 
     public function testCommandCompletionIsLoggedOnInfoLevel(): void
     {
-        $level = LogLevel::INFO;
-
-        $handler = $this->runCommandAndGetLogRecords(
-            $level,
-            self::EXPECTED_OUTCOME_SUCCESS
+        // test the interactive runner
+        $this->runCommandAndCheckMarkerPresent(
+            LogLevel::INFO,
+            self::EXPECTED_OUTCOME_SUCCESS,
+            self::COMMAND_COMPLETION_REGEX,
+            self::RUNNING_MODE_INTERACTIVE,
+            self::MATCHING_MODE_REGEXP
         );
 
-        $this->assertEquals(Logger::INFO, $handler->getLevel());
-
-        $this->assertTrue(
-            $handler->hasRecordThatMatches(
-                static::COMMAND_COMPLETION_REGEX,
-                $level
-            )
+        // test the isolated runner
+        $this->runCommandAndCheckMarkerPresent(
+            LogLevel::INFO,
+            self::EXPECTED_OUTCOME_SUCCESS,
+            self::COMMAND_COMPLETION_REGEX,
+            self::RUNNING_MODE_ISOLATED,
+            self::MATCHING_MODE_REGEXP
         );
     }
 
     public function testCommandCompletionIsNotLoggedAboveInfoLevel(): void
     {
-        $level = LogLevel::NOTICE;
-
-        $handler = $this->runCommandAndGetLogRecords(
-            $level,
-            self::EXPECTED_OUTCOME_SUCCESS
+        // test the interactive runner
+        $this->runCommandAndCheckMarkerAbsent(
+            LogLevel::NOTICE,
+            self::EXPECTED_OUTCOME_SUCCESS,
+            self::COMMAND_COMPLETION_REGEX,
+            self::RUNNING_MODE_INTERACTIVE,
+            self::MATCHING_MODE_REGEXP
         );
 
-        $this->assertEquals(Logger::NOTICE, $handler->getLevel());
-
-        $this->assertFalse(
-            $handler->hasRecordThatMatches(
-                static::COMMAND_COMPLETION_REGEX,
-                $level
-            )
+        // test the isolated runner
+        $this->runCommandAndCheckMarkerAbsent(
+            LogLevel::NOTICE,
+            self::EXPECTED_OUTCOME_SUCCESS,
+            self::COMMAND_COMPLETION_REGEX,
+            self::RUNNING_MODE_ISOLATED,
+            self::MATCHING_MODE_REGEXP
         );
     }
 
     public function testCommandErrorIsLoggedOnNoticeLevel(): void
     {
-        $level = LogLevel::NOTICE;
-
-        $handler = $this->runCommandAndGetLogRecords(
-            $level,
-            self::EXPECTED_OUTCOME_FAILURE
+        // test the interactive runner
+        $this->runCommandAndCheckMarkerPresent(
+            LogLevel::NOTICE,
+            self::EXPECTED_OUTCOME_FAILURE,
+            self::COMMAND_ERROR_MARKER
         );
 
-        $this->assertEquals(Logger::NOTICE, $handler->getLevel());
-
-        $this->assertTrue(
-            $handler->hasRecordThatContains(
-                self::COMMAND_ERROR_MARKER,
-                $level
-            )
+        // test the isolated runner
+        $this->runCommandAndCheckMarkerPresent(
+            LogLevel::NOTICE,
+            self::EXPECTED_OUTCOME_FAILURE,
+            self::COMMAND_ERROR_MARKER,
+            self::RUNNING_MODE_ISOLATED
         );
     }
 
     public function testCommandErrorIsNotLoggedAboveNoticeLevel(): void
     {
-        $level = LogLevel::ERROR;
-
-        $handler = $this->runCommandAndGetLogRecords(
-            $level,
-            self::EXPECTED_OUTCOME_FAILURE
+        // test the interactive runner
+        $this->runCommandAndCheckMarkerAbsent(
+            LogLevel::ERROR,
+            self::EXPECTED_OUTCOME_FAILURE,
+            self::COMMAND_ERROR_MARKER
         );
 
-        $this->assertEquals(Logger::ERROR, $handler->getLevel());
-
-        $this->assertFalse(
-            $handler->hasRecordThatContains(
-                self::COMMAND_ERROR_MARKER,
-                $level
-            )
+        // test the isolated runner
+        $this->runCommandAndCheckMarkerAbsent(
+            LogLevel::ERROR,
+            self::EXPECTED_OUTCOME_FAILURE,
+            self::COMMAND_ERROR_MARKER,
+            self::RUNNING_MODE_ISOLATED
         );
     }
 
