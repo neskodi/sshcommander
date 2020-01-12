@@ -34,7 +34,7 @@ class SSHCommander implements
     /**
      * @var SSHCommandRunnerInterface
      */
-    protected $commandRunner;
+    protected $interactiveCommandRunner;
 
     /**
      * @var SSHCommandRunnerInterface
@@ -61,8 +61,10 @@ class SSHCommander implements
             $this->setLogger($logger);
         }
 
-        // initiate a connection at once, to make the autologin option useful
-        $this->getConnection();
+        // if user wants to autologin, initiate connection at once
+        if ($this->getConfig('autologin')) {
+            $this->createConnection();
+        }
     }
 
     /**
@@ -91,60 +93,113 @@ class SSHCommander implements
     public function getConnection(): SSHConnectionInterface
     {
         if (!$this->connection) {
-            $this->setConnection(
-                new SSHConnection(
-                    $this->getConfig(),
-                    $this->getLogger()
-                )
-            );
+            $this->createConnection();
         }
 
         return $this->connection;
     }
 
     /**
-     * Fluent setter for the command runner object, in case you need to override
-     * the default one.
+     * Create a new SSHConnection object and save it for usage in this instance
+     * of SSHCommander.
+     *
+     * @throws AuthenticationException
+     */
+    protected function createConnection()
+    {
+        $this->setConnection(new SSHConnection(
+            $this->getConfig(),
+            $this->getLogger()
+        ));
+    }
+
+    /**
+     * Fluent setter for the interactive command runner object, in case you need
+     * to override the default one before running a command.
      *
      * @param SSHCommandRunnerInterface $commandRunner
      *
-     * @return SSHCommanderInterface
+     * @return $this
      */
-    public function setCommandRunner(SSHCommandRunnerInterface $commandRunner
+    public function setInteractiveCommandRunner(
+        SSHCommandRunnerInterface $commandRunner
     ): SSHCommanderInterface {
-        $this->commandRunner = $commandRunner;
+        $this->interactiveCommandRunner = $commandRunner;
 
         return $this;
     }
 
     /**
-     * Get the command runner object.
+     * Get the interactive command runner object. If one does not exist, make a
+     * new instance.
      *
      * @return SSHCommandRunnerInterface
-     *
-     * @throws Exceptions\AuthenticationException
+     * @throws AuthenticationException
      */
-    public function getCommandRunner(): SSHCommandRunnerInterface
+    public function getInteractiveCommandRunner(): SSHCommandRunnerInterface
     {
-        if (!$this->commandRunner) {
-            $commandRunner = $this->createCommandRunner();
-
-            $this->setCommandRunner($commandRunner);
+        if (!$this->interactiveCommandRunner) {
+            $this->setInteractiveCommandRunner(
+                $this->createInteractiveCommandRunner()
+            );
         }
 
-        return $this->commandRunner;
+        return $this->interactiveCommandRunner;
+    }
+
+    /**
+     * Create an instance of an interactive command runner.
+     *
+     * @return mixed|SSHCommandRunnerInterface
+     * @throws AuthenticationException
+     */
+    public function createInteractiveCommandRunner(): SSHCommandRunnerInterface
+    {
+        return $this->createCommandRunner(InteractiveCommandRunner::class);
+    }
+
+    /**
+     * Fluent setter for the isolated command runner object, in case you need
+     * to override the default one before running a command.
+     *
+     * @param SSHCommandRunnerInterface $commandRunner
+     *
+     * @return $this
+     */
+    public function setIsolatedCommandRunner(
+        SSHCommandRunnerInterface $commandRunner
+    ): SSHCommanderInterface {
+        $this->isolatedCommandRunner = $commandRunner;
+
+        return $this;
     }
 
     /**
      * Get the isolated command runner object.
      *
      * @return SSHCommandRunnerInterface
-     *
-     * @throws Exceptions\AuthenticationException
+     * @throws AuthenticationException
      */
     public function getIsolatedCommandRunner(): SSHCommandRunnerInterface
     {
+        if (!$this->isolatedCommandRunner) {
+            $this->setIsolatedCommandRunner(
+                $this->createIsolatedCommandRunner()
+            );
+        }
+
         return $this->isolatedCommandRunner;
+    }
+
+    /**
+     * Create an instance of an isolated command runner.
+     *
+     * @return mixed|SSHCommandRunnerInterface
+     * @throws AuthenticationException
+     */
+    public function createIsolatedCommandRunner(): SSHCommandRunnerInterface
+    {
+        return $this->createCommandRunner(IsolatedCommandRunner::class);
     }
 
     /**
@@ -191,9 +246,11 @@ class SSHCommander implements
         $command,
         array $options = []
     ): SSHCommandResultInterface {
-        $commandRunner = $this->getCommandRunner();
-
-        return $this->runWith($commandRunner, $command, $options);
+        return $this->runWith(
+            $this->getInteractiveCommandRunner(),
+            $command,
+            $options
+        );
     }
 
     /**
@@ -211,11 +268,11 @@ class SSHCommander implements
         $command,
         array $options = []
     ): SSHCommandResultInterface {
-        $this->isolatedCommandRunner = $this->createCommandRunner(
-            IsolatedCommandRunner::class
+        return $this->runWith(
+            $this->getIsolatedCommandRunner(),
+            $command,
+            $options
         );
-
-        return $this->runWith($this->isolatedCommandRunner, $command, $options);
     }
 
     /**
@@ -269,12 +326,13 @@ class SSHCommander implements
      */
     public static function setConfigFile(string $path)
     {
-        SSHConfig::setConfigFileLocation($path);
+        SSHConfig::setUserConfigFileLocation($path);
     }
 
     /**
      * Create a command runner object that will be an instance of the given
-     * command runner class.
+     * command runner class. Inject the connection object that we have by this
+     * time.
      *
      * @param string $class
      *
@@ -306,14 +364,13 @@ class SSHCommander implements
      * @param array                            $options
      *
      * @return array
-     * @throws AuthenticationException
      */
     protected function getMergedOptions(
         $command,
         array $options
     ): array {
         return array_merge(
-        // global config options of this SSHCommander instance
+        // global configuration of this SSHCommander instance
             $this->getConfig()->all(),
 
             // if passed command is an object having its own options, they will

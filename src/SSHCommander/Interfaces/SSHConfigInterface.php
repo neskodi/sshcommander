@@ -18,7 +18,7 @@ interface SSHConfigInterface
 
     public function getKeyContents(): ?string;
 
-    public static function setConfigFileLocation(string $location): void;
+    public static function setUserConfigFileLocation(string $location): void;
 
     public static function getConfigFileLocation(): ?string;
 

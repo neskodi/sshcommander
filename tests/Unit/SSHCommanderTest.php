@@ -124,9 +124,9 @@ class SSHCommanderTest extends TestCase
         $commander = new SSHCommander($testConfigA);
         $runner    = new IsolatedCommandRunner($testConfigB);
 
-        $commander->setCommandRunner($runner);
+        $commander->setInteractiveCommandRunner($runner);
 
-        $host = $commander->getCommandRunner()->getConfig('host');
+        $host = $commander->getInteractiveCommandRunner()->getConfig('host');
 
         $this->assertEquals($host, 'hostB');
     }

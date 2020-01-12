@@ -385,7 +385,7 @@ class SSHConfigTest extends TestCase
     {
         $location = '/x/files';
 
-        SSHConfig::setConfigFileLocation($location);
+        SSHConfig::setUserConfigFileLocation($location);
 
         $this->assertEquals($location, SSHConfig::getConfigFileLocation());
 
@@ -397,7 +397,7 @@ class SSHConfigTest extends TestCase
         $location = '/x/files';
         $default  = SSHConfig::getDefaultConfigFileLocation();
 
-        SSHConfig::setConfigFileLocation($location);
+        SSHConfig::setUserConfigFileLocation($location);
 
         $this->assertEquals($location, SSHConfig::getConfigFileLocation());
 

@@ -12,13 +12,21 @@ interface SSHCommanderInterface
 
     public function getConnection(): SSHConnectionInterface;
 
-    public function setCommandRunner(
+    public function setInteractiveCommandRunner(
         SSHCommandRunnerInterface $commandRunner
     ): SSHCommanderInterface;
 
-    public function getCommandRunner(): SSHCommandRunnerInterface;
+    public function getInteractiveCommandRunner(): SSHCommandRunnerInterface;
+
+    public function createInteractiveCommandRunner(): SSHCommandRunnerInterface;
+
+    public function setIsolatedCommandRunner(
+        SSHCommandRunnerInterface $commandRunner
+    ): SSHCommanderInterface;
 
     public function getIsolatedCommandRunner(): SSHCommandRunnerInterface;
+
+    public function createIsolatedCommandRunner(): SSHCommandRunnerInterface;
 
     public function createCommand(
         $command,

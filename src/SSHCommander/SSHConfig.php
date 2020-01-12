@@ -330,7 +330,7 @@ class SSHConfig implements SSHConfigInterface
      *
      * @param string $location
      */
-    public static function setConfigFileLocation(string $location): void
+    public static function setUserConfigFileLocation(string $location): void
     {
         static::$configFileLocation = $location;
     }
