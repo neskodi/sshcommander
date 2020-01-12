@@ -85,22 +85,27 @@ abstract class BaseCommandRunner implements
     }
 
     /**
-     * This delegation is here because SSHCommandInterface declares a specific
-     * return type which the trait is not aware about.
+     * Save command exit code, stdout and stderr into the result object.
      *
-     * @param      $param
-     * @param null $value
-     *
-     * @return SSHCommandRunnerInterface
-     * @noinspection PhpHierarchyChecksInspection - PHPStorm bug
-     * @noinspection PhpIncompatibleReturnTypeInspection
+     * @param SSHCommandInterface       $command
+     * @param SSHCommandResultInterface $result
      */
-    public function set($param, $value = null): SSHCommandRunnerInterface
-    {
-        return $this->configAwareSet($param, $value);
+    public function recordCommandResults(
+        SSHCommandInterface $command,
+        SSHCommandResultInterface $result
+    ): void {
+        $result->setOutput($this->getStdOutLines($command))
+               ->setErrorOutput($this->getStdErrLines($command))
+               ->setExitCode($this->getLastExitCode($command));
     }
 
     abstract public function exec(SSHCommandInterface $command): void;
+
+    abstract public function getLastExitCode(SSHCommandInterface $command): ?int;
+
+    abstract public function getStdOutLines(SSHCommandInterface $command): array;
+
+    abstract public function getStdErrLines(SSHCommandInterface $command): array;
 
     /**
      * Prepend preliminary commands to the main command according to main
@@ -154,5 +159,21 @@ abstract class BaseCommandRunner implements
             // commands
             $command->prependCommand('set +e');
         }
+    }
+
+    /**
+     * This delegation is here because SSHCommandInterface declares a specific
+     * return type which the trait is not aware about.
+     *
+     * @param      $param
+     * @param null $value
+     *
+     * @return SSHCommandRunnerInterface
+     * @noinspection PhpHierarchyChecksInspection - PHPStorm bug
+     * @noinspection PhpIncompatibleReturnTypeInspection
+     */
+    public function set($param, $value = null): SSHCommandRunnerInterface
+    {
+        return $this->configAwareSet($param, $value);
     }
 }

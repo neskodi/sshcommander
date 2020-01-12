@@ -50,27 +50,6 @@ class CRResultDecorator
     }
 
     /**
-     * Save command exit code, stdout and stderr into the result object.
-     *
-     * @param SSHCommandInterface       $command
-     * @param SSHCommandResultInterface $result
-     */
-    protected function recordCommandResults(
-        SSHCommandInterface $command,
-        SSHCommandResultInterface $result
-    ): void {
-        $connection = $this->getConnection();
-
-        $result->setExitCode($connection->getLastExitCode())
-               ->setOutput($connection->getStdOutLines());
-
-        // get the error stream separately, if we were asked to
-        if ($command->getConfig('separate_stderr')) {
-            $result->setErrorOutput($connection->getStdErrLines());
-        }
-    }
-
-    /**
      * Record command start and end timestamps and the elapsed time into
      * command result object.
      *

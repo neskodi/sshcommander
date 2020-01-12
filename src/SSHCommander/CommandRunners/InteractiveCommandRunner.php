@@ -2,9 +2,8 @@
 
 namespace Neskodi\SSHCommander\CommandRunners;
 
-use Neskodi\SSHCommander\Interfaces\SSHCommandResultInterface;
-use Neskodi\SSHCommander\Exceptions\CommandRunException;
 use Neskodi\SSHCommander\Interfaces\SSHCommandInterface;
+use Neskodi\SSHCommander\Interfaces\SSHCommandResultInterface;
 use Neskodi\SSHCommander\SSHConfig;
 
 class InteractiveCommandRunner
@@ -17,22 +16,12 @@ class InteractiveCommandRunner
 
     protected $marker = '';
 
-    /**
-     * Run the command and save the result to the collection.
-     *
-     * @param SSHCommandInterface $command the object containing the command to
-     *                                     run
-     *
-     * @return SSHCommandResultInterface
-     * @throws CommandRunException
-     */
     public function run(SSHCommandInterface $command): SSHCommandResultInterface
     {
-        $result = parent::run($command);
+        // ensure a unique command end marker for each run
+        $this->createEndMarker();
 
-        $this->readCommandExitCode($result);
-
-        return $result;
+        return parent::run($command);
     }
 
     /**
@@ -46,6 +35,37 @@ class InteractiveCommandRunner
             $command,
             $this->getEndMarkerRegex()
         );
+    }
+
+    public function recordCommandResults(
+        SSHCommandInterface $command,
+        SSHCommandResultInterface $result
+    ): void {
+        $outputLines = $this->getStdOutLines($command);
+        $exitCode    = $this->readCommandExitCode($outputLines);
+
+        $result->setOutput($outputLines)
+               ->setErrorOutput($this->getStdErrLines($command))
+               ->setExitCode($exitCode);
+    }
+
+    public function getLastExitCode(SSHCommandInterface $command): ?int
+    {
+        $outputLines = $this->getStdOutLines($command);
+
+        return $this->readCommandExitCode($outputLines);
+    }
+
+    public function getStdOutLines(SSHCommandInterface $command): array
+    {
+        return $this->getConnection()->getStdOutLines();
+    }
+
+    public function getStdErrLines(SSHCommandInterface $command): array
+    {
+        // The interactive runner can't afford the luxury of having the separate
+        // error stream
+        return [];
     }
 
     /**
@@ -98,9 +118,6 @@ class InteractiveCommandRunner
      */
     protected function appendCommandEndMarker(SSHCommandInterface $command)
     {
-        // make sure the marker is unique for this command
-        $this->createEndMarker();
-
         // make shell display the last command exit code and the marker
         $append = $this->getEndMarkerEchoCommand();
 
@@ -130,40 +147,37 @@ class InteractiveCommandRunner
      * Try to find our end command marker in command result and detect the
      * last command exit code.
      *
-     * @param SSHCommandResultInterface $result
+     * @param array $outputLines
+     *
+     * @return int
      */
-    protected function readCommandExitCode(SSHCommandResultInterface $result): void
+    protected function readCommandExitCode(array &$outputLines = []): ?int
     {
-        if (empty($this->marker)) {
+        if (empty($this->marker) || !count($outputLines)) {
             // we won't be able to read the code
-            return;
+            return null;
         }
 
-        $outputLines = $result->getOutput();
-
-        if (!count($outputLines)) {
-            // we won't be able to read the code
-            return;
-        }
-
+        $regex   = $this->getEndMarkerRegex();
         $matches = [];
-        $lastLine = end($outputLines);
-        preg_match_all($this->getEndMarkerRegex(), $lastLine, $matches);
 
-        if (empty($matches[0])) {
-            // we have provided the end marker to the runner but it is not found
-            // in the final output.
-            // we assume something bad happened in the middle of command
-            // execution and we consider this command failed.
-            $exitCode = intval($lastLine) ?: 1;
-            $result->setExitCode($exitCode);
-        } elseif (is_numeric($matches[1][0])) {
-            // this is the exit code
-            $result->setExitCode((int)$matches[1][0]);
+        foreach ($outputLines as $i => $line) {
+            preg_match_all($regex, $line, $matches);
+
+            if (!empty($matches[0])) {
+                // this is the exit code
+                // remove that line from the output
+                unset($outputLines[$i]);
+
+                return (int)$matches[1][0];
+            }
         }
 
-        // finally, remove that last line from the output
-        $result->setOutput(array_slice($outputLines, 0, -1));
+        // we have provided the end marker to the runner but it is not found
+        // in the final output.
+        // we assume something bad happened in the middle of command
+        // execution and we consider this command failed.
+        return intval(end($outputLines)) ?: 1;
     }
 
     /**

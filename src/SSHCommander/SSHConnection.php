@@ -407,7 +407,7 @@ class SSHConnection implements
     /**
      * SSH2::read() returns the entire interactive buffer, including the command
      * itself and the command prompt in the end. We are only interested in the
-     * command output, so we will delete these artifacts.
+     * command output, so we will strip off these artifacts.
      *
      * @param string              $output
      * @param SSHCommandInterface $command

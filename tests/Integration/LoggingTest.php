@@ -6,6 +6,7 @@ namespace Neskodi\SSHCommander\Tests\Integration;
 
 use Neskodi\SSHCommander\Exceptions\AuthenticationException;
 use Neskodi\SSHCommander\Interfaces\SSHCommanderInterface;
+use Neskodi\SSHCommander\Exceptions\CommandRunException;
 use Neskodi\SSHCommander\Interfaces\SSHCommandInterface;
 use Neskodi\SSHCommander\Tests\IntegrationTestCase;
 use Neskodi\SSHCommander\SSHCommander;
@@ -16,6 +17,9 @@ use Exception;
 
 class LoggingTest extends IntegrationTestCase
 {
+    const EXPECTED_OUTCOME_SUCCESS = 'success';
+    const EXPECTED_OUTCOME_FAILURE = 'failure';
+
     const TEST_OUTPUT_STRING       = 'quick brown fox jumps over the lazy dog';
 
     const LOGIN_SUCCESS_MARKER     = 'Authenticated';
@@ -41,12 +45,6 @@ class LoggingTest extends IntegrationTestCase
      * @var SSHCommandInterface
      */
     protected $unsuccessfulCommand;
-
-    /**
-     * @var array
-     */
-    protected $logRecords = [];
-
 
     /**
      * Get a command that is guaranteed to succeed on any system.
@@ -96,19 +94,21 @@ class LoggingTest extends IntegrationTestCase
     }
 
     /**
-     * Run the successful / unsuccessful command, using a logger of the
-     * specified level.
+     * Run the successful / unsuccessful command, using a new logger instance of
+     * the specified level.
      *
      * @param string $level      the level of logger to use
      * @param bool   $successful whether to target success or error output
      * @param array  $options    any additional options to run with
+     * @param bool   $isolated   whether to run the command in the isolated mode
      *
      * @throws Exception
      */
-    protected function runCommand(
+    protected function runCommandWithSeparateLogger(
         string $level,
         bool $successful,
-        array $options = []
+        array $options = [],
+        bool $isolated = false
     ): void {
         $command = $successful
             ? $this->getSuccessfulCommand()
@@ -118,37 +118,45 @@ class LoggingTest extends IntegrationTestCase
         $this->getCommander()->setLogger($this->getTestLogger($level));
 
         // run the command to collect log output
-        $this->getCommander()->run($command, $options);
+        $method = $isolated ? 'runIsolated' : 'run';
+        $this->getCommander()->$method($command, $options);
     }
 
     /**
      * Get log records from the run of command with specified outcome and
-     * logging level. The same outcome/level combo may be used in multiple tests
-     * but the command is run only once and then the logging output from this
-     * combo is cached and reused.
+     * logging level.
      *
-     * @param string $level   the required logging level
-     * @param string $outcome the required command outcome
+     * @param string $level    the required logging level
+     * @param string $outcome  the required command outcome
+     * @param bool   $isolated whether to run the command in the isolated mode
+     * @param array  $options  options passed to the command
      *
      * @return TestHandler
      * @throws Exception
      */
-    protected function getCommandLogRecords(
+    protected function runCommandAndGetLogRecords(
         string $level,
-        string $outcome
+        string $outcome,
+        bool $isolated = false,
+        array $options = []
     ): TestHandler {
-        $key = "$outcome-$level";
-
-        if (!isset($this->logRecords[$key])) {
-            $this->runCommand($level, ('success' === $outcome));
-
-            /** @var TestHandler $handler */
-            $handler = $this->getCommander()->getLogger()->popHandler();
-
-            $this->logRecords[$key] = $handler;
+        try {
+            $this->runCommandWithSeparateLogger(
+                $level,
+                (self::EXPECTED_OUTCOME_SUCCESS === $outcome),
+                $options,
+                $isolated
+            );
+        } catch (CommandRunException $e) {
+            // disregard the exception
+            // let's test that error records are present in logs even after
+            // the exception has been thrown
         }
 
-        return $this->logRecords[$key];
+        /** @var TestHandler $handler */
+        $handler = $this->getCommander()->getLogger()->popHandler();
+
+        return $handler;
     }
 
     /**
@@ -186,8 +194,8 @@ class LoggingTest extends IntegrationTestCase
             ['user' => '****']
         );
 
-        $commander = new SSHCommander($options);
-        $commander->setLogger($this->getTestLogger($level));
+        $logger    = $this->getTestLogger($level);
+        $commander = new SSHCommander($options, $logger);
 
         return $commander;
     }
@@ -196,7 +204,10 @@ class LoggingTest extends IntegrationTestCase
     {
         $level = LogLevel::DEBUG;
 
-        $handler = $this->getCommandLogRecords($level, 'success');
+        $handler = $this->runCommandAndGetLogRecords(
+            $level,
+            self::EXPECTED_OUTCOME_SUCCESS
+        );
 
         $this->assertEquals(Logger::DEBUG, $handler->getLevel());
 
@@ -209,7 +220,10 @@ class LoggingTest extends IntegrationTestCase
     {
         $level = LogLevel::INFO;
 
-        $handler = $this->getCommandLogRecords($level, 'success');
+        $handler = $this->runCommandAndGetLogRecords(
+            $level,
+            self::EXPECTED_OUTCOME_SUCCESS
+        );
 
         $this->assertEquals(Logger::INFO, $handler->getLevel());
 
@@ -222,7 +236,10 @@ class LoggingTest extends IntegrationTestCase
     {
         $level = LogLevel::DEBUG;
 
-        $handler = $this->getCommandLogRecords($level, 'success');
+        $handler = $this->runCommandAndGetLogRecords(
+            $level,
+            self::EXPECTED_OUTCOME_SUCCESS
+        );
 
         $this->assertEquals(Logger::DEBUG, $handler->getLevel());
 
@@ -238,7 +255,10 @@ class LoggingTest extends IntegrationTestCase
     {
         $level = LogLevel::INFO;
 
-        $handler = $this->getCommandLogRecords($level, 'success');
+        $handler = $this->runCommandAndGetLogRecords(
+            $level,
+            self::EXPECTED_OUTCOME_SUCCESS
+        );
 
         $this->assertEquals(Logger::INFO, $handler->getLevel());
 
@@ -254,7 +274,9 @@ class LoggingTest extends IntegrationTestCase
     {
         $level = LogLevel::INFO;
 
-        $handler = $this->getCommandLogRecords($level, 'success');
+        $logger    = $this->getTestLogger($level);
+        $commander = new SSHCommander($this->sshOptions, $logger);
+        $handler   = $commander->getLogger()->popHandler();
 
         $this->assertEquals(Logger::INFO, $handler->getLevel());
 
@@ -270,7 +292,9 @@ class LoggingTest extends IntegrationTestCase
     {
         $level = LogLevel::NOTICE;
 
-        $handler = $this->getCommandLogRecords($level, 'success');
+        $logger    = $this->getTestLogger($level);
+        $commander = new SSHCommander($this->sshOptions, $logger);
+        $handler   = $commander->getLogger()->popHandler();
 
         $this->assertEquals(Logger::NOTICE, $handler->getLevel());
 
@@ -286,7 +310,10 @@ class LoggingTest extends IntegrationTestCase
     {
         $level = LogLevel::INFO;
 
-        $handler = $this->getCommandLogRecords($level, 'success');
+        $handler = $this->runCommandAndGetLogRecords(
+            $level,
+            self::EXPECTED_OUTCOME_SUCCESS
+        );
 
         $this->assertEquals(Logger::INFO, $handler->getLevel());
 
@@ -301,7 +328,10 @@ class LoggingTest extends IntegrationTestCase
     {
         $level = LogLevel::NOTICE;
 
-        $handler = $this->getCommandLogRecords($level, 'success');
+        $handler = $this->runCommandAndGetLogRecords(
+            $level,
+            self::EXPECTED_OUTCOME_SUCCESS
+        );
 
         $this->assertEquals(Logger::NOTICE, $handler->getLevel());
 
@@ -316,7 +346,10 @@ class LoggingTest extends IntegrationTestCase
     {
         $level = LogLevel::INFO;
 
-        $handler = $this->getCommandLogRecords($level, 'success');
+        $handler = $this->runCommandAndGetLogRecords(
+            $level,
+            self::EXPECTED_OUTCOME_SUCCESS
+        );
 
         $this->assertEquals(Logger::INFO, $handler->getLevel());
 
@@ -332,7 +365,10 @@ class LoggingTest extends IntegrationTestCase
     {
         $level = LogLevel::NOTICE;
 
-        $handler = $this->getCommandLogRecords($level, 'success');
+        $handler = $this->runCommandAndGetLogRecords(
+            $level,
+            self::EXPECTED_OUTCOME_SUCCESS
+        );
 
         $this->assertEquals(Logger::NOTICE, $handler->getLevel());
 
@@ -344,11 +380,14 @@ class LoggingTest extends IntegrationTestCase
         );
     }
 
-    public function testCommandErrorLoggedOnNoticeLevel(): void
+    public function testCommandErrorIsLoggedOnNoticeLevel(): void
     {
         $level = LogLevel::NOTICE;
 
-        $handler = $this->getCommandLogRecords($level, 'failure');
+        $handler = $this->runCommandAndGetLogRecords(
+            $level,
+            self::EXPECTED_OUTCOME_FAILURE
+        );
 
         $this->assertEquals(Logger::NOTICE, $handler->getLevel());
 
@@ -364,7 +403,10 @@ class LoggingTest extends IntegrationTestCase
     {
         $level = LogLevel::ERROR;
 
-        $handler = $this->getCommandLogRecords($level, 'failure');
+        $handler = $this->runCommandAndGetLogRecords(
+            $level,
+            self::EXPECTED_OUTCOME_FAILURE
+        );
 
         $this->assertEquals(Logger::ERROR, $handler->getLevel());
 
@@ -380,20 +422,28 @@ class LoggingTest extends IntegrationTestCase
     {
         $level = LogLevel::ERROR;
 
-        $commander = $this->getAuthFailedCommander($level);
+        $options = array_merge(
+            $this->sshOptions,
+            ['user' => '****']
+        );
+
+        $logger             = $this->getTestLogger($level);
+        $exceptionWasThrown = false;
 
         try {
-            $command = $this->getSuccessfulCommand();
-            $commander->run($command);
+            new SSHCommander($options, $logger);
         } catch (AuthenticationException $e) {
+            $exceptionWasThrown = true;
             /** @var TestHandler $handler */
-            $handler = $commander->getLogger()->popHandler();
+            $handler = $logger->popHandler();
             $this->assertTrue(
                 $handler->hasRecordThatContains(
                     self::LOGIN_FAILED_MARKER,
                     $level
                 )
             );
+        } finally {
+            $this->assertTrue($exceptionWasThrown);
         }
     }
 
@@ -401,20 +451,28 @@ class LoggingTest extends IntegrationTestCase
     {
         $level = LogLevel::CRITICAL;
 
-        $commander = $this->getAuthFailedCommander($level);
+        $options = array_merge(
+            $this->sshOptions,
+            ['user' => '****']
+        );
+
+        $logger             = $this->getTestLogger($level);
+        $exceptionWasThrown = false;
 
         try {
-            $command = $this->getSuccessfulCommand();
-            $commander->run($command);
+            new SSHCommander($options, $logger);
         } catch (AuthenticationException $e) {
+            $exceptionWasThrown = true;
             /** @var TestHandler $handler */
-            $handler = $commander->getLogger()->popHandler();
+            $handler = $logger->popHandler();
             $this->assertFalse(
                 $handler->hasRecordThatContains(
                     self::LOGIN_FAILED_MARKER,
                     $level
                 )
             );
+        } finally {
+            $this->assertTrue($exceptionWasThrown);
         }
     }
 
@@ -422,10 +480,13 @@ class LoggingTest extends IntegrationTestCase
     {
         $level = LogLevel::DEBUG;
 
-        $this->runCommand($level, false, ['separate_stderr' => true]);
-
         /** @var TestHandler $handler */
-        $handler = $this->getCommander()->getLogger()->popHandler();
+        $handler = $this->runCommandAndGetLogRecords(
+            $level,
+            self::EXPECTED_OUTCOME_FAILURE,
+            true, // run in isolated mode
+            ['separate_stderr' => true]
+        );
 
         $this->assertTrue(
             $handler->hasRecordThatContains(
