@@ -16,8 +16,43 @@ return [
     // Timeout for establishing TCP connection to remote host.
     'timeout_connect' => 10,
 
-    // How long to wait for a command to complete.
+    // Timeout for commands to wait for response packets.
     'timeout_command' => 10,
+
+    // by default, ssh connection won't time out as long as it
+    // is receiving new packets from the other side. For example, if our
+    // command is "ping google.com" and our timeout is 10 seconds, in fact the
+    // command will never time out because it keeps receiving packets every
+    // second or so.
+    // Set 'timelimit' to a non-zero value to enforce control return to your
+    // program after timeout_command elapses, regardless of whether new data is
+    // coming or not in the SSH channel.
+    // Note that due to SSH2 implementation peculiarities, this still doesn't
+    // ALWAYS work, the "sleep" command being a notable exception, since it will
+    // always retain SSH session for whatever number of seconds it's told to
+    // sleep.
+    'timelimit' => 0,
+
+    // If non-null, this character or sequence will be sent to the SSH channel
+    // after a timeout is detected. For instance, you may use "\x03" to send
+    // CTRL+C after a timeout. This will cancel the old command and make sure
+    // that its late output does not interfere with subsequent commands.
+    // "\x03" or SSHConfig::SIGNAL_TERMINATE - send CTRL+C
+    // "\x1A" or SSHConfig::SIGNAL_BACKGROUND_SUSPEND - send CTRL+Z
+    // "\x04" or SSHConfig::SIGNAL_END_INPUT - send CTRL+D
+    // null - do not handle timeout
+    'timeout_behavior' => null,
+
+    // If non-null, this character or sequence will be sent to the SSH channel
+    // after a command exceeds the threshold set by the timelimit setting above.
+    //For instance, you may use "\x03" to send CTRL+C.
+    // This will cancel the old command and make sure that its late output does
+    // not interfere with subsequent commands.
+    // "\x03" or SSHConfig::SIGNAL_TERMINATE - send CTRL+C
+    // "\x1A" or SSHConfig::SIGNAL_BACKGROUND_SUSPEND - send CTRL+Z
+    // "\x04" or SSHConfig::SIGNAL_END_INPUT - send CTRL+D
+    // null - do not handle timeout
+    'timelimit_behavior' => null,
 
     // Character or string used to glue multiple commands when passed to SSH2
     // for execution. Don't change unless you know what you are doing.
@@ -56,19 +91,6 @@ return [
 
     // regular expression used to detect command prompt
     'prompt_regex' => '/[^@\s]+@[^:]+:.*[$%#>]\s?$/',
-
-    // if force_timeout is false, ssh connection won't time out as long as it
-    // is receiving new packets from the other side. For example, if our
-    // command is "ping google.com" and our timeout is 10 seconds, in fact the
-    // command will never time out because it keeps receiving packets every
-    // second or so.
-    // Set 'force_timeout' to true to force return control to your program after
-    // timeout_command elapses, regardless of whether new data is coming or not
-    // in the SSH channel. Note that due to SSH2 implementation peculiarities,
-    // this still doesn't ALWAYS work, the "sleep" command being a notable
-    // exception, since it will always retain SSH session for whatever number of
-    // seconds it's told to sleep.
-    'force_timeout' => false,
 
     // if you disable this, interactive SSH sequence won't run an extra
     // "echo $?" after each command to find out its exit code, but it also means

@@ -42,6 +42,4 @@ interface SSHCommanderInterface
         $command,
         array $options = []
     ): SSHCommandResultInterface;
-
-    public function breakOnError($value): SSHCommanderInterface;
 }

@@ -441,15 +441,15 @@ class ErrorHandlingTest extends IntegrationTestCase
         $results            = [];
 
         try {
-            $results[] = $commander->run('echo AAA');
-            $results[] = $commander->run('cd /no/such/dir/1;echo BBB');
+            $results[] = $commander->run('echo XXX');
+            $results[] = $commander->run('cd /no/such/dir/1;echo YYY');
             $results[] = $commander->run('cd /no/such/dir/2;');
-            $results[] = $commander->run('echo CCC');
+            $results[] = $commander->run('echo ZZZ');
         } catch (CommandRunException $exception) {
             $exceptionWasThrown = true;
             $this->assertCount(2, $results);
-            $this->assertEquals('AAA', (string)$results[0]);
-            $this->assertStringContainsString('BBB', (string)$results[1]);
+            $this->assertEquals('XXX', (string)$results[0]);
+            $this->assertStringContainsString('YYY', (string)$results[1]);
         } finally {
             $this->assertTrue($exceptionWasThrown);
         }

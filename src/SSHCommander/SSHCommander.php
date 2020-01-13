@@ -14,6 +14,7 @@ use Neskodi\SSHCommander\Interfaces\LoggerAwareInterface;
 use Neskodi\SSHCommander\Exceptions\CommandRunException;
 use Neskodi\SSHCommander\Interfaces\SSHCommandInterface;
 use Neskodi\SSHCommander\Factories\LoggerFactory;
+use Neskodi\SSHCommander\Traits\SetsConfigValues;
 use Neskodi\SSHCommander\Traits\ConfigAware;
 use Neskodi\SSHCommander\Traits\Loggable;
 use Psr\Log\LoggerInterface;
@@ -24,7 +25,7 @@ class SSHCommander implements
     LoggerAwareInterface,
     ConfigAwareInterface
 {
-    use Loggable, ConfigAware;
+    use Loggable, ConfigAware, SetsConfigValues;
 
     /**
      * @var SSHConnectionInterface
@@ -383,9 +384,8 @@ class SSHCommander implements
         );
     }
 
-    public function breakOnError(
-        $value = SSHConfig::BREAK_ON_ERROR_ALWAYS
-    ): SSHCommanderInterface {
+    public function breakOnError($value = SSHConfig::BREAK_ON_ERROR_ALWAYS)
+    {
         $this->set('break_on_error', $value);
 
         return $this;

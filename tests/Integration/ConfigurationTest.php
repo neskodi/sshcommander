@@ -11,9 +11,28 @@ use Monolog\Handler\TestHandler;
 use Psr\Log\LogLevel;
 use RuntimeException;
 
-class SSHConfigTest extends IntegrationTestCase
+class ConfigurationTest extends IntegrationTestCase
 {
     use Timer;
+
+    /***** CONFIGURATION PROPAGATION TESTS *****/
+
+    public function testPropagationFromConfigFile()
+    {
+
+    }
+
+    public function testPropagationFromGlobalConfig()
+    {
+
+    }
+
+    public function testPropagationFromCommandConfig()
+    {
+        
+    }
+
+    /***** CREDENTIAL SELECTION TESTS *****/
 
     public function testConfigSelectsKey(): void
     {
@@ -130,34 +149,6 @@ class SSHConfigTest extends IntegrationTestCase
     }
 
     /***** TIMEOUT TESTS *****/
-
-    public function testCommandTimeoutFromConfigFile(): void
-    {
-        try {
-            $this->requireUser();
-            $this->requireAuthCredential();
-        } catch (RuntimeException $e) {
-            $this->markTestSkipped($e->getMessage());
-        }
-
-        $timeoutValue  = 2;
-        $timeoutConfig = ['timeout_command' => $timeoutValue];
-
-        MockSSHConfig::setOverrides($timeoutConfig);
-        $config    = new MockSSHConfig($this->sshOptions);
-        $commander = new SSHCommander($config);
-        $this->assertTrue($commander->getConnection()->isAuthenticated());
-
-        $this->assertEquals($timeoutValue, $commander->getConfig('timeout_command'));
-
-        $this->startTimer();
-        $commander->run('ping google.com', $timeoutConfig);
-        $elapsed = $this->stopTimer();
-
-        $this->assertEquals($timeoutValue, (int)$elapsed);
-
-        MockSSHConfig::resetOverrides();
-    }
 
     public function testCommandTimeoutFromGlobalConfig(): void
     {

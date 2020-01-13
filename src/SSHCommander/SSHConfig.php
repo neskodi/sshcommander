@@ -14,13 +14,17 @@ class SSHConfig implements SSHConfigInterface
 {
     use ValidatesConnectionInfo;
 
-    const CREDENTIAL_KEY                 = 'key';
-    const CREDENTIAL_KEYFILE             = 'keyfile';
-    const CREDENTIAL_PASSWORD            = 'password';
+    const CREDENTIAL_KEY      = 'key';
+    const CREDENTIAL_KEYFILE  = 'keyfile';
+    const CREDENTIAL_PASSWORD = 'password';
 
     const BREAK_ON_ERROR_NEVER           = false;
     const BREAK_ON_ERROR_ALWAYS          = true;
     const BREAK_ON_ERROR_LAST_SUBCOMMAND = 'softfail';
+
+    const SIGNAL_TERMINATE          = "\x03"; // CTRL+C
+    const SIGNAL_BACKGROUND_SUSPEND = "\x1A"; // CTRL+Z
+    const SIGNAL_END_INPUT          = "\x04"; // CTRL+D
 
     /**
      * Location of the config file.
@@ -216,6 +220,7 @@ class SSHConfig implements SSHConfigInterface
     ): void {
         if (is_string($param)) {
             $this->setSingle($param, $value);
+
             return;
         }
 
@@ -366,6 +371,7 @@ class SSHConfig implements SSHConfigInterface
             dirname(__FILE__),
             '..',
             '..',
+            'etc',
             'config.php',
         ]);
     }
