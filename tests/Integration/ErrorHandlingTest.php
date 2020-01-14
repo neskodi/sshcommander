@@ -15,7 +15,7 @@ class ErrorHandlingTest extends IntegrationTestCase
     public function testIsolatedSimple(): void
     {
         if (!$this->hasAuthCredentials()) {
-            $this->markTestSkipped('Authentication credenitals required to run this test');
+            $this->markTestSkipped('Authentication credentials required to run this test');
         }
 
         $config = new SSHConfig($this->sshOptions);
@@ -31,11 +31,11 @@ class ErrorHandlingTest extends IntegrationTestCase
 
     public function testIsolatedSimpleBOE(): void
     {
-        $this->expectException(CommandRunException::class);
-
         if (!$this->hasAuthCredentials()) {
-            $this->markTestSkipped('Authentication credenitals required to run this test');
+            $this->markTestSkipped('Authentication credentials required to run this test');
         }
+
+        $this->expectException(CommandRunException::class);
 
         $config = new SSHConfig($this->sshOptions);
         $config->set('break_on_error', SSHConfig::BREAK_ON_ERROR_ALWAYS);
@@ -47,11 +47,11 @@ class ErrorHandlingTest extends IntegrationTestCase
 
     public function testIsolatedSimpleBOESoftfail(): void
     {
-        $this->expectException(CommandRunException::class);
-
         if (!$this->hasAuthCredentials()) {
-            $this->markTestSkipped('Authentication credenitals required to run this test');
+            $this->markTestSkipped('Authentication credentials required to run this test');
         }
+
+        $this->expectException(CommandRunException::class);
 
         $config = new SSHConfig($this->sshOptions);
         $config->set('break_on_error', SSHConfig::BREAK_ON_ERROR_LAST_SUBCOMMAND);
@@ -64,7 +64,7 @@ class ErrorHandlingTest extends IntegrationTestCase
     public function testIsolatedCompound(): void
     {
         if (!$this->hasAuthCredentials()) {
-            $this->markTestSkipped('Authentication credenitals required to run this test');
+            $this->markTestSkipped('Authentication credentials required to run this test');
         }
 
         $config = new SSHConfig($this->sshOptions);
@@ -84,7 +84,7 @@ class ErrorHandlingTest extends IntegrationTestCase
     public function testIsolatedCompoundBOE(): void
     {
         if (!$this->hasAuthCredentials()) {
-            $this->markTestSkipped('Authentication credenitals required to run this test');
+            $this->markTestSkipped('Authentication credentials required to run this test');
         }
 
         $config = new SSHConfig($this->sshOptions);
@@ -111,7 +111,7 @@ class ErrorHandlingTest extends IntegrationTestCase
     public function testIsolatedCompoundBOESoftfail(): void
     {
         if (!$this->hasAuthCredentials()) {
-            $this->markTestSkipped('Authentication credenitals required to run this test');
+            $this->markTestSkipped('Authentication credentials required to run this test');
         }
 
         $config = new SSHConfig($this->sshOptions);
@@ -130,7 +130,7 @@ class ErrorHandlingTest extends IntegrationTestCase
     public function testInteractiveSimple(): void
     {
         if (!$this->hasAuthCredentials()) {
-            $this->markTestSkipped('Authentication credenitals required to run this test');
+            $this->markTestSkipped('Authentication credentials required to run this test');
         }
 
         $config = new SSHConfig($this->sshOptions);
@@ -155,7 +155,7 @@ class ErrorHandlingTest extends IntegrationTestCase
     public function testInteractiveSimpleBOE(): void
     {
         if (!$this->hasAuthCredentials()) {
-            $this->markTestSkipped('Authentication credenitals required to run this test');
+            $this->markTestSkipped('Authentication credentials required to run this test');
         }
 
         $config = new SSHConfig($this->sshOptions);
@@ -185,7 +185,7 @@ class ErrorHandlingTest extends IntegrationTestCase
     public function testInteractiveSimpleBOESoftfail(): void
     {
         if (!$this->hasAuthCredentials()) {
-            $this->markTestSkipped('Authentication credenitals required to run this test');
+            $this->markTestSkipped('Authentication credentials required to run this test');
         }
 
         $config = new SSHConfig($this->sshOptions);
@@ -217,7 +217,7 @@ class ErrorHandlingTest extends IntegrationTestCase
     public function testInteractiveCompound(): void
     {
         if (!$this->hasAuthCredentials()) {
-            $this->markTestSkipped('Authentication credenitals required to run this test');
+            $this->markTestSkipped('Authentication credentials required to run this test');
         }
 
         $config = new SSHConfig($this->sshOptions);
@@ -245,7 +245,7 @@ class ErrorHandlingTest extends IntegrationTestCase
     public function testInteractiveCompoundBOE(): void
     {
         if (!$this->hasAuthCredentials()) {
-            $this->markTestSkipped('Authentication credenitals required to run this test');
+            $this->markTestSkipped('Authentication credentials required to run this test');
         }
 
         $config = new SSHConfig($this->sshOptions);
@@ -275,7 +275,7 @@ class ErrorHandlingTest extends IntegrationTestCase
     public function testInteractiveCompoundBOESoftfail(): void
     {
         if (!$this->hasAuthCredentials()) {
-            $this->markTestSkipped('Authentication credenitals required to run this test');
+            $this->markTestSkipped('Authentication credentials required to run this test');
         }
 
         $config = new SSHConfig($this->sshOptions);
@@ -308,7 +308,7 @@ class ErrorHandlingTest extends IntegrationTestCase
     public function testInteractiveCompoundBOESoftfailNotLast(): void
     {
         if (!$this->hasAuthCredentials()) {
-            $this->markTestSkipped('Authentication credenitals required to run this test');
+            $this->markTestSkipped('Authentication credentials required to run this test');
         }
 
         $config = new SSHConfig($this->sshOptions);
@@ -336,7 +336,7 @@ class ErrorHandlingTest extends IntegrationTestCase
     public function testSetBOEOnTheFly(): void
     {
         if (!$this->hasAuthCredentials()) {
-            $this->markTestSkipped('Authentication credenitals required to run this test');
+            $this->markTestSkipped('Authentication credentials required to run this test');
         }
 
         $config    = new SSHConfig($this->sshOptions);
@@ -355,7 +355,7 @@ class ErrorHandlingTest extends IntegrationTestCase
     public function testSetBOEPerCommand(): void
     {
         if (!$this->hasAuthCredentials()) {
-            $this->markTestSkipped('Authentication credenitals required to run this test');
+            $this->markTestSkipped('Authentication credentials required to run this test');
         }
 
         $commander = new SSHCommander($this->sshOptions);
