@@ -42,6 +42,8 @@ interface SSHConnectionInterface
 
     public function isTimeout(): bool;
 
+    public function isTimelimit(): bool;
+
     public function resetOutput(): SSHConnectionInterface;
 
     public function resetCommandConfig(): SSHConnectionInterface;

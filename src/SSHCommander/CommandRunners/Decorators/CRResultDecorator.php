@@ -16,11 +16,11 @@ class CRResultDecorator
      *
      * @param SSHCommandInterface $command
      */
-    public function exec(SSHCommandInterface $command): void
+    public function execDecorated(SSHCommandInterface $command): void
     {
         $result = $this->createResult($command);
 
-        $this->runner->exec($command);
+        $this->runner->execDecorated($command);
 
         $this->recordCommandResults($command, $result);
         $this->recordCommandTiming($result);

@@ -22,12 +22,12 @@ class CRConnectionDecorator
      *
      * @param SSHCommandInterface $command
      */
-    public function exec(SSHCommandInterface $command): void
+    public function execDecorated(SSHCommandInterface $command): void
     {
         $this->validateConnection()
              ->prepareConnection($command);
 
-        $this->runner->exec($command);
+        $this->runner->execDecorated($command);
 
         // reset connection to the default configuration, such as default
         // timeout and quiet mode

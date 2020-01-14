@@ -79,7 +79,9 @@ abstract class BaseCommandRunner implements
              ->with(CRLoggerDecorator::class)
              ->with(CRResultDecorator::class)
              ->with(CRConnectionDecorator::class)
-             ->exec($prepared);
+
+             // ->with(CRTimeoutHandlerDecorator::class)
+             ->execDecorated($prepared);
 
         return $this->getResult();
     }
@@ -99,7 +101,27 @@ abstract class BaseCommandRunner implements
                ->setExitCode($this->getLastExitCode($command));
     }
 
-    abstract public function exec(SSHCommandInterface $command): void;
+    /**
+     * Decorators and runner itself can use this method directly to bypass
+     * (other) decorators.
+     *
+     * @param SSHCommandInterface $command
+     */
+    abstract public function executeOnConnection(SSHCommandInterface $command): void;
+
+    /**
+     * Execute the command on the prepared connection.
+     *
+     * This method is called by decorators. If you need to bypass decorators,
+     * for example, in case of  preliminary or post-commands, run
+     * executeOnConnection directly.
+     *
+     * @param SSHCommandInterface $command
+     */
+    public function execDecorated(SSHCommandInterface $command): void
+    {
+        $this->executeOnConnection($command);
+    }
 
     abstract public function getLastExitCode(SSHCommandInterface $command): ?int;
 
@@ -141,7 +163,6 @@ abstract class BaseCommandRunner implements
             $basedirCommand = sprintf('cd %s', $basedir);
             $command->prependCommand($basedirCommand);
         }
-
     }
 
     /**

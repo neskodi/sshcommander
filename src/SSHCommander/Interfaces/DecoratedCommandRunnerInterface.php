@@ -8,5 +8,5 @@ interface DecoratedCommandRunnerInterface
 
     public function with(string $class): DecoratedCommandRunnerInterface;
 
-    public function exec(SSHCommandInterface $command): void;
+    public function execDecorated(SSHCommandInterface $command): void;
 }

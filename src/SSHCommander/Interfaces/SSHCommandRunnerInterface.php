@@ -6,7 +6,9 @@ interface SSHCommandRunnerInterface
 {
     public function prepareCommand(SSHCommandInterface $command): SSHCommandInterface;
 
-    public function exec(SSHCommandInterface $command): void;
+    public function executeOnConnection(SSHCommandInterface $command): void;
+
+    public function execDecorated(SSHCommandInterface $command): void;
 
     public function run(SSHCommandInterface $command);
 

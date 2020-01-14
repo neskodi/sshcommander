@@ -11,12 +11,7 @@ class IsolatedCommandRunner
     implements SSHCommandRunnerInterface,
                DecoratedCommandRunnerInterface
 {
-    /**
-     * Execute the command on the prepared connection.
-     *
-     * @param SSHCommandInterface $command
-     */
-    public function exec(SSHCommandInterface $command): void
+    public function executeOnConnection(SSHCommandInterface $command): void
     {
         $this->getConnection()->execIsolated($command);
     }

@@ -14,11 +14,11 @@ class CRLoggerDecorator
      *
      * @param SSHCommandInterface $command
      */
-    public function exec(SSHCommandInterface $command): void
+    public function execDecorated(SSHCommandInterface $command): void
     {
         $this->logCommandStart($command);
 
-        $this->runner->exec($command);
+        $this->runner->execDecorated($command);
 
         $this->logCommandEnd();
     }

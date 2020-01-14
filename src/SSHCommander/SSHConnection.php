@@ -32,11 +32,6 @@ class SSHConnection implements
     protected $ssh2;
 
     /**
-     * @var bool
-     */
-    protected $authenticated = false;
-
-    /**
      * @var array
      */
     protected $stdoutLines = [];
@@ -60,6 +55,11 @@ class SSHConnection implements
      * @var bool
      */
     protected $isTimeout = false;
+
+    /**
+     * @var bool
+     */
+    protected $isTimelimit = false;
 
     /**
      * SSHConnection constructor.
@@ -169,7 +169,6 @@ class SSHConnection implements
             $this->processLoginError();
         } else {
             $this->info('Authenticated.');
-            $this->authenticated = true;
 
             // clean out the interactive buffer
             $this->read();
@@ -311,7 +310,7 @@ class SSHConnection implements
      */
     public function isAuthenticated(): bool
     {
-        return (bool)$this->authenticated;
+        return ($this->ssh2 && $this->ssh2->isAuthenticated());
     }
 
     /**
@@ -327,7 +326,7 @@ class SSHConnection implements
      */
     public function execIsolated(SSHCommandInterface $command): SSHConnectionInterface
     {
-        if (!$this->authenticated) {
+        if (!$this->isAuthenticated()) {
             $this->authenticate();
         }
 
@@ -360,15 +359,15 @@ class SSHConnection implements
         SSHCommandInterface $command,
         ?string $endMarker = null
     ): SSHConnectionInterface {
-        if (!$this->authenticated) {
+        if (!$this->isAuthenticated()) {
             $this->authenticate();
         }
 
         $this->resetOutput();
-        $this->isTimeout = false;
+        $this->resetTimeoutStatus();
         $this->setConfig($command->getConfig());
-        $this->cleanCommandBuffer();
 
+        $this->cleanCommandBuffer();
         $this->writeAndSend((string)$command);
 
         $output = $this->read($endMarker);
@@ -452,14 +451,12 @@ class SSHConnection implements
 
             $output .= $str;
 
-            if ($this->exceedsForcedTimeout()) {
-                $this->isTimeout = true;
+            if ($this->exceedsTimeLimit()) {
+                $this->isTimelimit = true;
                 break;
             } elseif ($marker && $this->hasMarker($output, $marker)) {
-                $this->isTimeout = false;
                 break;
             } elseif (!$marker && $this->hasPrompt($output)) {
-                $this->isTimeout = false;
                 break;
             }
         }
@@ -477,22 +474,14 @@ class SSHConnection implements
      *
      * @return bool
      */
-    protected function exceedsForcedTimeout(): bool
+    protected function exceedsTimeLimit(): bool
     {
         // see if we really need to force the timeout
-        if (!$this->getConfig('force_timeout')) {
+        if (!$timelimit = $this->getConfig('timelimit')) {
             return false;
         }
 
-        $timeout = $this->getConfig('timeout_command');
-
-        // see if timeout is a falsy value, including false, 0, and null
-        // in this case we assume user doesn't want a timeout
-        if (!$timeout) {
-            return false;
-        }
-
-        return microtime(true) > ($this->getTimerStart() + $timeout);
+        return microtime(true) > ($this->getTimerStart() + $timelimit);
     }
 
     /**
@@ -776,6 +765,12 @@ class SSHConnection implements
         return $this;
     }
 
+    public function resetTimeoutStatus()
+    {
+        $this->isTimeout = false;
+        $this->isTimelimit = false;
+    }
+
     /**
      * Reset some configuration after running a single command back to default
      * values.
@@ -801,13 +796,22 @@ class SSHConnection implements
     }
 
     /**
-     * Check if timeout flag has been set on this connection (in case of forced
-     * timeout) or by SSH2 object.
+     * Check if timeout flag has been set by SSH2 object.
      *
      * @return bool
      */
     public function isTimeout(): bool
     {
         return $this->isTimeout || (bool)$this->getSSH2()->isTimeout();
+    }
+
+    /**
+     * Check if command has exceeded the timelimit set in configuration.
+     *
+     * @return bool
+     */
+    public function isTimelimit(): bool
+    {
+        return $this->isTimelimit;
     }
 }

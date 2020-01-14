@@ -59,5 +59,5 @@ abstract class CRBaseDecorator implements DecoratedCommandRunnerInterface
      *
      * @param SSHCommandInterface $command
      */
-    abstract public function exec(SSHCommandInterface $command): void;
+    abstract public function execDecorated(SSHCommandInterface $command): void;
 }

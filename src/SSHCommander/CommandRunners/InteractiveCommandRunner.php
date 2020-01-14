@@ -2,12 +2,16 @@
 
 namespace Neskodi\SSHCommander\CommandRunners;
 
-use Neskodi\SSHCommander\Interfaces\SSHCommandInterface;
+use Neskodi\SSHCommander\Interfaces\DecoratedCommandRunnerInterface;
 use Neskodi\SSHCommander\Interfaces\SSHCommandResultInterface;
+use Neskodi\SSHCommander\Interfaces\SSHCommandRunnerInterface;
+use Neskodi\SSHCommander\Interfaces\SSHCommandInterface;
 use Neskodi\SSHCommander\SSHConfig;
 
 class InteractiveCommandRunner
     extends BaseCommandRunner
+    implements SSHCommandRunnerInterface,
+               DecoratedCommandRunnerInterface
 {
     /**
      * @var array
@@ -29,7 +33,7 @@ class InteractiveCommandRunner
      *
      * @param SSHCommandInterface $command
      */
-    public function exec(SSHCommandInterface $command): void
+    public function executeOnConnection(SSHCommandInterface $command): void
     {
         $this->getConnection()->execInteractive(
             $command,

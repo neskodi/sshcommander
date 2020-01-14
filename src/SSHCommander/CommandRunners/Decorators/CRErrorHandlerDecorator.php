@@ -4,25 +4,17 @@ namespace Neskodi\SSHCommander\CommandRunners\Decorators;
 
 use Neskodi\SSHCommander\Interfaces\DecoratedCommandRunnerInterface;
 use Neskodi\SSHCommander\Interfaces\SSHCommandInterface;
-use Neskodi\SSHCommander\Traits\Timer;
 
-class CRTimerDecorator
+class CRErrorHandlerDecorator
     extends CRBaseDecorator
     implements DecoratedCommandRunnerInterface
 {
-    use Timer;
-
-    /**
-     * Stopwatch command start and end time.
-     *
-     * @param SSHCommandInterface $command
-     */
     public function execDecorated(SSHCommandInterface $command): void
     {
-        $this->startTimer();
+        $this->executeOnConnection('trap "echo $?:ERRORMARKER; exit" ERR');
 
         $this->runner->execDecorated($command);
 
-        $this->stopTimer();
+        $this->executeOnConnection('trap - ERR');
     }
 }

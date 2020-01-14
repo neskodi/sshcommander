@@ -2,6 +2,7 @@
 
 namespace Neskodi\SSHCommander\Tests\Mocks;
 
+use Neskodi\SSHCommander\Exceptions\AuthenticationException;
 use Neskodi\SSHCommander\Interfaces\SSHConnectionInterface;
 use Neskodi\SSHCommander\Interfaces\ConfigAwareInterface;
 use Neskodi\SSHCommander\Interfaces\LoggerAwareInterface;
@@ -30,6 +31,8 @@ class MockSSHConnection extends SSHConnection implements
         'test error line 3',
     ];
 
+    protected $authenticated = false;
+
     protected static $expectedResult = self::RESULT_SUCCESS;
 
     protected $marker = null;
@@ -48,6 +51,29 @@ class MockSSHConnection extends SSHConnection implements
         }
 
         return static::$expectedResult === $resultType;
+    }
+
+    public function authenticate(): bool
+    {
+        // run the main authentication function to generate authentic log records.
+        try {
+            parent::authenticate();
+        } catch (AuthenticationException $exception) {
+            //
+        }
+
+        if (static::expects(self::RESULT_SUCCESS)) {
+            $this->info('Authenticated');
+            $this->authenticated = true;
+            return true;
+        }
+
+        throw new AuthenticationException;
+    }
+
+    public function isAuthenticated(): bool
+    {
+        return $this->authenticated;
     }
 
     protected function sshLogin(string $username, $credential): bool
