@@ -22,12 +22,10 @@ class IntegrationTestCase extends TestCase
     {
         $this->buildSshOptions();
 
-        try {
-            $this->requireUser();
-            $this->requireAuthCredential();
-        } catch (RuntimeException $e) {
-            // we can't test anything without a working connection
-            $this->markTestSkipped($e->getMessage());
+        if (!$this->hasAuthCredentials()) {
+            $this->markTestSkipped(
+                'Authentication credentials required to run integration tests.'
+            );
         }
     }
 }
