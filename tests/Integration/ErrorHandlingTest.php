@@ -339,7 +339,7 @@ class ErrorHandlingTest extends IntegrationTestCase
 
     public function testSetBOEOnTheFly(): void
     {
-        $this->enableDebugLog();
+        // $this->enableDebugLog();
 
         if (!$this->hasAuthCredentials()) {
             $this->markTestSkipped('Authentication credentials required to run this test');

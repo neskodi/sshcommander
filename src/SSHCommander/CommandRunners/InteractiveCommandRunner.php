@@ -2,10 +2,10 @@
 
 namespace Neskodi\SSHCommander\CommandRunners;
 
-use Neskodi\SSHCommander\Exceptions\CommandRunException;
 use Neskodi\SSHCommander\Interfaces\DecoratedCommandRunnerInterface;
 use Neskodi\SSHCommander\Interfaces\SSHCommandResultInterface;
 use Neskodi\SSHCommander\Interfaces\SSHCommandRunnerInterface;
+use Neskodi\SSHCommander\Exceptions\CommandRunException;
 use Neskodi\SSHCommander\Interfaces\SSHCommandInterface;
 use Neskodi\SSHCommander\SSHCommand;
 use Neskodi\SSHCommander\SSHConfig;
@@ -27,6 +27,8 @@ class InteractiveCommandRunner
     protected $initialWorkingDirectory = null;
 
     protected $errorTrapStatus = false;
+
+    protected $isTrappedError = false;
 
     public function run(SSHCommandInterface $command): SSHCommandResultInterface
     {
@@ -56,13 +58,10 @@ class InteractiveCommandRunner
 
     public function execDecorated(SSHCommandInterface $command): void
     {
-        // enable the markers
         $this->enableMarkers();
 
-        // run the command
         $this->getConnection()->execInteractive($command);
 
-        // disable the markers
         $this->disableMarkers();
     }
 
@@ -215,11 +214,12 @@ class InteractiveCommandRunner
         foreach ($outputLines as $i => $line) {
             preg_match_all($regex, $line, $matches);
 
+            // TODO use named capturing groups instead of 1 and 2
             if (!empty($matches[0])) {
-                // this is the exit code
                 // remove that line from the output
                 unset($outputLines[$i]);
 
+                // return the exit code
                 return (int)$matches[1][0];
             }
         }
@@ -255,6 +255,11 @@ class InteractiveCommandRunner
         if ($this->errorTrapStatus) {
             $this->executeIntermediateCommand('trap - ERR');
             $this->errorTrapStatus = false;
+        }
+
+        if ($this->isTrappedError) {
+            $this->debug('Resetting the connection...');
+            $this->getConnection()->getSSH2()->reset();
         }
     }
 
@@ -341,7 +346,6 @@ class InteractiveCommandRunner
         }
     }
 
-    /** @noinspection PhpUnhandledExceptionInspection */
     protected function executeTimeoutBehavior(SSHCommandInterface $command): void
     {
         $behavior = $command->getConfig('timeout_behavior');
@@ -350,10 +354,9 @@ class InteractiveCommandRunner
             return;
         }
 
-        $this->executeIntermediateCommand($behavior);
+        $this->getConnection()->write($behavior);
     }
 
-    /** @noinspection PhpUnhandledExceptionInspection */
     protected function executeTimelimitBehavior(SSHCommandInterface $command): void
     {
         $behavior = $command->getConfig('timelimit_behavior');
@@ -362,7 +365,7 @@ class InteractiveCommandRunner
             return;
         }
 
-        $this->executeIntermediateCommand($behavior);
+        $this->getConnection()->write($behavior);
     }
 
     /**
@@ -398,8 +401,7 @@ class InteractiveCommandRunner
 
     protected function enableMarkers(): void
     {
-        $this->getConnection()->setEndMarker($this->getEndMarker());
-        $this->getConnection()->setErrMarker($this->getErrMarker());
+        $this->getConnection()->setMarkerRegex($this->getEndMarkerRegex());
     }
 
     protected function disableMarkers(): void

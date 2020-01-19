@@ -32,11 +32,11 @@ class MockSSHConnection extends SSHConnection implements
 
     protected $authenticated = false;
 
+    protected $errMarker = '';
+
+    protected $endMarker = '';
+
     protected static $expectedResult = self::RESULT_SUCCESS;
-
-    protected $endMarker = null;
-
-    protected $errMarker = null;
 
     public static function expect(string $resultType): void
     {
@@ -78,11 +78,6 @@ class MockSSHConnection extends SSHConnection implements
         $this->setExitCode();
     }
 
-    public function read(): string
-    {
-        return $this->sshRead('', 0);
-    }
-
     protected function sshRead(string $chars, int $mode)
     {
         $this->populateOutput();
@@ -95,22 +90,29 @@ class MockSSHConnection extends SSHConnection implements
         return implode("\n", $this->stdoutLines);
     }
 
-    protected function cleanCommandBuffer(): void
-    {
-        $this->debug('Cleaning buffer...');
-        $this->debug('End cleaning buffer');
-    }
-
     protected function sshWrite(string $chars)
     {
         // detect the marker
         $matches = [];
         preg_match_all('/echo "\\$\\?:([^"]+)"/', $chars, $matches);
 
-        if (!empty($matches[0])) {
-            $this->marker = $matches[1][0];
+        if (!empty($matches[0]) && false !== strpos($chars, 'trap ')) {
+            $this->errMarker = $matches[1][0];
+        } elseif (!empty($matches[0])) {
+            $this->endMarker = $matches[1][0];
         }
     }
+
+    public function read(): string
+        {
+            return $this->sshRead('', 0);
+        }
+
+    protected function cleanCommandBuffer(): void
+        {
+            $this->debug('Cleaning buffer...');
+            $this->debug('End cleaning buffer');
+        }
 
     protected function setExitCode()
     {

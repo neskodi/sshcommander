@@ -152,8 +152,6 @@ class ConfigurationTest extends IntegrationTestCase
 
     public function testCommandTimeoutFromGlobalConfig(): void
     {
-        // $this->enableDebugLog();
-
         $timeoutValue = 2;
 
         $config = array_merge(

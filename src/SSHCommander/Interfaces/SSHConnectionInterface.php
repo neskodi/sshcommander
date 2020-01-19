@@ -52,9 +52,7 @@ interface SSHConnectionInterface
 
     public function resetQuietMode(): SSHConnectionInterface;
 
-    public function setEndMarker($endMarker): SSHConnectionInterface;
-
-    public function setErrMarker($errMarker): SSHConnectionInterface;
+    public function setMarkerRegex(string $regex): SSHConnectionInterface;
 
     public function resetMarkers(): void;
 }

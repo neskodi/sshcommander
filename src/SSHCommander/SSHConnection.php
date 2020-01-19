@@ -60,9 +60,7 @@ class SSHConnection implements
      */
     protected $isTimelimit = false;
 
-    protected $endMarker = null;
-
-    protected $errMarker = null;
+    protected $markerRegex = null;
 
     /**
      * SSHConnection constructor.
@@ -528,73 +526,26 @@ class SSHConnection implements
      */
     protected function hasMarker(string $output): bool
     {
-        return $this->hasEndMarker($output) || $this->hasErrMarker($output);
-    }
-
-    /**
-     * Detect the end marker in the output, if we were supplied with one.
-     *
-     * @param string $output
-     *
-     * @return bool
-     */
-    protected function hasEndMarker(string $output): bool
-    {
         return
-            $this->endMarker &&
-            $this->hasExpectedOutputSimple($output, $this->endMarker);
+            $this->usesMarkers() &&
+            $this->hasExpectedOutputRegex($output, $this->markerRegex);
     }
 
-    /**
-     * Detect the error marker in the output, if we were supplied with one.
-     *
-     * @param string $output
-     *
-     * @return bool
-     */
-    protected function hasErrMarker(string $output): bool
+    public function setMarkerRegex(string $regex): SSHConnectionInterface
     {
-        return
-            $this->errMarker &&
-            $this->hasExpectedOutputSimple($output, $this->errMarker);
-    }
-
-    /**
-     * Set the end marker that will be searched in command output.
-     *
-     * @param null $endMarker
-     *
-     * @return $this
-     */
-    public function setEndMarker($endMarker): SSHConnectionInterface
-    {
-        $this->endMarker = $endMarker;
-
-        return $this;
-    }
-
-    /**
-     * Set the error marker that will be searched in command output.
-     *
-     * @param null $errMarker
-     *
-     * @return $this
-     */
-    public function setErrMarker($errMarker): SSHConnectionInterface
-    {
-        $this->errMarker = $errMarker;
+        $this->markerRegex = $regex;
 
         return $this;
     }
 
     public function resetMarkers(): void
     {
-        $this->endMarker = $this->errMarker = null;
+        $this->markerRegex = null;
     }
 
-    protected function usesMarkers()
+    protected function usesMarkers(): bool
     {
-        return $this->endMarker || $this->errMarker;
+        return (bool)$this->markerRegex;
     }
 
     /**
