@@ -2,10 +2,10 @@
 
 namespace Neskodi\SSHCommander\CommandRunners;
 
-use Neskodi\SSHCommander\CommandRunners\Decorators\CRBasedirDecorator;
 use Neskodi\SSHCommander\CommandRunners\Decorators\CRTimeoutHandlerDecorator;
 use Neskodi\SSHCommander\CommandRunners\Decorators\CRErrorHandlerDecorator;
 use Neskodi\SSHCommander\CommandRunners\Decorators\CRConnectionDecorator;
+use Neskodi\SSHCommander\CommandRunners\Decorators\CRBasedirDecorator;
 use Neskodi\SSHCommander\CommandRunners\Decorators\CRLoggerDecorator;
 use Neskodi\SSHCommander\CommandRunners\Decorators\CRResultDecorator;
 use Neskodi\SSHCommander\CommandRunners\Decorators\CRTimerDecorator;
@@ -71,6 +71,7 @@ abstract class BaseCommandRunner implements
     {
         // Add command decorators and execute the command.
         // !! ORDER MATTERS !!
+        // (Some later decorators depend on earlier ones)
         $this->with(CRTimerDecorator::class)
              ->with(CRLoggerDecorator::class)
              ->with(CRResultDecorator::class)
@@ -126,10 +127,31 @@ abstract class BaseCommandRunner implements
         $this->executeOnConnection($command);
     }
 
+    /**
+     * Get the exit code of the last executed command.
+     *
+     * @param SSHCommandInterface $command
+     *
+     * @return int|null
+     */
     abstract public function getLastExitCode(SSHCommandInterface $command): ?int;
 
+    /**
+     * Get the output lines of the last executed command.
+     *
+     * @param SSHCommandInterface $command
+     *
+     * @return array
+     */
     abstract public function getStdOutLines(SSHCommandInterface $command): array;
 
+    /**
+     * Get the stderr lines of the last executed command.
+     *
+     * @param SSHCommandInterface $command
+     *
+     * @return array
+     */
     abstract public function getStdErrLines(SSHCommandInterface $command): array;
 
     /**

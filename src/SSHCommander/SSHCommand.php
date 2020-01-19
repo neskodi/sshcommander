@@ -13,9 +13,7 @@ use Neskodi\SSHCommander\Traits\ConfigAware;
 
 class SSHCommand implements SSHCommandInterface, ConfigAwareInterface
 {
-    use ConfigAware {
-        set as protected configAwareSet;
-    }
+    use ConfigAware;
 
     /**
      * @var string
@@ -138,22 +136,6 @@ class SSHCommand implements SSHCommandInterface, ConfigAwareInterface
         );
 
         return $this;
-    }
-
-    /**
-     * This delegation is here because SSHCommandInterface declares a specific
-     * return type which the trait is not aware about.
-     *
-     * @param      $param
-     * @param null $value
-     *
-     * @return SSHCommandInterface
-     * @noinspection PhpHierarchyChecksInspection - PHPStorm bug
-     * @noinspection PhpIncompatibleReturnTypeInspection
-     */
-    public function set($param, $value = null): SSHCommandInterface
-    {
-        return $this->configAwareSet($param, $value);
     }
 
     /**

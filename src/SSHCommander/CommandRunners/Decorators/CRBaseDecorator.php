@@ -40,6 +40,14 @@ abstract class CRBaseDecorator implements DecoratedCommandRunnerInterface
         return $this->runner->$name(...$arguments);
     }
 
+    /**
+     * Check if the command runner has the specified method before trying to
+     * call it.
+     *
+     * @param string $method
+     *
+     * @return bool
+     */
     public function hasMethod(string $method): bool
     {
         return $this->runner->hasMethod($method);

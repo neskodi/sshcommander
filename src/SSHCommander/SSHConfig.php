@@ -1,4 +1,4 @@
-<?php
+<?php /** @noinspection PhpUnused */
 
 namespace Neskodi\SSHCommander;
 
@@ -24,7 +24,9 @@ class SSHConfig implements SSHConfigInterface
 
     const SIGNAL_TERMINATE          = "\x03"; // CTRL+C
     const SIGNAL_BACKGROUND_SUSPEND = "\x1A"; // CTRL+Z
+    const SIGNAL_DELAYED_SUSPEND    = "\x19"; // CTRL+Y
     const SIGNAL_END_INPUT          = "\x04"; // CTRL+D
+
 
     /**
      * Location of the config file.

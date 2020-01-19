@@ -165,7 +165,7 @@ class ConfigurationTest extends IntegrationTestCase
         $commander = $this->getSSHCommander($config);
         $this->assertTrue($commander->getConnection()->isAuthenticated());
 
-        $result = $commander->run('ping google.com');
+        $result = $commander->run('ping 127.0.0.1');
 
         $this->assertEquals(
         // an extra second for cleaning the command buffer
@@ -186,7 +186,7 @@ class ConfigurationTest extends IntegrationTestCase
         $commander = $this->getSSHCommander($this->sshOptions);
         $this->assertTrue($commander->getConnection()->isAuthenticated());
 
-        $result = $commander->run('ping google.com', $timeoutConfig);
+        $result = $commander->run('ping 127.0.0.1', $timeoutConfig);
 
         $this->assertEquals(
         // an extra second for cleaning the command buffer

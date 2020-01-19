@@ -339,8 +339,6 @@ class ErrorHandlingTest extends IntegrationTestCase
 
     public function testSetBOEOnTheFly(): void
     {
-        // $this->enableDebugLog();
-
         if (!$this->hasAuthCredentials()) {
             $this->markTestSkipped('Authentication credentials required to run this test');
         }
@@ -349,15 +347,12 @@ class ErrorHandlingTest extends IntegrationTestCase
         $commander = $this->getSSHCommander($config);
 
 
-        $commander->getLogger()->debug('-----chainTestWithBOEFalse-----');
         // set to false and run a few commands
         $this->chainTestWithBOEFalse($commander);
 
-        $commander->getLogger()->debug('-----chainTestWithBOETrue-----');
         // set to true and run a few commands
         $this->chainTestWithBOETrue($commander);
 
-        $commander->getLogger()->debug('-----chainTestWithBOESoftfail-----');
         // set to softfail and run a few commands
         $this->chainTestWithBOESoftfail($commander);
     }

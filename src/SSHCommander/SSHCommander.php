@@ -383,11 +383,4 @@ class SSHCommander implements
             $options
         );
     }
-
-    public function breakOnError($value = SSHConfig::BREAK_ON_ERROR_ALWAYS)
-    {
-        $this->set('break_on_error', $value);
-
-        return $this;
-    }
 }

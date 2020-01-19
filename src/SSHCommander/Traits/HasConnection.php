@@ -27,6 +27,8 @@ trait HasConnection
      * @param SSHConnectionInterface $connection
      *
      * @return $this
+     *
+     * @noinspection PhpUnused
      */
     public function setConnection(SSHConnectionInterface $connection)
     {

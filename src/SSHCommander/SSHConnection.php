@@ -3,10 +3,10 @@
 namespace Neskodi\SSHCommander;
 
 use Neskodi\SSHCommander\Exceptions\AuthenticationException;
-use Neskodi\SSHCommander\Exceptions\CommandRunException;
 use Neskodi\SSHCommander\Interfaces\SSHConnectionInterface;
 use Neskodi\SSHCommander\Interfaces\ConfigAwareInterface;
 use Neskodi\SSHCommander\Interfaces\LoggerAwareInterface;
+use Neskodi\SSHCommander\Exceptions\CommandRunException;
 use Neskodi\SSHCommander\Interfaces\SSHCommandInterface;
 use Neskodi\SSHCommander\Interfaces\SSHConfigInterface;
 use Neskodi\SSHCommander\Interfaces\TimerInterface;
@@ -60,6 +60,9 @@ class SSHConnection implements
      */
     protected $isTimelimit = false;
 
+    /**
+     * @var string|null
+     */
     protected $markerRegex = null;
 
     /**
@@ -274,6 +277,17 @@ class SSHConnection implements
     }
 
     /**
+     * Return true is this connection has successfully passed authentication
+     * with the remote host, false otherwise.
+     *
+     * @return bool
+     */
+    public function isAuthenticated(): bool
+    {
+        return ($this->ssh2 && $this->ssh2->isAuthenticated());
+    }
+
+    /**
      * Handle login error gracefully by recording a message into our own
      * exception and throwing it. Do not pollute the command line.
      *
@@ -316,17 +330,6 @@ class SSHConnection implements
     protected function handleSSH2Error($errno, $errstr)
     {
         throw new CommandRunException("$errno:$errstr");
-    }
-
-    /**
-     * Return true is this connection has successfully passed authentication
-     * with the remote host, false otherwise.
-     *
-     * @return bool
-     */
-    public function isAuthenticated(): bool
-    {
-        return ($this->ssh2 && $this->ssh2->isAuthenticated());
     }
 
     /**
@@ -390,6 +393,11 @@ class SSHConnection implements
         return $this;
     }
 
+    /**
+     * Before running the command, we'll do an additional 'read' operation to
+     * remove any junk that may be hanging there in the channel left by the
+     * previous commands.
+     */
     protected function cleanCommandBuffer(): void
     {
         $this->debug('Cleaning buffer...');
@@ -451,6 +459,12 @@ class SSHConnection implements
         return $output;
     }
 
+    /**
+     * Read the channel packets and build the output. Stop when we detect a
+     * marker or a prompt.
+     *
+     * @return string
+     */
     public function read(): string
     {
         $output = '';
@@ -531,6 +545,14 @@ class SSHConnection implements
             $this->hasExpectedOutputRegex($output, $this->markerRegex);
     }
 
+    /**
+     * Set the regular expression used to detect 'end' and 'error' markers in
+     * the output.
+     *
+     * @param string $regex
+     *
+     * @return SSHConnectionInterface
+     */
     public function setMarkerRegex(string $regex): SSHConnectionInterface
     {
         $this->markerRegex = $regex;
@@ -538,11 +560,20 @@ class SSHConnection implements
         return $this;
     }
 
+    /**
+     * Tell the connection not to look for any markers and just rely on the
+     * prompt.
+     */
     public function resetMarkers(): void
     {
         $this->markerRegex = null;
     }
 
+    /**
+     * See if we are told to detect markers in the output.
+     *
+     * @return bool
+     */
     protected function usesMarkers(): bool
     {
         return (bool)$this->markerRegex;
@@ -556,6 +587,8 @@ class SSHConnection implements
      * @param string $expect
      *
      * @return bool
+     *
+     * @noinspection PhpUnused
      */
     protected function hasExpectedOutputSimple(string $output, string $expect)
     {
@@ -588,8 +621,6 @@ class SSHConnection implements
      * @param string $chars
      *
      * @return bool
-     *
-     * @throws AuthenticationException
      */
     public function write(string $chars)
     {
@@ -598,6 +629,14 @@ class SSHConnection implements
         return $this->sshWrite($chars);
     }
 
+    /**
+     * Tell phpseclib to write the characters to the channel. Handle errors
+     * thrown by phpseclib on our side.
+     *
+     * @param string $chars
+     *
+     * @return bool
+     */
     protected function sshWrite(string $chars)
     {
         set_error_handler([$this, 'handleSSH2Error']);
@@ -609,6 +648,15 @@ class SSHConnection implements
         return $result;
     }
 
+    /**
+     * Tell phpseclib to read packets from the channel and pass through the
+     * result.
+     *
+     * @param string $chars
+     * @param int    $mode
+     *
+     * @return bool|string
+     */
     protected function sshRead(string $chars, int $mode)
     {
         set_error_handler([$this, 'handleSSH2Error']);
@@ -627,8 +675,6 @@ class SSHConnection implements
      * @param string $chars
      *
      * @return bool
-     *
-     * @throws AuthenticationException
      */
     public function writeAndSend(string $chars)
     {
@@ -641,7 +687,7 @@ class SSHConnection implements
 
     /**
      * Execute the command via phpseclib and collect the returned lines
-     * into an array
+     * into an array.
      *
      * @param SSHCommandInterface $command
      */
@@ -707,6 +753,15 @@ class SSHConnection implements
         return [$chars];
     }
 
+    /**
+     * Tell phpseclib to authenticate the connection using the credentials
+     * provided.
+     *
+     * @param string $username
+     * @param        $credential
+     *
+     * @return bool
+     */
     protected function sshLogin(string $username, $credential): bool
     {
         set_error_handler([$this, 'handleSSH2Error']);
@@ -820,10 +875,17 @@ class SSHConnection implements
         return $this;
     }
 
-    public function resetTimeoutStatus()
+    /**
+     * Clear the timeout status of possible previous commands.
+     *
+     * @return $this
+     */
+    public function resetTimeoutStatus(): SSHConnectionInterface
     {
         $this->isTimeout   = false;
         $this->isTimelimit = false;
+
+        return $this;
     }
 
     /**
