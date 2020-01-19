@@ -2,10 +2,12 @@
 
 namespace Neskodi\SSHCommander\CommandRunners;
 
+use Neskodi\SSHCommander\Exceptions\CommandRunException;
 use Neskodi\SSHCommander\Interfaces\DecoratedCommandRunnerInterface;
 use Neskodi\SSHCommander\Interfaces\SSHCommandResultInterface;
 use Neskodi\SSHCommander\Interfaces\SSHCommandRunnerInterface;
 use Neskodi\SSHCommander\Interfaces\SSHCommandInterface;
+use Neskodi\SSHCommander\SSHCommand;
 use Neskodi\SSHCommander\SSHConfig;
 
 class InteractiveCommandRunner
@@ -18,14 +20,50 @@ class InteractiveCommandRunner
      */
     protected $options = [];
 
-    protected $marker = '';
+    protected $endMarker = '';
+
+    protected $errMarker = '';
+
+    protected $initialWorkingDirectory = null;
+
+    protected $errorTrapStatus = false;
 
     public function run(SSHCommandInterface $command): SSHCommandResultInterface
     {
-        // ensure a unique command end marker for each run
-        $this->createEndMarker();
+        // Reset the environment before each run
+        $this->reset();
+
+        // append command end marker to the command so that SSHConnection
+        // can stop reading when it detects either this marker or the error one
+        // in the output
+        $this->appendCommandEndMarkerEcho($command);
 
         return parent::run($command);
+    }
+
+    /**
+     * Reset the environment before each run by creating unique end and error
+     * markers, clearing the current working directory etc.
+     */
+    protected function reset()
+    {
+        // ensure a unique command end and error markers for each run
+        $this->createEndMarker();
+        $this->createErrMarker();
+
+        $this->initialWorkingDirectory = null;
+    }
+
+    public function execDecorated(SSHCommandInterface $command): void
+    {
+        // enable the markers
+        $this->enableMarkers();
+
+        // run the command
+        $this->getConnection()->execInteractive($command);
+
+        // disable the markers
+        $this->disableMarkers();
     }
 
     /**
@@ -35,10 +73,7 @@ class InteractiveCommandRunner
      */
     public function executeOnConnection(SSHCommandInterface $command): void
     {
-        $this->getConnection()->execInteractive(
-            $command,
-            $this->getEndMarkerRegex()
-        );
+        $this->getConnection()->execInteractive($command);
     }
 
     public function recordCommandResults(
@@ -53,6 +88,13 @@ class InteractiveCommandRunner
                ->setExitCode($exitCode);
     }
 
+    /**
+     * In the interactive mode, we read the exit code directly from the output.
+     *
+     * @param SSHCommandInterface $command
+     *
+     * @return int|null
+     */
     public function getLastExitCode(SSHCommandInterface $command): ?int
     {
         $outputLines = $this->getStdOutLines($command);
@@ -72,45 +114,49 @@ class InteractiveCommandRunner
         return [];
     }
 
-    /**
-     * Prepend preliminary commands to the main command according to main
-     * command configuration. If any preparation is necessary, such as moving
-     * into basedir or setting the errexit option before running the main
-     * command, another instance will be returned that contains the prepended
-     * extra commands.
-     *
-     * @param SSHCommandInterface $command
-     *
-     * @return SSHCommandInterface
-     */
-    public function prepareCommand(SSHCommandInterface $command): SSHCommandInterface
-    {
-        $prepared = parent::prepareCommand($command);
-
-        $this->appendCommandEndMarker($prepared);
-
-        return $prepared;
-    }
-
     protected function createEndMarker()
     {
-        $this->marker = uniqid();
+        $this->endMarker = uniqid();
+    }
+
+    protected function createErrMarker()
+    {
+        $this->errMarker = uniqid();
     }
 
     protected function getEndMarker()
     {
-        if (!$this->marker) {
+        if (!$this->endMarker) {
             $this->createEndMarker();
         }
 
-        return $this->marker;
+        return $this->endMarker;
+    }
+
+    protected function getErrMarker()
+    {
+        if (!$this->errMarker) {
+            $this->createErrMarker();
+        }
+
+        return $this->errMarker;
     }
 
     protected function getEndMarkerEchoCommand()
     {
-        $marker = $this->getEndMarker();
+        return sprintf('echo "$?:%s"', $this->getEndMarker());
+    }
 
-        return sprintf('echo "$?:%s"', $marker);
+    protected function getErrMarkerEchoCommand()
+    {
+        return sprintf('echo "$?:%s"', $this->getErrMarker());
+    }
+
+    protected function buildErrMarkerTrap()
+    {
+        $errMarkerEchoCommand = $this->getErrMarkerEchoCommand();
+
+        return sprintf("trap '%s;exit' ERR", $errMarkerEchoCommand);
     }
 
     /**
@@ -120,7 +166,7 @@ class InteractiveCommandRunner
      *
      * @param SSHCommandInterface $command
      */
-    protected function appendCommandEndMarker(SSHCommandInterface $command)
+    protected function appendCommandEndMarkerEcho(SSHCommandInterface $command)
     {
         // make shell display the last command exit code and the marker
         $append = $this->getEndMarkerEchoCommand();
@@ -137,14 +183,11 @@ class InteractiveCommandRunner
      */
     protected function getEndMarkerRegex(): ?string
     {
-        if (empty($this->marker)) {
-            return null;
-        }
-
-        $regex = '(\d+):' . $this->getEndMarker();
-        $regex = sprintf('/%s/', $regex);
-
-        return $regex;
+        return sprintf(
+            '/(\d+):(%s|%s)/',
+            $this->getEndMarker(),
+            $this->getErrMarker()
+        );
     }
 
     /**
@@ -157,7 +200,11 @@ class InteractiveCommandRunner
      */
     protected function readCommandExitCode(array &$outputLines = []): ?int
     {
-        if (empty($this->marker) || !count($outputLines)) {
+        if (
+            empty($this->endMarker) ||
+            empty($this->errMarker) ||
+            !count($outputLines)
+        ) {
             // we won't be able to read the code
             return null;
         }
@@ -177,31 +224,186 @@ class InteractiveCommandRunner
             }
         }
 
-        // we have provided the end marker to the runner but it is not found
-        // in the final output.
-        // we assume something bad happened in the middle of command
-        // execution and we consider this command failed.
-        return intval(end($outputLines)) ?: 1;
+        // we were unable to read the exit code
+        return null;
     }
 
     /**
-     * Prepend 'set -e' to the command if user wants to always break on error.
+     * Before the main command gets executed on the connection, run the
+     * preliminary command to set up an error trap if user wants to break on
+     * errors.
      *
      * @param SSHCommandInterface $command
+     *
+     * @throws CommandRunException
      */
-    protected function prependErrexit(SSHCommandInterface $command): void
+    public function setupErrorHandler(SSHCommandInterface $command)
     {
         if (SSHConfig::BREAK_ON_ERROR_ALWAYS === $command->getConfig('break_on_error')) {
-            // add a trap so we can detect the exit code
-            $endMarkerCommand = $this->getEndMarkerEchoCommand();
-            $command->prependCommand("trap '$endMarkerCommand' ERR");
-
-            // turn on errexit mode
-            $command->prependCommand('set -e');
-        } else {
-            // turn off this mode because it may possibly be enabled by previous
-            // commands
-            $command->prependCommand('set +e');
+            $trap = $this->buildErrMarkerTrap();
+            $this->executeIntermediateCommand($trap);
+            $this->errorTrapStatus = true;
         }
+    }
+
+    /**
+     * Remove the previously set error trap.
+     * @throws CommandRunException
+     */
+    public function handleErrors(): void
+    {
+        if ($this->errorTrapStatus) {
+            $this->executeIntermediateCommand('trap - ERR');
+            $this->errorTrapStatus = false;
+        }
+    }
+
+    /**
+     * If command needs to be executed in a specific working directory, cd into
+     * that directory before running the main command.
+     *
+     * @param SSHCommandInterface $command
+     *
+     * @throws CommandRunException
+     */
+    public function setupBasedir(SSHCommandInterface $command)
+    {
+        $basedir = $command->getConfig('basedir');
+
+        if ($basedir && is_string($basedir)) {
+            $this->grabInitialWorkingDirectory();
+
+            $this->debug(sprintf('Setting working directory to "%s"', $basedir));
+            $basedirCommand = sprintf('cd %s', escapeshellarg($basedir));
+
+            $this->executeIntermediateCommand($basedirCommand);
+        }
+    }
+
+    /**
+     * Remember the current working directory where we were before running the
+     * user command, to be able to restore it after running the main command
+     *
+     * @throws CommandRunException
+     */
+    protected function grabInitialWorkingDirectory()
+    {
+        try {
+            $outputLines = $this->executeIntermediateCommand('pwd');
+        } catch (CommandRunException $exception) {
+            throw new CommandRunException('Unable to read current working directory');
+        }
+
+        $dir = $outputLines[0];
+
+        $this->debug(sprintf(
+            'Remembered working directory "%s" before running the command',
+            $dir
+        ));
+
+        $this->initialWorkingDirectory = $dir;
+    }
+
+    /**
+     * Restore any current working directory that was set before we changed to
+     * the basedir for the main command.
+     *
+     * @throws CommandRunException
+     */
+    public function teardownBasedir()
+    {
+        if (!$this->initialWorkingDirectory) {
+            // nothing to restore
+            return;
+        }
+
+        try {
+            $command = sprintf('cd %s', escapeshellarg($this->initialWorkingDirectory));
+            $this->executeIntermediateCommand($command);
+        } catch (CommandRunException $exception) {
+            throw new CommandRunException(
+                'Unable to restore working directory after running user command'
+            );
+        }
+
+        $this->initialWorkingDirectory = null;
+    }
+
+    /**
+     * @param SSHCommandInterface $command
+     */
+    public function handleTimeouts(SSHCommandInterface $command): void
+    {
+        if ($this->getConnection()->isTimeout()) {
+            $this->executeTimeoutBehavior($command);
+        } elseif ($this->getConnection()->isTimelimit()) {
+            $this->executeTimelimitBehavior($command);
+        }
+    }
+
+    /** @noinspection PhpUnhandledExceptionInspection */
+    protected function executeTimeoutBehavior(SSHCommandInterface $command): void
+    {
+        $behavior = $command->getConfig('timeout_behavior');
+
+        if (!is_string($behavior)) {
+            return;
+        }
+
+        $this->executeIntermediateCommand($behavior);
+    }
+
+    /** @noinspection PhpUnhandledExceptionInspection */
+    protected function executeTimelimitBehavior(SSHCommandInterface $command): void
+    {
+        $behavior = $command->getConfig('timelimit_behavior');
+
+        if (!is_string($behavior)) {
+            return;
+        }
+
+        $this->executeIntermediateCommand($behavior);
+    }
+
+    /**
+     * Execute auxiliary commands before and after the main one
+     *
+     * @param string $command
+     * @param array  $options
+     *
+     * @return array
+     * @throws CommandRunException
+     */
+    protected function executeIntermediateCommand(
+        string $command,
+        array $options = []
+    ): array {
+        // by default, intermediate commands run with a strict time limit policy
+        $defaultOptions = [
+            'timeout'            => 1,
+            'timelimit'          => 1,
+            'timelimit_behavior' => SSHConfig::SIGNAL_TERMINATE,
+        ];
+        $options        = array_merge($defaultOptions, $options);
+
+        $command        = new SSHCommand($command, $options);
+
+        // intermediate commands run without marker
+        $this->disableMarkers();
+
+        $this->executeOnConnection($command);
+
+        return $this->getStdOutLines($command);
+    }
+
+    protected function enableMarkers(): void
+    {
+        $this->getConnection()->setEndMarker($this->getEndMarker());
+        $this->getConnection()->setErrMarker($this->getErrMarker());
+    }
+
+    protected function disableMarkers(): void
+    {
+        $this->getConnection()->resetMarkers();
     }
 }

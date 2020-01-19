@@ -44,7 +44,7 @@ class SSHCommanderTest extends TestCase
     public function testConstructorWithLogger(): void
     {
         $config = $this->getTestConfigAsArray();
-        $logger = $this->getTestLogger(LogLevel::DEBUG);
+        $logger = $this->getTestableLogger(LogLevel::DEBUG);
 
         $commander = new SSHCommander($config, $logger);
 

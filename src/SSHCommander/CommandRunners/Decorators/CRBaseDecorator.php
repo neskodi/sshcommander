@@ -40,6 +40,11 @@ abstract class CRBaseDecorator implements DecoratedCommandRunnerInterface
         return $this->runner->$name(...$arguments);
     }
 
+    public function hasMethod(string $method): bool
+    {
+        return $this->runner->hasMethod($method);
+    }
+
     /**
      * Wrap this class with another decorator.
      *

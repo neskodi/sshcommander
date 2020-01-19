@@ -41,4 +41,9 @@ class Utils
             is_writable($file)
         );
     }
+
+    public static function oneLine(string $string): string
+    {
+        return str_replace(["\r", "\n"], ['\r', '\n'], $string);
+    }
 }

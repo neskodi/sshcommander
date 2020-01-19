@@ -5,20 +5,20 @@ namespace Neskodi\SSHCommander\CommandRunners\Decorators;
 use Neskodi\SSHCommander\Interfaces\DecoratedCommandRunnerInterface;
 use Neskodi\SSHCommander\Interfaces\SSHCommandInterface;
 
-class CRTimeoutHandlerDecorator
+class CRBasedirDecorator
     extends CRBaseDecorator
     implements DecoratedCommandRunnerInterface
 {
     public function execDecorated(SSHCommandInterface $command): void
     {
-        if ($this->hasMethod('setupTimeoutHandler')) {
-            $this->setupTimeoutHandler($command);
+        if ($this->hasMethod('setupBasedir')) {
+            $this->setupBasedir($command);
         }
 
         $this->runner->execDecorated($command);
 
-        if ($this->hasMethod('handleTimeouts')) {
-            $this->handleTimeouts($command);
+        if ($this->hasMethod('teardownBasedir')) {
+            $this->teardownBasedir($command);
         }
     }
 }

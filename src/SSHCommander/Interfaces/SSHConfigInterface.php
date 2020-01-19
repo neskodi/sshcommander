@@ -6,6 +6,8 @@ interface SSHConfigInterface
 {
     public function get(string $name, $default = null);
 
+    public function getDefault(string $param);
+
     public function set($param, $value);
 
     public function all(): array;

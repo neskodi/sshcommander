@@ -2,6 +2,9 @@
 
 namespace Neskodi\SSHCommander\CommandRunners;
 
+use Neskodi\SSHCommander\CommandRunners\Decorators\CRBasedirDecorator;
+use Neskodi\SSHCommander\CommandRunners\Decorators\CRTimeoutHandlerDecorator;
+use Neskodi\SSHCommander\CommandRunners\Decorators\CRErrorHandlerDecorator;
 use Neskodi\SSHCommander\CommandRunners\Decorators\CRConnectionDecorator;
 use Neskodi\SSHCommander\CommandRunners\Decorators\CRLoggerDecorator;
 use Neskodi\SSHCommander\CommandRunners\Decorators\CRResultDecorator;
@@ -17,8 +20,6 @@ use Neskodi\SSHCommander\Traits\HasConnection;
 use Neskodi\SSHCommander\Traits\ConfigAware;
 use Neskodi\SSHCommander\Traits\HasResult;
 use Neskodi\SSHCommander\Traits\Loggable;
-use Neskodi\SSHCommander\SSHCommand;
-use Neskodi\SSHCommander\SSHConfig;
 use Psr\Log\LoggerInterface;
 
 abstract class BaseCommandRunner implements
@@ -27,10 +28,7 @@ abstract class BaseCommandRunner implements
     SSHCommandRunnerInterface,
     DecoratedCommandRunnerInterface
 {
-    use Loggable, HasConnection, HasResult;
-    use ConfigAware {
-        set as protected configAwareSet;
-    }
+    use Loggable, HasConnection, HasResult, ConfigAware;
 
     /**
      * BaseCommandRunner constructor.
@@ -71,19 +69,32 @@ abstract class BaseCommandRunner implements
      */
     public function run(SSHCommandInterface $command): SSHCommandResultInterface
     {
-        $prepared = $this->prepareCommand($command);
-
         // Add command decorators and execute the command.
         // !! ORDER MATTERS !!
         $this->with(CRTimerDecorator::class)
              ->with(CRLoggerDecorator::class)
              ->with(CRResultDecorator::class)
+             ->with(CRBasedirDecorator::class)
+             ->with(CRErrorHandlerDecorator::class)
+             ->with(CRTimeoutHandlerDecorator::class)
              ->with(CRConnectionDecorator::class)
 
-             // ->with(CRTimeoutHandlerDecorator::class)
-             ->execDecorated($prepared);
+             ->execDecorated($command);
 
         return $this->getResult();
+    }
+
+    /**
+     * Some decorators need to know whether a method is implemented by the
+     * decorated runner, before calling it
+     *
+     * @param string $method
+     *
+     * @return bool
+     */
+    public function hasMethod(string $method): bool
+    {
+        return method_exists($this, $method);
     }
 
     /**
@@ -100,14 +111,6 @@ abstract class BaseCommandRunner implements
                ->setErrorOutput($this->getStdErrLines($command))
                ->setExitCode($this->getLastExitCode($command));
     }
-
-    /**
-     * Decorators and runner itself can use this method directly to bypass
-     * (other) decorators.
-     *
-     * @param SSHCommandInterface $command
-     */
-    abstract public function executeOnConnection(SSHCommandInterface $command): void;
 
     /**
      * Execute the command on the prepared connection.
@@ -130,71 +133,10 @@ abstract class BaseCommandRunner implements
     abstract public function getStdErrLines(SSHCommandInterface $command): array;
 
     /**
-     * Prepend preliminary commands to the main command according to main
-     * command configuration. If any preparation is necessary, such as moving
-     * into basedir or setting the errexit option before running the main
-     * command, another instance will be returned that contains the prepended
-     * extra commands.
-     *
-     * @param SSHCommandInterface $command
-     *
-     * @return SSHCommandInterface
-     */
-    public function prepareCommand(SSHCommandInterface $command): SSHCommandInterface
-    {
-        $prepared = new SSHCommand($command);
-
-        $this->prependBasedir($prepared);
-
-        $this->prependErrexit($prepared);
-
-        return $prepared;
-    }
-
-    /**
-     * Prepend 'cd basedir' to the command so it starts running in the directory
-     * specified by user.
+     * Decorators and runner itself can use this method directly to bypass
+     * (other) decorators.
      *
      * @param SSHCommandInterface $command
      */
-    protected function prependBasedir(SSHCommandInterface $command): void
-    {
-        if ($basedir = $command->getConfig('basedir')) {
-            $basedirCommand = sprintf('cd %s', $basedir);
-            $command->prependCommand($basedirCommand);
-        }
-    }
-
-    /**
-     * Prepend 'set -e' to the command if user wants to always break on error.
-     *
-     * @param SSHCommandInterface $command
-     */
-    protected function prependErrexit(SSHCommandInterface $command): void
-    {
-        if (SSHConfig::BREAK_ON_ERROR_ALWAYS === $command->getConfig('break_on_error')) {
-            // turn on errexit mode
-            $command->prependCommand('set -e');
-        } else {
-            // turn off this mode because it may possibly be enabled by previous
-            // commands
-            $command->prependCommand('set +e');
-        }
-    }
-
-    /**
-     * This delegation is here because SSHCommandInterface declares a specific
-     * return type which the trait is not aware about.
-     *
-     * @param      $param
-     * @param null $value
-     *
-     * @return SSHCommandRunnerInterface
-     * @noinspection PhpHierarchyChecksInspection - PHPStorm bug
-     * @noinspection PhpIncompatibleReturnTypeInspection
-     */
-    public function set($param, $value = null): SSHCommandRunnerInterface
-    {
-        return $this->configAwareSet($param, $value);
-    }
+    abstract public function executeOnConnection(SSHCommandInterface $command): void;
 }

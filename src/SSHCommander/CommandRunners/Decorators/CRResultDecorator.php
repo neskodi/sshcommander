@@ -58,9 +58,12 @@ class CRResultDecorator
     protected function recordCommandTiming(
         SSHCommandResultInterface $result
     ): void {
+        // timer methods are delegated down the decorator chain and are executed
+        // by CRTimerDecorator
         $result->setCommandStartTime($this->getTimerStart())
                ->setCommandEndTime($this->getTimerEnd())
                ->setCommandElapsedTime($this->getElapsedTime())
-               ->setIsTimeout($this->getConnection()->isTimeout());
+               ->setIsTimeout($this->getConnection()->isTimeout())
+               ->setIsTimelimit($this->getConnection()->isTimelimit());
     }
 }

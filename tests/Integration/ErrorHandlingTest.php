@@ -7,7 +7,6 @@ namespace Neskodi\SSHCommander\Tests\Integration;
 use Neskodi\SSHCommander\Interfaces\SSHCommanderInterface;
 use Neskodi\SSHCommander\Exceptions\CommandRunException;
 use Neskodi\SSHCommander\Tests\IntegrationTestCase;
-use Neskodi\SSHCommander\SSHCommander;
 use Neskodi\SSHCommander\SSHConfig;
 
 class ErrorHandlingTest extends IntegrationTestCase
@@ -21,7 +20,7 @@ class ErrorHandlingTest extends IntegrationTestCase
         $config = new SSHConfig($this->sshOptions);
         $config->set('break_on_error', SSHConfig::BREAK_ON_ERROR_NEVER);
 
-        $commander = new SSHCommander($config);
+        $commander = $this->getSSHCommander($config);
 
         $result = $commander->runIsolated('cd /no/such/dir');
 
@@ -40,7 +39,7 @@ class ErrorHandlingTest extends IntegrationTestCase
         $config = new SSHConfig($this->sshOptions);
         $config->set('break_on_error', SSHConfig::BREAK_ON_ERROR_ALWAYS);
 
-        $commander = new SSHCommander($config);
+        $commander = $this->getSSHCommander($config);
 
         $commander->runIsolated('cd /no/such/dir');
     }
@@ -56,7 +55,7 @@ class ErrorHandlingTest extends IntegrationTestCase
         $config = new SSHConfig($this->sshOptions);
         $config->set('break_on_error', SSHConfig::BREAK_ON_ERROR_LAST_SUBCOMMAND);
 
-        $commander = new SSHCommander($config);
+        $commander = $this->getSSHCommander($config);
 
         $commander->runIsolated('cd /no/such/dir');
     }
@@ -70,7 +69,7 @@ class ErrorHandlingTest extends IntegrationTestCase
         $config = new SSHConfig($this->sshOptions);
         $config->set('break_on_error', SSHConfig::BREAK_ON_ERROR_NEVER);
 
-        $commander = new SSHCommander($config);
+        $commander = $this->getSSHCommander($config);
 
         $result = $commander->runIsolated('cd /no/such/dir;echo AAA');
 
@@ -81,6 +80,7 @@ class ErrorHandlingTest extends IntegrationTestCase
         $this->assertTrue($result->isOk());
     }
 
+    /** @noinspection PhpRedundantCatchClauseInspection */
     public function testIsolatedCompoundBOE(): void
     {
         if (!$this->hasAuthCredentials()) {
@@ -90,7 +90,7 @@ class ErrorHandlingTest extends IntegrationTestCase
         $config = new SSHConfig($this->sshOptions);
         $config->set('break_on_error', SSHConfig::BREAK_ON_ERROR_ALWAYS);
 
-        $commander = new SSHCommander($config);
+        $commander = $this->getSSHCommander($config);
 
         $exceptionWasThrown = false;
 
@@ -117,7 +117,7 @@ class ErrorHandlingTest extends IntegrationTestCase
         $config = new SSHConfig($this->sshOptions);
         $config->set('break_on_error', SSHConfig::BREAK_ON_ERROR_LAST_SUBCOMMAND);
 
-        $commander = new SSHCommander($config);
+        $commander = $this->getSSHCommander($config);
 
         $result = $commander->runIsolated('cd /no/such/dir;echo AAA');
         $lines  = $result->getOutput();
@@ -136,7 +136,7 @@ class ErrorHandlingTest extends IntegrationTestCase
         $config = new SSHConfig($this->sshOptions);
         $config->set('break_on_error', SSHConfig::BREAK_ON_ERROR_NEVER);
 
-        $commander = new SSHCommander($config);
+        $commander = $this->getSSHCommander($config);
         $results   = [];
 
         $results[] = $commander->run('cd /tmp');
@@ -152,6 +152,7 @@ class ErrorHandlingTest extends IntegrationTestCase
         $this->assertEquals('/tmp', (string)$results[2]);
     }
 
+    /** @noinspection PhpRedundantCatchClauseInspection */
     public function testInteractiveSimpleBOE(): void
     {
         if (!$this->hasAuthCredentials()) {
@@ -161,7 +162,7 @@ class ErrorHandlingTest extends IntegrationTestCase
         $config = new SSHConfig($this->sshOptions);
         $config->set('break_on_error', SSHConfig::BREAK_ON_ERROR_ALWAYS);
 
-        $commander = new SSHCommander($config);
+        $commander = $this->getSSHCommander($config);
 
         $results            = [];
         $exceptionWasThrown = false;
@@ -182,6 +183,7 @@ class ErrorHandlingTest extends IntegrationTestCase
         }
     }
 
+    /** @noinspection PhpRedundantCatchClauseInspection */
     public function testInteractiveSimpleBOESoftfail(): void
     {
         if (!$this->hasAuthCredentials()) {
@@ -191,7 +193,7 @@ class ErrorHandlingTest extends IntegrationTestCase
         $config = new SSHConfig($this->sshOptions);
         $config->set('break_on_error', SSHConfig::BREAK_ON_ERROR_LAST_SUBCOMMAND);
 
-        $commander = new SSHCommander($config);
+        $commander = $this->getSSHCommander($config);
 
         $results            = [];
         $exceptionWasThrown = false;
@@ -223,7 +225,7 @@ class ErrorHandlingTest extends IntegrationTestCase
         $config = new SSHConfig($this->sshOptions);
         $config->set('break_on_error', SSHConfig::BREAK_ON_ERROR_NEVER);
 
-        $commander = new SSHCommander($config);
+        $commander = $this->getSSHCommander($config);
 
         $results = [];
 
@@ -242,6 +244,7 @@ class ErrorHandlingTest extends IntegrationTestCase
         $this->assertEquals('CCC', (string)$results[2]);
     }
 
+    /** @noinspection PhpRedundantCatchClauseInspection */
     public function testInteractiveCompoundBOE(): void
     {
         if (!$this->hasAuthCredentials()) {
@@ -251,7 +254,7 @@ class ErrorHandlingTest extends IntegrationTestCase
         $config = new SSHConfig($this->sshOptions);
         $config->set('break_on_error', SSHConfig::BREAK_ON_ERROR_ALWAYS);
 
-        $commander = new SSHCommander($config);
+        $commander = $this->getSSHCommander($config);
 
         $results            = [];
         $exceptionWasThrown = false;
@@ -272,6 +275,7 @@ class ErrorHandlingTest extends IntegrationTestCase
         }
     }
 
+    /** @noinspection PhpRedundantCatchClauseInspection */
     public function testInteractiveCompoundBOESoftfail(): void
     {
         if (!$this->hasAuthCredentials()) {
@@ -281,7 +285,7 @@ class ErrorHandlingTest extends IntegrationTestCase
         $config = new SSHConfig($this->sshOptions);
         $config->set('break_on_error', SSHConfig::BREAK_ON_ERROR_LAST_SUBCOMMAND);
 
-        $commander = new SSHCommander($config);
+        $commander = $this->getSSHCommander($config);
 
         $results            = [];
         $exceptionWasThrown = false;
@@ -314,7 +318,7 @@ class ErrorHandlingTest extends IntegrationTestCase
         $config = new SSHConfig($this->sshOptions);
         $config->set('break_on_error', SSHConfig::BREAK_ON_ERROR_LAST_SUBCOMMAND);
 
-        $commander = new SSHCommander($config);
+        $commander = $this->getSSHCommander($config);
 
         $results = [];
 
@@ -335,30 +339,37 @@ class ErrorHandlingTest extends IntegrationTestCase
 
     public function testSetBOEOnTheFly(): void
     {
+        $this->enableDebugLog();
+
         if (!$this->hasAuthCredentials()) {
             $this->markTestSkipped('Authentication credentials required to run this test');
         }
 
         $config    = new SSHConfig($this->sshOptions);
-        $commander = new SSHCommander($config);
+        $commander = $this->getSSHCommander($config);
 
+
+        $commander->getLogger()->debug('-----chainTestWithBOEFalse-----');
         // set to false and run a few commands
         $this->chainTestWithBOEFalse($commander);
 
+        $commander->getLogger()->debug('-----chainTestWithBOETrue-----');
         // set to true and run a few commands
         $this->chainTestWithBOETrue($commander);
 
+        $commander->getLogger()->debug('-----chainTestWithBOESoftfail-----');
         // set to softfail and run a few commands
         $this->chainTestWithBOESoftfail($commander);
     }
 
+    /** @noinspection PhpRedundantCatchClauseInspection */
     public function testSetBOEPerCommand(): void
     {
         if (!$this->hasAuthCredentials()) {
             $this->markTestSkipped('Authentication credentials required to run this test');
         }
 
-        $commander = new SSHCommander($this->sshOptions);
+        $commander = $this->getSSHCommander($this->sshOptions);
         $commander->breakOnError(SSHConfig::BREAK_ON_ERROR_NEVER);
 
         $exceptionWasThrown = false;

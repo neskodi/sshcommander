@@ -40,6 +40,8 @@ class SSHConfig implements SSHConfigInterface
      */
     protected $config = [];
 
+    protected $defaultConfig = [];
+
     /**
      * SSHConfig constructor.
      *
@@ -76,6 +78,10 @@ class SSHConfig implements SSHConfigInterface
         }
 
         $this->loadConfigFile($file);
+
+        // save the default config, to be able to restore default values at any
+        // time
+        $this->defaultConfig = $this->config;
 
         return $this;
     }
@@ -280,6 +286,13 @@ class SSHConfig implements SSHConfigInterface
                 ? $this->config[$param]
                 : $default;
         }
+    }
+
+    public function getDefault(string $param)
+    {
+        return array_key_exists($param, $this->defaultConfig)
+            ? $this->defaultConfig[$param]
+            : null;
     }
 
     /**

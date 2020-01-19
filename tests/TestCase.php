@@ -4,13 +4,18 @@
 
 namespace Neskodi\SSHCommander\Tests;
 
+use Monolog\Handler\HandlerInterface;
 use Neskodi\SSHCommander\Interfaces\SSHConnectionInterface;
+use Neskodi\SSHCommander\Interfaces\SSHCommanderInterface;
 use Neskodi\SSHCommander\Interfaces\SSHConfigInterface;
 use Neskodi\SSHCommander\Tests\Mocks\MockSSHConnection;
 use PHPUnit\Framework\TestCase as PHPUnitTestCase;
 use Neskodi\SSHCommander\Factories\LoggerFactory;
 use Monolog\Processor\PsrLogMessageProcessor;
+use Neskodi\SSHCommander\SSHCommander;
+use Monolog\Formatter\LineFormatter;
 use Neskodi\SSHCommander\SSHConfig;
+use Monolog\Handler\StreamHandler;
 use Monolog\Handler\TestHandler;
 use Psr\Log\LoggerInterface;
 use Psr\Log\LogLevel;
@@ -48,6 +53,8 @@ class TestCase extends PHPUnitTestCase
      * @var string
      */
     protected static $keyfilePassword;
+
+    protected $enableDebugLog = false;
 
     public function getTestConfigFile()
     {
@@ -170,18 +177,45 @@ class TestCase extends PHPUnitTestCase
     }
 
     /**
-     * Get an instance of logger with specific logging level.
+     * Get an instance of logger with specific logging level. The logger will
+     * have testHandler attached, which will let us inspect log records
+     * programmatically in tests.
      *
      * @param string $level
      *
      * @return LoggerInterface
      * @throws Exception
      */
-    protected function getTestLogger(string $level): LoggerInterface
+    protected function getTestableLogger(string $level): LoggerInterface
     {
-        $logger = new Logger('test-ssh-commander-log');
-        $logger->pushProcessor(new PsrLogMessageProcessor);
+        $logger = $this->createDebugLogger();
 
+        $this->addTestHandler($logger, $level);
+
+        return $logger;
+    }
+
+    /**
+     * Add handler that will log our test runs into a separate file specified in
+     * testconfig.php
+     *
+     * @param LoggerInterface $logger
+     */
+    protected function addDebugLogHandler(LoggerInterface $logger): void
+    {
+        if ($debugLogFileHandler = $this->getDebugLogFileHandler()) {
+            $logger->pushHandler($debugLogFileHandler);
+        }
+    }
+
+    /**
+     * Add the test handler that we later can inspect for log records.
+     *
+     * @param LoggerInterface $logger
+     * @param string          $level
+     */
+    protected function addTestHandler(LoggerInterface $logger, string $level): void
+    {
         $handler = new TestHandler($level);
         $handler->setFormatter(
             LoggerFactory::getStreamLineFormatter(
@@ -189,15 +223,13 @@ class TestCase extends PHPUnitTestCase
             )
         );
         $logger->pushHandler($handler);
-
-        return $logger;
     }
 
     protected function getMockConnection(
         ?SSHConfigInterface $config = null
     ): SSHConnectionInterface {
         $config = $config ?? $this->getTestConfigAsObject();
-        $logger = $this->getTestLogger(LogLevel::DEBUG);
+        $logger = $this->getTestableLogger(LogLevel::DEBUG);
 
         return new MockSSHConnection($config, $logger);
     }
@@ -242,7 +274,7 @@ class TestCase extends PHPUnitTestCase
             : $dir;
     }
 
-    protected function getMockConnectionConfigByType(
+    protected function getMockConnectionConfigWithType(
         string $type,
         bool $autologin = true
     ): array {
@@ -290,5 +322,48 @@ class TestCase extends PHPUnitTestCase
             'key'       => $this->getProtectedPrivateKeyContents(),
             'keyfile'   => $this->getProtectedPrivateKeyFile(),
         ];
+    }
+
+    protected function getDebugLogFileHandler(): ?HandlerInterface
+    {
+        if (!$this->enableDebugLog) {
+            return null;
+        }
+
+        if (!$file = $this->getTestConfigWritableLogFile()) {
+            return null;
+        }
+
+        $logLevel = LogLevel::DEBUG;
+        $formatter = new LineFormatter('[%datetime%] %channel%.%level_name%: %message%' . PHP_EOL);
+
+        return (new StreamHandler($file, $logLevel))->setFormatter($formatter);
+    }
+
+    protected function getTestConfigWritableLogFile(): ?string
+    {
+        $file = $_ENV['ssh_log_file'];
+
+        return is_writable($file) ? $file : null;
+    }
+
+    protected function enableDebugLog()
+    {
+        $this->enableDebugLog = true;
+    }
+
+    protected function createDebugLogger(): LoggerInterface
+    {
+        $logger = new Logger('test-ssh-commander-log');
+        $logger->pushProcessor(new PsrLogMessageProcessor);
+
+        $this->addDebugLogHandler($logger);
+
+        return $logger;
+    }
+
+    protected function getSSHCommander($config): SSHCommanderInterface
+    {
+        return new SSHCommander($config, $this->createDebugLogger());
     }
 }

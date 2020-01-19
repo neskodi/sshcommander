@@ -4,9 +4,9 @@ namespace Neskodi\SSHCommander\Tests\Integration;
 
 use Neskodi\SSHCommander\Interfaces\SSHCommanderInterface;
 use Neskodi\SSHCommander\Tests\IntegrationTestCase;
-use Neskodi\SSHCommander\Tests\Mocks\MockSSHConfig;
 use Neskodi\SSHCommander\SSHCommander;
 use Neskodi\SSHCommander\Traits\Timer;
+use Neskodi\SSHCommander\SSHConfig;
 use Monolog\Handler\TestHandler;
 use Psr\Log\LogLevel;
 use RuntimeException;
@@ -17,20 +17,20 @@ class ConfigurationTest extends IntegrationTestCase
 
     /***** CONFIGURATION PROPAGATION TESTS *****/
 
-    public function testPropagationFromConfigFile()
-    {
-
-    }
-
-    public function testPropagationFromGlobalConfig()
-    {
-
-    }
-
-    public function testPropagationFromCommandConfig()
-    {
-        
-    }
+    // public function testPropagationFromConfigFile()
+    // {
+    //
+    // }
+    //
+    // public function testPropagationFromGlobalConfig()
+    // {
+    //
+    // }
+    //
+    // public function testPropagationFromCommandConfig()
+    // {
+    //
+    // }
 
     /***** CREDENTIAL SELECTION TESTS *****/
 
@@ -46,7 +46,7 @@ class ConfigurationTest extends IntegrationTestCase
         $config = array_merge($this->sshOptions, [
             'key' => file_get_contents($this->sshOptions['keyfile']),
         ]);
-        $logger = $this->getTestLogger(LogLevel::DEBUG);
+        $logger = $this->getTestableLogger(LogLevel::DEBUG);
 
         $commander = new SSHCommander($config, $logger);
 
@@ -82,7 +82,7 @@ class ConfigurationTest extends IntegrationTestCase
 
         $config = array_merge($this->sshOptions, ['key' => null]);
 
-        $logger = $this->getTestLogger(LogLevel::DEBUG);
+        $logger = $this->getTestableLogger(LogLevel::DEBUG);
 
         $commander = new SSHCommander($config, $logger);
 
@@ -120,7 +120,7 @@ class ConfigurationTest extends IntegrationTestCase
             'keyfile' => null,
         ]);
 
-        $logger = $this->getTestLogger(LogLevel::DEBUG);
+        $logger = $this->getTestableLogger(LogLevel::DEBUG);
 
         $commander = new SSHCommander($config, $logger);
 
@@ -152,251 +152,53 @@ class ConfigurationTest extends IntegrationTestCase
 
     public function testCommandTimeoutFromGlobalConfig(): void
     {
-        try {
-            $this->requireUser();
-            $this->requireAuthCredential();
-        } catch (RuntimeException $e) {
-            $this->markTestSkipped($e->getMessage());
-        }
+        // $this->enableDebugLog();
 
-        $timeoutValue  = 2;
-        $timeoutConfig = ['timeout_command' => $timeoutValue];
-        $config        = array_merge($this->sshOptions, $timeoutConfig);
+        $timeoutValue = 2;
 
-        $commander = new SSHCommander($config);
+        $config = array_merge(
+            $this->sshOptions,
+            [
+                'timelimit'          => $timeoutValue,
+                'timelimit_behavior' => SSHConfig::SIGNAL_TERMINATE,
+            ]
+        );
+
+        $commander = $this->getSSHCommander($config);
         $this->assertTrue($commander->getConnection()->isAuthenticated());
 
-        $this->startTimer();
-        $commander->run('ping google.com');
-        $elapsed = $this->stopTimer();
+        $result = $commander->run('ping google.com');
 
-        $this->assertEquals($timeoutValue, (int)$elapsed);
+        $this->assertEquals(
+        // an extra second for cleaning the command buffer
+        // TODO: work around this by putting jobs to background
+            $timeoutValue + 1,
+            (int)$result->getCommandElapsedTime()
+        );
     }
 
     public function testCommandTimeoutInCommandConfig(): void
     {
-        try {
-            $this->requireUser();
-            $this->requireAuthCredential();
-        } catch (RuntimeException $e) {
-            $this->markTestSkipped($e->getMessage());
-        }
-
         $timeoutValue  = 2;
-        $timeoutConfig = ['timeout_command' => $timeoutValue];
+        $timeoutConfig = [
+            'timelimit'          => $timeoutValue,
+            'timelimit_behavior' => SSHConfig::SIGNAL_TERMINATE,
+        ];
 
-        $commander = new SSHCommander($this->sshOptions);
+        $commander = $this->getSSHCommander($this->sshOptions);
         $this->assertTrue($commander->getConnection()->isAuthenticated());
 
-        $this->startTimer();
-        $commander->run('ping google.com', $timeoutConfig);
-        $elapsed = $this->stopTimer();
+        $result = $commander->run('ping google.com', $timeoutConfig);
 
-        $this->assertEquals($timeoutValue, (int)$elapsed);
-    }
-
-    /***** BREAK ON ERROR TESTS *****/
-
-    public function testNotBreakOnErrorFromConfigFile(): void
-    {
-        try {
-            $this->requireUser();
-            $this->requireAuthCredential();
-        } catch (RuntimeException $e) {
-            $this->markTestSkipped($e->getMessage());
-        }
-
-        $tested = [
-            'break_on_error'  => false,
-            'separate_stderr' => false,
-            'suppress_stderr' => false,
-        ];
-
-        MockSSHConfig::setOverrides($tested);
-        $config = new MockSSHConfig($this->sshOptions);
-
-        $commander = new SSHCommander($config);
-
-        $this->checkThatTestedConfigHasPropagated($commander, $tested);
-
-        $outputLines = $this->runCompoundCommandWithErrorInTheMiddle(
-            $commander
+        $this->assertEquals(
+        // an extra second for cleaning the command buffer
+        // TODO: work around this by putting jobs to background
+            $timeoutValue + 1,
+            (int)$result->getCommandElapsedTime()
         );
-
-        $this->checkContainsErrorOutput($outputLines);
-        $this->checkContainsPostErrorOutput($outputLines);
-
-        MockSSHConfig::resetOverrides();
-    }
-
-    public function testNotBreakOnErrorFromGlobalConfig(): void
-    {
-        try {
-            $this->requireUser();
-            $this->requireAuthCredential();
-        } catch (RuntimeException $e) {
-            $this->markTestSkipped($e->getMessage());
-        }
-
-        $tested = [
-            'break_on_error'  => false,
-            'separate_stderr' => false,
-            'suppress_stderr' => false,
-        ];
-        $config = array_merge($this->sshOptions, $tested);
-
-        $commander = new SSHCommander($config);
-
-        $this->checkThatTestedConfigHasPropagated($commander, $tested);
-
-        $outputLines = $this->runCompoundCommandWithErrorInTheMiddle(
-            $commander
-        );
-
-        $this->checkContainsErrorOutput($outputLines);
-        $this->checkContainsPostErrorOutput($outputLines);
-    }
-
-    public function testNotBreakOnErrorInCommandConfig(): void
-    {
-        try {
-            $this->requireUser();
-            $this->requireAuthCredential();
-        } catch (RuntimeException $e) {
-            $this->markTestSkipped($e->getMessage());
-        }
-
-        $commander = new SSHCommander($this->sshOptions);
-
-        $outputLines = $this->runCompoundCommandWithErrorInTheMiddle(
-            $commander,
-            [
-                'break_on_error'  => false,
-                'separate_stderr' => false,
-                'suppress_stderr' => false,
-            ]
-        );
-
-        $this->checkContainsErrorOutput($outputLines);
-        $this->checkContainsPostErrorOutput($outputLines);
-    }
-
-    /** @noinspection DuplicatedCode */
-    public function testBreakOnErrorFromConfigFile(): void
-    {
-        try {
-            $this->requireUser();
-            $this->requireAuthCredential();
-        } catch (RuntimeException $e) {
-            $this->markTestSkipped($e->getMessage());
-        }
-
-        $tested = [
-            'break_on_error'  => true,
-            'separate_stderr' => false,
-            'suppress_stderr' => false,
-        ];
-
-        MockSSHConfig::setOverrides($tested);
-        $config = new MockSSHConfig($this->sshOptions);
-
-        $commander = new SSHCommander($config);
-
-        $this->checkThatTestedConfigHasPropagated($commander, $tested);
-
-        $outputLines = $this->runCompoundCommandWithErrorInTheMiddle(
-            $commander
-        );
-
-        $this->checkContainsErrorOutput($outputLines);
-        $this->checkNotContainsPostErrorOutput($outputLines);
-
-        MockSSHConfig::resetOverrides();
-    }
-
-    public function testBreakOnErrorFromGlobalConfig(): void
-    {
-        try {
-            $this->requireUser();
-            $this->requireAuthCredential();
-        } catch (RuntimeException $e) {
-            $this->markTestSkipped($e->getMessage());
-        }
-
-        $tested = [
-            'break_on_error'  => true,
-            'separate_stderr' => false,
-            'suppress_stderr' => false,
-        ];
-        $config = array_merge($this->sshOptions, $tested);
-
-        $commander = new SSHCommander($config);
-
-        $this->checkThatTestedConfigHasPropagated($commander, $tested);
-
-        $outputLines = $this->runCompoundCommandWithErrorInTheMiddle(
-            $commander
-        );
-
-        $this->checkContainsErrorOutput($outputLines);
-        $this->checkNotContainsPostErrorOutput($outputLines);
-    }
-
-    public function testBreakOnErrorInCommandConfig(): void
-    {
-        try {
-            $this->requireUser();
-            $this->requireAuthCredential();
-        } catch (RuntimeException $e) {
-            $this->markTestSkipped($e->getMessage());
-        }
-
-        $commander = new SSHCommander($this->sshOptions);
-
-        $outputLines = $this->runCompoundCommandWithErrorInTheMiddle(
-            $commander,
-            [
-                'break_on_error'  => true,
-                'separate_stderr' => false,
-                'suppress_stderr' => false,
-            ]
-        );
-
-        $this->checkContainsErrorOutput($outputLines);
-        $this->checkNotContainsPostErrorOutput($outputLines);
     }
 
     /***** BASEDIR TESTS *****/
-
-    public function testBasedirFromConfigFile(): void
-    {
-        try {
-            $this->requireUser();
-            $this->requireAuthCredential();
-        } catch (RuntimeException $e) {
-            $this->markTestSkipped($e->getMessage());
-        }
-
-        $basedir = '/usr';
-        $tested  = ['basedir' => $basedir];
-
-        MockSSHConfig::setOverrides($tested);
-
-        // check that basedir picked for this test differs from default
-        $defaultConfig = $this->getTestConfigAsArray();
-        $this->assertNotEquals($defaultConfig['basedir'], $basedir);
-
-        $config    = new MockSSHConfig($this->sshOptions);
-        $commander = new SSHCommander($config);
-
-        $this->assertEquals($basedir, $commander->getConfig('basedir'));
-
-        $outputLines = $commander->run('pwd')->getOutput();
-
-        $this->assertContains($basedir, $outputLines);
-
-        MockSSHConfig::resetOverrides();
-    }
 
     public function testBasedirFromGlobalConfig(): void
     {
@@ -415,7 +217,7 @@ class ConfigurationTest extends IntegrationTestCase
         $defaultConfig = $this->getTestConfigAsArray();
         $this->assertNotEquals($defaultConfig['basedir'], $basedir);
 
-        $commander = new SSHCommander($config);
+        $commander = $this->getSSHCommander($config);
 
         $outputLines = $commander->run('pwd')->getOutput();
 
@@ -438,12 +240,17 @@ class ConfigurationTest extends IntegrationTestCase
         $defaultConfig = $this->getTestConfigAsArray();
         $this->assertNotEquals($defaultConfig['basedir'], $basedir);
 
-        $commander = new SSHCommander($this->sshOptions);
+        $commander = $this->getSSHCommander($this->sshOptions);
 
         $outputLines = $commander->run('pwd', $tested)->getOutput();
 
         $this->assertContains($basedir, $outputLines);
     }
+
+    // public function testSetBasedirOnTheFly(): void
+    // {
+    //
+    // }
 
 
     /***** END CONFIG VALUE TESTS *****/

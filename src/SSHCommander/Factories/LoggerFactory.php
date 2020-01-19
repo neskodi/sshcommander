@@ -124,9 +124,7 @@ class LoggerFactory
         // remove the 'context' and 'extra' elements from the standard format
         $output = '[%datetime%] %channel%.%level_name%: %message%' . PHP_EOL;
 
-        $formatter = new LineFormatter($output);
-
-        return $formatter;
+        return new LineFormatter($output);
     }
 
     /**

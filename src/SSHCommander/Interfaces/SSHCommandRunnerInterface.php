@@ -4,8 +4,6 @@ namespace Neskodi\SSHCommander\Interfaces;
 
 interface SSHCommandRunnerInterface
 {
-    public function prepareCommand(SSHCommandInterface $command): SSHCommandInterface;
-
     public function executeOnConnection(SSHCommandInterface $command): void;
 
     public function execDecorated(SSHCommandInterface $command): void;
@@ -17,7 +15,7 @@ interface SSHCommandRunnerInterface
 
     public function getConfig(?string $param = null);
 
-    public function set($param, $value = null): SSHCommandRunnerInterface;
+    public function set($param, $value = null);
 
 
     public function getResult(): ?SSHCommandResultInterface;

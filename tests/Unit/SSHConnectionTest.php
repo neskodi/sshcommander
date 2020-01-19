@@ -31,7 +31,7 @@ class SSHConnectionTest extends TestCase
     public function testConstructor(): void
     {
         $config = $this->getTestConfigAsObject();
-        $logger = $this->getTestLogger(LogLevel::DEBUG);
+        $logger = $this->getTestableLogger(LogLevel::DEBUG);
 
         $connection = new SSHConnection($config, $logger);
 
@@ -61,7 +61,7 @@ class SSHConnectionTest extends TestCase
     public function testAutoLoginWithPassword(): void
     {
         $this->AutoLoginAndCheckLogRecords(
-            $this->getMockConnectionConfigByType(TestCase::AUTH_TYPE_PASSWORD),
+            $this->getMockConnectionConfigWithType(TestCase::AUTH_TYPE_PASSWORD),
             static::REGEX_AUTHENTICATING_WITH_PASSWORD
         );
     }
@@ -69,7 +69,7 @@ class SSHConnectionTest extends TestCase
     public function testAutoLoginWithKey(): void
     {
         $this->AutoLoginAndCheckLogRecords(
-            $this->getMockConnectionConfigByType(TestCase::AUTH_TYPE_KEY),
+            $this->getMockConnectionConfigWithType(TestCase::AUTH_TYPE_KEY),
             static::REGEX_AUTHENTICATING_WITH_KEY
         );
     }
@@ -77,7 +77,7 @@ class SSHConnectionTest extends TestCase
     public function testAutoLoginWithKeyfile(): void
     {
         $this->AutoLoginAndCheckLogRecords(
-            $this->getMockConnectionConfigByType(TestCase::AUTH_TYPE_KEYFILE),
+            $this->getMockConnectionConfigWithType(TestCase::AUTH_TYPE_KEYFILE),
             static::REGEX_AUTHENTICATING_WITH_KEY
         );
     }
@@ -85,7 +85,7 @@ class SSHConnectionTest extends TestCase
     public function testAutoLoginWithProtectedKey(): void
     {
         $this->AutoLoginAndCheckLogRecords(
-            $this->getMockConnectionConfigByType(
+            $this->getMockConnectionConfigWithType(
                 TestCase::AUTH_TYPE_KEY_PROTECTED
             ),
             static::REGEX_AUTHENTICATING_WITH_KEY
@@ -95,7 +95,7 @@ class SSHConnectionTest extends TestCase
     public function testAutoLoginWithProtectedKeyfile(): void
     {
         $this->AutoLoginAndCheckLogRecords(
-            $this->getMockConnectionConfigByType(
+            $this->getMockConnectionConfigWithType(
                 TestCase::AUTH_TYPE_KEYFILE_PROTECTED
             ),
             static::REGEX_AUTHENTICATING_WITH_KEY
@@ -106,7 +106,7 @@ class SSHConnectionTest extends TestCase
     {
         $config = $this->getTestConfigAsObject(
             self::CONFIG_FULL,
-            $this->getMockConnectionConfigByType(TestCase::AUTH_TYPE_PASSWORD)
+            $this->getMockConnectionConfigWithType(TestCase::AUTH_TYPE_PASSWORD)
         );
 
         $this->expectException(AuthenticationException::class);
@@ -118,7 +118,7 @@ class SSHConnectionTest extends TestCase
     public function testLazyLoginWithPassword(): void
     {
         $this->LazyLoginAndCheckLogRecords(
-            $this->getMockConnectionConfigByType(
+            $this->getMockConnectionConfigWithType(
                 TestCase::AUTH_TYPE_PASSWORD,
                 false
             ),
@@ -129,7 +129,7 @@ class SSHConnectionTest extends TestCase
     public function testLazyLoginWithKey(): void
     {
         $this->LazyLoginAndCheckLogRecords(
-            $this->getMockConnectionConfigByType(TestCase::AUTH_TYPE_KEY, false),
+            $this->getMockConnectionConfigWithType(TestCase::AUTH_TYPE_KEY, false),
             static::REGEX_AUTHENTICATING_WITH_KEY
         );
     }
@@ -137,7 +137,7 @@ class SSHConnectionTest extends TestCase
     public function testLazyLoginWithKeyfile(): void
     {
         $this->LazyLoginAndCheckLogRecords(
-            $this->getMockConnectionConfigByType(
+            $this->getMockConnectionConfigWithType(
                 TestCase::AUTH_TYPE_KEYFILE,
                 false
             ),
@@ -148,7 +148,7 @@ class SSHConnectionTest extends TestCase
     public function testLazyLoginWithProtectedKey(): void
     {
         $this->LazyLoginAndCheckLogRecords(
-            $this->getMockConnectionConfigByType(
+            $this->getMockConnectionConfigWithType(
                 TestCase::AUTH_TYPE_KEY_PROTECTED,
                 false
             ),
@@ -159,7 +159,7 @@ class SSHConnectionTest extends TestCase
     public function testLazyLoginWithProtectedKeyfile(): void
     {
         $this->LazyLoginAndCheckLogRecords(
-            $this->getMockConnectionConfigByType(
+            $this->getMockConnectionConfigWithType(
                 TestCase::AUTH_TYPE_KEYFILE_PROTECTED,
                 false
             ),
@@ -171,7 +171,7 @@ class SSHConnectionTest extends TestCase
     {
         $config = $this->getTestConfigAsObject(
             self::CONFIG_FULL,
-            $this->getMockConnectionConfigByType(
+            $this->getMockConnectionConfigWithType(
                 TestCase::AUTH_TYPE_PASSWORD,
                 false
             )
@@ -190,7 +190,7 @@ class SSHConnectionTest extends TestCase
     public function testAuthenticateOnlyWithPassword(): void
     {
         $this->AuthOnlyAndCheckLogRecords(
-            $this->getMockConnectionConfigByType(
+            $this->getMockConnectionConfigWithType(
                 TestCase::AUTH_TYPE_PASSWORD,
                 false
             )
@@ -200,7 +200,7 @@ class SSHConnectionTest extends TestCase
     public function testAuthenticateOnlyWithKey(): void
     {
         $this->AuthOnlyAndCheckLogRecords(
-            $this->getMockConnectionConfigByType(
+            $this->getMockConnectionConfigWithType(
                 TestCase::AUTH_TYPE_KEY,
                 false
             )
@@ -210,7 +210,7 @@ class SSHConnectionTest extends TestCase
     public function testAuthenticateOnlyWithKeyfile(): void
     {
         $this->AuthOnlyAndCheckLogRecords(
-            $this->getMockConnectionConfigByType(
+            $this->getMockConnectionConfigWithType(
                 TestCase::AUTH_TYPE_KEYFILE,
                 false
             )
@@ -220,7 +220,7 @@ class SSHConnectionTest extends TestCase
     public function testAuthenticateOnlyWithProtectedKey(): void
     {
         $this->AuthOnlyAndCheckLogRecords(
-            $this->getMockConnectionConfigByType(
+            $this->getMockConnectionConfigWithType(
                 TestCase::AUTH_TYPE_KEY_PROTECTED,
                 false
             )
@@ -230,7 +230,7 @@ class SSHConnectionTest extends TestCase
     public function testAuthenticateOnlyWithProtectedKeyfile(): void
     {
         $this->AuthOnlyAndCheckLogRecords(
-            $this->getMockConnectionConfigByType(
+            $this->getMockConnectionConfigWithType(
                 TestCase::AUTH_TYPE_KEYFILE_PROTECTED,
                 false
             )
@@ -241,7 +241,7 @@ class SSHConnectionTest extends TestCase
     {
         $config = $this->getTestConfigAsObject(
             self::CONFIG_FULL,
-            $this->getMockConnectionConfigByType(
+            $this->getMockConnectionConfigWithType(
                 TestCase::AUTH_TYPE_PASSWORD,
                 false
             )
@@ -261,7 +261,7 @@ class SSHConnectionTest extends TestCase
     {
         $config = $this->getTestConfigAsObject(
             self::CONFIG_FULL,
-            $this->getMockConnectionConfigByType(TestCase::AUTH_TYPE_PASSWORD)
+            $this->getMockConnectionConfigWithType(TestCase::AUTH_TYPE_PASSWORD)
         );
 
         MockSSHConnection::expect(MockSSHConnection::RESULT_SUCCESS);
@@ -279,7 +279,7 @@ class SSHConnectionTest extends TestCase
     {
         $config = $this->getTestConfigAsObject(
             self::CONFIG_FULL,
-            $this->getMockConnectionConfigByType(TestCase::AUTH_TYPE_PASSWORD)
+            $this->getMockConnectionConfigWithType(TestCase::AUTH_TYPE_PASSWORD)
         );
         $config->set('separate_stderr', true);
 
@@ -319,21 +319,19 @@ class SSHConnectionTest extends TestCase
 
     public function testResetTimeout(): void
     {
-        $default = SSHConnection::DEFAULT_TIMEOUT;
         $timeout = 150;
 
         $config     = $this->getTestConfigAsObject(
             self::CONFIG_FULL,
             ['autologin' => false]
         );
+        $default = $config->getDefault('timeout_command');
+
         $connection = new SSHConnection($config);
-
         $connection->setTimeout($timeout);
-
         $this->assertSame($timeout, $connection->getSSH2()->timeout);
 
         $connection->resetTimeout();
-
         $this->assertSame($default, $connection->getSSH2()->timeout);
     }
 
@@ -355,7 +353,7 @@ class SSHConnectionTest extends TestCase
             $config
         );
 
-        $logger = $this->getTestLogger(LogLevel::DEBUG);
+        $logger = $this->getTestableLogger(LogLevel::DEBUG);
 
         MockSSHConnection::expect(MockSSHConnection::RESULT_SUCCESS);
         $connection = new MockSSHConnection($config, $logger);
@@ -378,7 +376,7 @@ class SSHConnectionTest extends TestCase
             $config
         );
 
-        $logger = $this->getTestLogger(LogLevel::DEBUG);
+        $logger = $this->getTestableLogger(LogLevel::DEBUG);
 
         $connection = new MockSSHConnection($config, $logger);
 
@@ -403,7 +401,7 @@ class SSHConnectionTest extends TestCase
             $config
         );
 
-        $logger = $this->getTestLogger(LogLevel::DEBUG);
+        $logger = $this->getTestableLogger(LogLevel::DEBUG);
 
         $connection = new MockSSHConnection($config, $logger);
 

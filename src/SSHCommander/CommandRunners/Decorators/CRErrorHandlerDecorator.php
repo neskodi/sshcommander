@@ -11,10 +11,14 @@ class CRErrorHandlerDecorator
 {
     public function execDecorated(SSHCommandInterface $command): void
     {
-        $this->executeOnConnection('trap "echo $?:ERRORMARKER; exit" ERR');
+        if ($this->hasMethod('setupErrorHandler')) {
+            $this->setupErrorHandler($command);
+        }
 
         $this->runner->execDecorated($command);
 
-        $this->executeOnConnection('trap - ERR');
+        if ($this->hasMethod('handleErrors')) {
+            $this->handleErrors($command);
+        }
     }
 }
