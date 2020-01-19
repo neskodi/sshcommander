@@ -259,8 +259,6 @@ class SSHCommanderTest extends TestCase
 
     public function testRunCommand(): void
     {
-        $this->enableDebugLog();
-
         $config    = $this->getTestConfigAsArray();
         $commander = $this->getSSHCommander($config);
 
