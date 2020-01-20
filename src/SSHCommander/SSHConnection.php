@@ -297,7 +297,7 @@ class SSHConnection implements
     {
         $error = $this->getSSH2()->getLastError() ?? error_get_last();
 
-        if (is_array($error) && isset($errorText['message'])) {
+        if (is_array($error) && isset($error['message'])) {
             $error = $error['message'];
         }
 
@@ -382,7 +382,6 @@ class SSHConnection implements
         $this->resetTimeoutStatus();
         $this->setConfig($command->getConfig());
 
-        $this->cleanCommandBuffer();
         $this->writeAndSend((string)$command);
 
         $output = $this->read();
@@ -398,7 +397,7 @@ class SSHConnection implements
      * remove any junk that may be hanging there in the channel left by the
      * previous commands.
      */
-    protected function cleanCommandBuffer(): void
+    public function cleanCommandBuffer(): void
     {
         $this->debug('Cleaning buffer...');
 

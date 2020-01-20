@@ -2,6 +2,7 @@
 
 namespace Neskodi\SSHCommander\CommandRunners;
 
+use Neskodi\SSHCommander\CommandRunners\Decorators\CRCleanupDecorator;
 use Neskodi\SSHCommander\CommandRunners\Decorators\CRTimeoutHandlerDecorator;
 use Neskodi\SSHCommander\CommandRunners\Decorators\CRErrorHandlerDecorator;
 use Neskodi\SSHCommander\CommandRunners\Decorators\CRConnectionDecorator;
@@ -78,6 +79,7 @@ abstract class BaseCommandRunner implements
              ->with(CRBasedirDecorator::class)
              ->with(CRErrorHandlerDecorator::class)
              ->with(CRTimeoutHandlerDecorator::class)
+             ->with(CRCleanupDecorator::class)
              ->with(CRConnectionDecorator::class)
 
              ->execDecorated($command);

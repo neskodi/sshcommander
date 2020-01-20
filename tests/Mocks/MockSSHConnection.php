@@ -61,9 +61,7 @@ class MockSSHConnection extends SSHConnection implements
 
     protected function sshLogin(string $username, $credential): bool
     {
-        $result = static::expects(self::RESULT_ERROR)
-            ? false
-            : true;
+        $result = !static::expects(self::RESULT_ERROR);
 
         $this->authenticated = $result;
 
@@ -108,7 +106,7 @@ class MockSSHConnection extends SSHConnection implements
             return $this->sshRead('', 0);
         }
 
-    protected function cleanCommandBuffer(): void
+    public function cleanCommandBuffer(): void
         {
             $this->debug('Cleaning buffer...');
             $this->debug('End cleaning buffer');

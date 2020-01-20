@@ -17,20 +17,7 @@ class ConfigurationTest extends IntegrationTestCase
 
     /***** CONFIGURATION PROPAGATION TESTS *****/
 
-    // public function testPropagationFromConfigFile()
-    // {
     //
-    // }
-    //
-    // public function testPropagationFromGlobalConfig()
-    // {
-    //
-    // }
-    //
-    // public function testPropagationFromCommandConfig()
-    // {
-    //
-    // }
 
     /***** CREDENTIAL SELECTION TESTS *****/
 
@@ -167,12 +154,7 @@ class ConfigurationTest extends IntegrationTestCase
 
         $result = $commander->run('ping 127.0.0.1');
 
-        $this->assertEquals(
-        // an extra second for cleaning the command buffer
-        // TODO: work around this by putting jobs to background
-            $timeoutValue + 1,
-            (int)$result->getCommandElapsedTime()
-        );
+        $this->assertEquals($timeoutValue, (int)$result->getCommandElapsedTime());
     }
 
     public function testCommandTimeoutInCommandConfig(): void
@@ -188,12 +170,7 @@ class ConfigurationTest extends IntegrationTestCase
 
         $result = $commander->run('ping 127.0.0.1', $timeoutConfig);
 
-        $this->assertEquals(
-        // an extra second for cleaning the command buffer
-        // TODO: work around this by putting jobs to background
-            $timeoutValue + 1,
-            (int)$result->getCommandElapsedTime()
-        );
+        $this->assertEquals($timeoutValue, (int)$result->getCommandElapsedTime());
     }
 
     /***** BASEDIR TESTS *****/
@@ -244,11 +221,6 @@ class ConfigurationTest extends IntegrationTestCase
 
         $this->assertContains($basedir, $outputLines);
     }
-
-    // public function testSetBasedirOnTheFly(): void
-    // {
-    //
-    // }
 
 
     /***** END CONFIG VALUE TESTS *****/

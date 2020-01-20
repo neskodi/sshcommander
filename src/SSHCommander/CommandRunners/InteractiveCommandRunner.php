@@ -539,4 +539,10 @@ class InteractiveCommandRunner
     {
         $this->getConnection()->resetMarkers();
     }
+
+    /** @noinspection PhpUnused */
+    public function cleanupPreCommand()
+    {
+        $this->getConnection()->cleanCommandBuffer();
+    }
 }
