@@ -22,9 +22,9 @@ interface SSHConnectionInterface
 
     public function execIsolated(SSHCommandInterface $command): SSHConnectionInterface;
 
-    public function execInteractive(SSHCommandInterface $command, ?string $endMarker = null): SSHConnectionInterface;
+    public function execInteractive(SSHCommandInterface $command): SSHConnectionInterface;
 
-    public function read(?string $marker = null): string;
+    public function read(): string;
 
     public function write(string $chars);
 
@@ -42,6 +42,8 @@ interface SSHConnectionInterface
 
     public function isTimeout(): bool;
 
+    public function isTimelimit(): bool;
+
     public function resetOutput(): SSHConnectionInterface;
 
     public function resetCommandConfig(): SSHConnectionInterface;
@@ -49,4 +51,8 @@ interface SSHConnectionInterface
     public function resetTimeout(): SSHConnectionInterface;
 
     public function resetQuietMode(): SSHConnectionInterface;
+
+    public function setMarkerRegex(string $regex): SSHConnectionInterface;
+
+    public function resetMarkers(): void;
 }

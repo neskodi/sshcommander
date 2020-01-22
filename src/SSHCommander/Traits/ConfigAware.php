@@ -87,6 +87,8 @@ trait ConfigAware
      * @param array|SSHConfigInterface $config
      *
      * @return array
+     *
+     * @noinspection PhpUnused
      */
     protected function toConfigArray($config): array
     {

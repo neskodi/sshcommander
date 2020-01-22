@@ -41,6 +41,19 @@ abstract class CRBaseDecorator implements DecoratedCommandRunnerInterface
     }
 
     /**
+     * Check if the command runner has the specified method before trying to
+     * call it.
+     *
+     * @param string $method
+     *
+     * @return bool
+     */
+    public function hasMethod(string $method): bool
+    {
+        return $this->runner->hasMethod($method);
+    }
+
+    /**
      * Wrap this class with another decorator.
      *
      * @param string $class
@@ -59,5 +72,5 @@ abstract class CRBaseDecorator implements DecoratedCommandRunnerInterface
      *
      * @param SSHCommandInterface $command
      */
-    abstract public function exec(SSHCommandInterface $command): void;
+    abstract public function execDecorated(SSHCommandInterface $command): void;
 }

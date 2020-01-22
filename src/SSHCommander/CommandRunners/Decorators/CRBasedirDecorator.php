@@ -4,25 +4,28 @@ namespace Neskodi\SSHCommander\CommandRunners\Decorators;
 
 use Neskodi\SSHCommander\Interfaces\DecoratedCommandRunnerInterface;
 use Neskodi\SSHCommander\Interfaces\SSHCommandInterface;
-use Neskodi\SSHCommander\Traits\Timer;
 
-class CRTimerDecorator
+class CRBasedirDecorator
     extends CRBaseDecorator
     implements DecoratedCommandRunnerInterface
 {
-    use Timer;
-
     /**
-     * Stopwatch command start and end time.
+     * If the command runner defines any basedir handling behavior, execute it.
+     * E.g. set the current working directory, run the command and reset the
+     * directory afterwards.
      *
      * @param SSHCommandInterface $command
      */
     public function execDecorated(SSHCommandInterface $command): void
     {
-        $this->startTimer();
+        if ($this->hasMethod('setupBasedir')) {
+            $this->setupBasedir($command);
+        }
 
         $this->runner->execDecorated($command);
 
-        $this->stopTimer();
+        if ($this->hasMethod('teardownBasedir')) {
+            $this->teardownBasedir($command);
+        }
     }
 }

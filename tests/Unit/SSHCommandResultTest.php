@@ -296,7 +296,7 @@ class SSHCommandResultTest extends TestCase
         $result->setOutput($output);
         $result->setErrorOutput($error);
 
-        $result->setLogger($this->getTestLogger(LogLevel::DEBUG));
+        $result->setLogger($this->getTestableLogger(LogLevel::DEBUG));
 
         $result->logResult();
         $handler = $result->getLogger()->popHandler();
@@ -315,7 +315,7 @@ class SSHCommandResultTest extends TestCase
         $result = $this->createCommandResult();
         $result->setOutput([]);
         $result->setExitCode(0);
-        $result->setLogger($this->getTestLogger(LogLevel::DEBUG));
+        $result->setLogger($this->getTestableLogger(LogLevel::DEBUG));
 
         $result->logResult();
         $handler = $result->getLogger()->popHandler();

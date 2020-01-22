@@ -20,7 +20,7 @@ class RemoteCommandRunnerTest extends TestCase
     public function testConstructor(): void
     {
         $config = $this->getTestConfigAsObject();
-        $logger = $this->getTestLogger(LogLevel::DEBUG);
+        $logger = $this->getTestableLogger(LogLevel::DEBUG);
 
         $runner = new IsolatedCommandRunner($config, $logger);
 
@@ -38,7 +38,7 @@ class RemoteCommandRunnerTest extends TestCase
             ]
         );
 
-        $logger     = $this->getTestLogger(LogLevel::DEBUG);
+        $logger     = $this->getTestableLogger(LogLevel::DEBUG);
         $connection = new SSHConnection($config);
 
         $runner = new IsolatedCommandRunner($config, $logger);
@@ -63,7 +63,7 @@ class RemoteCommandRunnerTest extends TestCase
     public function testRunSuccess(): void
     {
         $config     = $this->getTestConfigAsObject();
-        $logger     = $this->getTestLogger(LogLevel::DEBUG);
+        $logger     = $this->getTestableLogger(LogLevel::DEBUG);
         $connection = $this->getMockConnection();
 
         $runner = new IsolatedCommandRunner($config, $logger);
@@ -81,7 +81,7 @@ class RemoteCommandRunnerTest extends TestCase
             self::CONFIG_FULL,
             ['autologin' => true]
         );
-        $logger     = $this->getTestLogger(LogLevel::DEBUG);
+        $logger     = $this->getTestableLogger(LogLevel::DEBUG);
 
         // expect success for authentication
         MockSSHConnection::expect(MockSSHConnection::RESULT_SUCCESS);

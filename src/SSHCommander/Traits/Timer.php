@@ -54,6 +54,8 @@ trait Timer
 
     /**
      * Reset the timer.
+     *
+     * @noinspection PhpUnused
      */
     public function resetTimer(): void
     {
@@ -64,6 +66,8 @@ trait Timer
      * Set timer precision.
      *
      * @param int $precision
+     *
+     * @noinspection PhpUnused
      */
     public function setTimerPrecision(int $precision): void
     {
@@ -71,6 +75,8 @@ trait Timer
     }
 
     /**
+     * Return the time when the stopwatch was started.
+     *
      * @return null|float
      */
     public function getTimerStart(): ?float
@@ -79,7 +85,11 @@ trait Timer
     }
 
     /**
+     * Return the time when the stopwatch stopped.
+     *
      * @return null|float
+     *
+     * @noinspection PhpUnused
      */
     public function getTimerEnd(): ?float
     {

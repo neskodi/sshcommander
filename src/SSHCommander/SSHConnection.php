@@ -6,6 +6,7 @@ use Neskodi\SSHCommander\Exceptions\AuthenticationException;
 use Neskodi\SSHCommander\Interfaces\SSHConnectionInterface;
 use Neskodi\SSHCommander\Interfaces\ConfigAwareInterface;
 use Neskodi\SSHCommander\Interfaces\LoggerAwareInterface;
+use Neskodi\SSHCommander\Exceptions\CommandRunException;
 use Neskodi\SSHCommander\Interfaces\SSHCommandInterface;
 use Neskodi\SSHCommander\Interfaces\SSHConfigInterface;
 use Neskodi\SSHCommander\Interfaces\TimerInterface;
@@ -24,17 +25,10 @@ class SSHConnection implements
 {
     use Loggable, Timer, ConfigAware;
 
-    const DEFAULT_TIMEOUT = 10;
-
     /**
      * @var SSH2
      */
     protected $ssh2;
-
-    /**
-     * @var bool
-     */
-    protected $authenticated = false;
 
     /**
      * @var array
@@ -60,6 +54,16 @@ class SSHConnection implements
      * @var bool
      */
     protected $isTimeout = false;
+
+    /**
+     * @var bool
+     */
+    protected $isTimelimit = false;
+
+    /**
+     * @var string|null
+     */
+    protected $markerRegex = null;
 
     /**
      * SSHConnection constructor.
@@ -166,10 +170,9 @@ class SSHConnection implements
 
         // throws AuthenticationException
         if (!$result) {
-            $this->processLoginError();
+            $this->handleLoginError();
         } else {
             $this->info('Authenticated.');
-            $this->authenticated = true;
 
             // clean out the interactive buffer
             $this->read();
@@ -274,16 +277,27 @@ class SSHConnection implements
     }
 
     /**
+     * Return true is this connection has successfully passed authentication
+     * with the remote host, false otherwise.
+     *
+     * @return bool
+     */
+    public function isAuthenticated(): bool
+    {
+        return ($this->ssh2 && $this->ssh2->isAuthenticated());
+    }
+
+    /**
      * Handle login error gracefully by recording a message into our own
      * exception and throwing it. Do not pollute the command line.
      *
      * @throws AuthenticationException
      */
-    protected function processLoginError(): void
+    protected function handleLoginError(): void
     {
         $error = $this->getSSH2()->getLastError() ?? error_get_last();
 
-        if (is_array($error) && isset($errorText['message'])) {
+        if (is_array($error) && isset($error['message'])) {
             $error = $error['message'];
         }
 
@@ -304,14 +318,18 @@ class SSHConnection implements
     }
 
     /**
-     * Return true is this connection has successfully passed authentication
-     * with the remote host, false otherwise.
+     * Phpseclib throws errors using user_error(). We will intercept this by
+     * using our own error handler function that will throw a
+     * CommandRunException.
      *
-     * @return bool
+     * @param $errno
+     * @param $errstr
+     *
+     * @throws CommandRunException
      */
-    public function isAuthenticated(): bool
+    protected function handleSSH2Error($errno, $errstr)
     {
-        return (bool)$this->authenticated;
+        throw new CommandRunException("$errno:$errstr");
     }
 
     /**
@@ -327,12 +345,15 @@ class SSHConnection implements
      */
     public function execIsolated(SSHCommandInterface $command): SSHConnectionInterface
     {
-        if (!$this->authenticated) {
+        if (!$this->isAuthenticated()) {
             $this->authenticate();
         }
 
         $this->resetOutput();
+        $this->resetTimeoutStatus();
         $this->setConfig($command->getConfig());
+
+        $this->setTimeout($command->getConfig('timeout_command'));
 
         $this->sshExec($command);
 
@@ -340,38 +361,30 @@ class SSHConnection implements
     }
 
     /**
-     * Write command and read the output until we have a prompt or a timeout.
+     * Write command and read the output until we have a prompt, a marker
+     * (end or error) or a timeout.
      *
      * Clean out the command itself and the prompt from the output and return it.
      *
      * @param SSHCommandInterface $command
      *
-     * @param string              $endMarker if end marker is provided, we'll
-     *                                       check for it instead of prompt.
-     *                                       This is useful for compound commands
-     *                                       that produce multiple prompts when
-     *                                       fed to the shell.
-     *
      * @return $this
      *
      * @throws AuthenticationException
      */
-    public function execInteractive(
-        SSHCommandInterface $command,
-        ?string $endMarker = null
-    ): SSHConnectionInterface {
-        if (!$this->authenticated) {
+    public function execInteractive(SSHCommandInterface $command): SSHConnectionInterface
+    {
+        if (!$this->isAuthenticated()) {
             $this->authenticate();
         }
 
         $this->resetOutput();
-        $this->isTimeout = false;
+        $this->resetTimeoutStatus();
         $this->setConfig($command->getConfig());
-        $this->cleanCommandBuffer();
 
         $this->writeAndSend((string)$command);
 
-        $output = $this->read($endMarker);
+        $output = $this->read();
         $output = $this->cleanCommandOutput($output, $command);
 
         $this->stdoutLines = $this->processOutput($command, $output);
@@ -379,7 +392,12 @@ class SSHConnection implements
         return $this;
     }
 
-    protected function cleanCommandBuffer()
+    /**
+     * Before running the command, we'll do an additional 'read' operation to
+     * remove any junk that may be hanging there in the channel left by the
+     * previous commands.
+     */
+    public function cleanCommandBuffer(): void
     {
         $this->debug('Cleaning buffer...');
 
@@ -401,7 +419,8 @@ class SSHConnection implements
 
         $ssh->setTimeout($this->getConfig('timeout_command'));
 
-        $this->debug('End cleaning buffer...');
+        $this->debug('JUNK: ' . Utils::oneLine($output));
+        $this->debug('End cleaning buffer');
     }
 
     /**
@@ -416,8 +435,8 @@ class SSHConnection implements
      */
     protected function cleanCommandOutput(string $output, SSHCommandInterface $command): string
     {
-        $firstCommandRegex      = '/^.*?(\r\n|\r|\n)/';
-        $promptRegex            = $command->getConfig()->getPromptRegex();
+        $firstCommandRegex = '/^.*?(\r\n|\r|\n)/';
+        $promptRegex       = $command->getConfig()->getPromptRegex();
         // carefully inject command after prompt into prompt regex
         $promptRegexWithCommand = preg_replace(
             '/^(.)(.+?)(\\$)?\\1([a-z]*)$/',
@@ -434,65 +453,65 @@ class SSHConnection implements
         // clean out the command prompt from the end
         $output = preg_replace($promptRegex, '', $output);
 
+        $this->debug('CLEAN: ' . Utils::oneLine($output));
+
         return $output;
     }
 
-    public function read(?string $marker = null): string
+    /**
+     * Read the channel packets and build the output. Stop when we detect a
+     * marker or a prompt.
+     *
+     * @return string
+     */
+    public function read(): string
     {
-        $this->startTimer();
-
         $output = '';
 
+        $this->startTimer();
+
         while ($str = $this->sshRead('', SSH2::READ_NEXT)) {
-            if (true === $str) {
-                // timeout
-                $this->isTimeout = true;
+            if (is_bool($str)) {
                 break;
             }
 
             $output .= $str;
 
-            if ($this->exceedsForcedTimeout()) {
-                $this->isTimeout = true;
+            if ($this->exceedsTimeLimit()) {
+                $this->isTimelimit = true;
                 break;
-            } elseif ($marker && $this->hasMarker($output, $marker)) {
-                $this->isTimeout = false;
+            }
+
+            if ($this->hasMarker($output)) {
                 break;
-            } elseif (!$marker && $this->hasPrompt($output)) {
-                $this->isTimeout = false;
+            }
+
+            if (!$this->usesMarkers() && $this->hasPrompt($output)) {
                 break;
             }
         }
 
         $this->stopTimer();
 
-        $this->debug('READ: ' . str_replace(["\r", "\n"], ['\r', '\n'], $output));
+        $this->debug('READ: ' . Utils::oneLine($output));
 
         return $output;
     }
 
     /**
-     * If user has decided to force the timeout via the 'force_timeout' config
+     * If user has decided to force the timeout via the 'timelimit' config
      * option, and we have already exceeded this timeout, return true.
      *
      * @return bool
      */
-    protected function exceedsForcedTimeout(): bool
+    protected function exceedsTimeLimit(): bool
     {
         // see if we really need to force the timeout
-        if (!$this->getConfig('force_timeout')) {
+        if (!$timelimit = $this->getConfig('timelimit')) {
             return false;
         }
 
-        $timeout = $this->getConfig('timeout_command');
-
-        // see if timeout is a falsy value, including false, 0, and null
-        // in this case we assume user doesn't want a timeout
-        if (!$timeout) {
-            return false;
-        }
-
-        return microtime(true) > ($this->getTimerStart() + $timeout);
+        return microtime(true) > ($this->getTimerStart() + $timelimit);
     }
 
     /**
@@ -516,13 +535,47 @@ class SSHConnection implements
      *
      * @param string $output
      *
-     * @param string $marker
+     * @return bool
+     */
+    protected function hasMarker(string $output): bool
+    {
+        return
+            $this->usesMarkers() &&
+            $this->hasExpectedOutputRegex($output, $this->markerRegex);
+    }
+
+    /**
+     * Set the regular expression used to detect 'end' and 'error' markers in
+     * the output.
+     *
+     * @param string $regex
+     *
+     * @return SSHConnectionInterface
+     */
+    public function setMarkerRegex(string $regex): SSHConnectionInterface
+    {
+        $this->markerRegex = $regex;
+
+        return $this;
+    }
+
+    /**
+     * Tell the connection not to look for any markers and just rely on the
+     * prompt.
+     */
+    public function resetMarkers(): void
+    {
+        $this->markerRegex = null;
+    }
+
+    /**
+     * See if we are told to detect markers in the output.
      *
      * @return bool
      */
-    protected function hasMarker(string $output, string $marker): bool
+    protected function usesMarkers(): bool
     {
-        return $this->hasExpectedOutputRegex($output, $marker);
+        return (bool)$this->markerRegex;
     }
 
     /**
@@ -533,6 +586,8 @@ class SSHConnection implements
      * @param string $expect
      *
      * @return bool
+     *
+     * @noinspection PhpUnused
      */
     protected function hasExpectedOutputSimple(string $output, string $expect)
     {
@@ -565,24 +620,51 @@ class SSHConnection implements
      * @param string $chars
      *
      * @return bool
-     *
-     * @throws AuthenticationException
      */
     public function write(string $chars)
     {
-        $this->debug('WRITE: ' . $chars);
+        $this->debug('WRITE: ' . Utils::oneLine($chars));
 
         return $this->sshWrite($chars);
     }
 
+    /**
+     * Tell phpseclib to write the characters to the channel. Handle errors
+     * thrown by phpseclib on our side.
+     *
+     * @param string $chars
+     *
+     * @return bool
+     */
     protected function sshWrite(string $chars)
     {
-        return $this->getSSH2()->write($chars);
+        set_error_handler([$this, 'handleSSH2Error']);
+
+        $result = $this->getSSH2()->write($chars);
+
+        restore_error_handler();
+
+        return $result;
     }
 
+    /**
+     * Tell phpseclib to read packets from the channel and pass through the
+     * result.
+     *
+     * @param string $chars
+     * @param int    $mode
+     *
+     * @return bool|string
+     */
     protected function sshRead(string $chars, int $mode)
     {
-        return $this->getSSH2()->read($chars, $mode);
+        set_error_handler([$this, 'handleSSH2Error']);
+
+        $result = $this->getSSH2()->read($chars, $mode);
+
+        restore_error_handler();
+
+        return $result;
     }
 
     /**
@@ -592,8 +674,6 @@ class SSHConnection implements
      * @param string $chars
      *
      * @return bool
-     *
-     * @throws AuthenticationException
      */
     public function writeAndSend(string $chars)
     {
@@ -606,13 +686,14 @@ class SSHConnection implements
 
     /**
      * Execute the command via phpseclib and collect the returned lines
-     * into an array
+     * into an array.
      *
      * @param SSHCommandInterface $command
-     * @param string              $delim
      */
     protected function sshExec(SSHCommandInterface $command): void
     {
+        set_error_handler([$this, 'handleSSH2Error']);
+
         $ssh = $this->getSSH2();
 
         $ssh->exec((string)$command, function ($str) use ($command) {
@@ -628,6 +709,8 @@ class SSHConnection implements
         }
 
         $this->lastExitCode = $ssh->getExitStatus();
+
+        restore_error_handler();
     }
 
     /**
@@ -669,9 +752,24 @@ class SSHConnection implements
         return [$chars];
     }
 
+    /**
+     * Tell phpseclib to authenticate the connection using the credentials
+     * provided.
+     *
+     * @param string $username
+     * @param        $credential
+     *
+     * @return bool
+     */
     protected function sshLogin(string $username, $credential): bool
     {
-        return $this->getSSH2()->login($username, $credential);
+        set_error_handler([$this, 'handleSSH2Error']);
+
+        $result = $this->getSSH2()->login($username, $credential);
+
+        restore_error_handler();
+
+        return $result;
     }
 
     /**
@@ -729,7 +827,7 @@ class SSHConnection implements
      */
     public function resetTimeout(): SSHConnectionInterface
     {
-        $this->setTimeout(static::DEFAULT_TIMEOUT);
+        $this->setTimeout($this->getConfig()->getDefault('timeout_command'));
 
         return $this;
     }
@@ -777,6 +875,19 @@ class SSHConnection implements
     }
 
     /**
+     * Clear the timeout status of possible previous commands.
+     *
+     * @return $this
+     */
+    public function resetTimeoutStatus(): SSHConnectionInterface
+    {
+        $this->isTimeout   = false;
+        $this->isTimelimit = false;
+
+        return $this;
+    }
+
+    /**
      * Reset some configuration after running a single command back to default
      * values.
      *
@@ -801,13 +912,22 @@ class SSHConnection implements
     }
 
     /**
-     * Check if timeout flag has been set on this connection (in case of forced
-     * timeout) or by SSH2 object.
+     * Check if timeout flag has been set by SSH2 object.
      *
      * @return bool
      */
     public function isTimeout(): bool
     {
-        return $this->isTimeout || (bool)$this->getSSH2()->isTimeout();
+        return (bool)$this->getSSH2()->isTimeout();
+    }
+
+    /**
+     * Check if command has exceeded the timelimit set in configuration.
+     *
+     * @return bool
+     */
+    public function isTimelimit(): bool
+    {
+        return $this->isTimelimit;
     }
 }

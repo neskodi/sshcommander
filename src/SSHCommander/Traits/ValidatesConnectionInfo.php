@@ -199,6 +199,14 @@ trait ValidatesConnectionInfo
         return $result;
     }
 
+    /**
+     * See if we need to validate the key, i.e. if it is the only provided
+     * credential.
+     *
+     * @param array $context
+     *
+     * @return bool
+     */
     protected function needsToValidateKey(array $context): bool
     {
         return (
@@ -207,6 +215,14 @@ trait ValidatesConnectionInfo
         );
     }
 
+    /**
+     * See if we need to validate the key file, i.e. if it is the only provided
+     * credential.
+     *
+     * @param array $context
+     *
+     * @return bool
+     */
     protected function needsToValidateKeyfile(array $context): bool
     {
         return (
@@ -215,6 +231,14 @@ trait ValidatesConnectionInfo
         );
     }
 
+    /**
+     * See if we need to validate the password, i.e. if it is the only provided
+     * credential.
+     *
+     * @param array $context
+     *
+     * @return bool
+     */
     protected function needsToValidatePassword(array $context): bool
     {
         return (
@@ -223,12 +247,28 @@ trait ValidatesConnectionInfo
         );
     }
 
+    /**
+     * See if a seemingly valid password (i.e. a string) is provided in the
+     * given array.
+     *
+     * @param array $context
+     *
+     * @return bool
+     */
     protected function contextHasValidPassword(array $context): bool
     {
         return isset($context['password']) &&
                is_string($context['password']);
     }
 
+    /**
+     * See if a seemingly valid key (i.e. a non-empty string) is provided
+     * in the given array.
+     *
+     * @param array $context
+     *
+     * @return bool
+     */
     protected function contextHasValidKey(array $context): bool
     {
         return isset($context['key']) &&
@@ -236,6 +276,14 @@ trait ValidatesConnectionInfo
                !empty(trim($context['key']));
     }
 
+    /**
+     * See if a seemingly valid keyfile (i.e. a non-empty string) is provided in
+     * the given array.
+     *
+     * @param array $context
+     *
+     * @return bool
+     */
     protected function contextHasValidKeyfile(array $context): bool
     {
         return isset($context['keyfile']) &&

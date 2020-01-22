@@ -1,4 +1,4 @@
-<?php
+<?php /** @noinspection PhpUnused */
 
 namespace Neskodi\SSHCommander\Traits;
 
@@ -16,6 +16,8 @@ trait HasResultCollection
      * Get the instance of result collection.
      *
      * @return SSHResultCollectionInterface
+     *
+     * @noinspection PhpUnused
      */
     public function getResultCollection(): ?SSHResultCollectionInterface
     {

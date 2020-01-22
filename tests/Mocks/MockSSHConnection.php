@@ -30,9 +30,13 @@ class MockSSHConnection extends SSHConnection implements
         'test error line 3',
     ];
 
-    protected static $expectedResult = self::RESULT_SUCCESS;
+    protected $authenticated = false;
 
-    protected $marker = null;
+    protected $errMarker = '';
+
+    protected $endMarker = '';
+
+    protected static $expectedResult = self::RESULT_SUCCESS;
 
     public static function expect(string $resultType): void
     {
@@ -50,11 +54,14 @@ class MockSSHConnection extends SSHConnection implements
         return static::$expectedResult === $resultType;
     }
 
+    public function isAuthenticated(): bool
+    {
+        return $this->authenticated;
+    }
+
     protected function sshLogin(string $username, $credential): bool
     {
-        $result = static::expects(self::RESULT_ERROR)
-            ? false
-            : true;
+        $result = !static::expects(self::RESULT_ERROR);
 
         $this->authenticated = $result;
 
@@ -71,13 +78,14 @@ class MockSSHConnection extends SSHConnection implements
 
     protected function sshRead(string $chars, int $mode)
     {
-        if (!$this->marker) {
-            return '';
-        }
+        $this->populateOutput();
 
-        $exitCode = static::expects(self::RESULT_ERROR) ? 1 : 0;
+        // set the last output line and return the entire output
+        $this->stdoutLines[] = static::expects(self::RESULT_ERROR)
+            ? sprintf('1:%s', $this->errMarker)
+            : sprintf('0:%s', $this->endMarker);
 
-        return sprintf('%s:%s', $exitCode, $this->marker);
+        return implode("\n", $this->stdoutLines);
     }
 
     protected function sshWrite(string $chars)
@@ -86,10 +94,23 @@ class MockSSHConnection extends SSHConnection implements
         $matches = [];
         preg_match_all('/echo "\\$\\?:([^"]+)"/', $chars, $matches);
 
-        if (!empty($matches[0])) {
-            $this->marker = $matches[1][0];
+        if (!empty($matches[0]) && false !== strpos($chars, 'trap ')) {
+            $this->errMarker = $matches[1][0];
+        } elseif (!empty($matches[0])) {
+            $this->endMarker = $matches[1][0];
         }
     }
+
+    public function read(): string
+        {
+            return $this->sshRead('', 0);
+        }
+
+    public function cleanCommandBuffer(): void
+        {
+            $this->debug('Cleaning buffer...');
+            $this->debug('End cleaning buffer');
+        }
 
     protected function setExitCode()
     {

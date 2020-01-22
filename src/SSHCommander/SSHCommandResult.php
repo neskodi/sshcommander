@@ -63,6 +63,11 @@ class SSHCommandResult implements
     protected $isTimeout;
 
     /**
+     * @var bool
+     */
+    protected $isTimelimit;
+
+    /**
      * CommandResult constructor.
      *
      * @param SSHCommandInterface $command     the command that was run
@@ -443,6 +448,21 @@ class SSHCommandResult implements
     }
 
     /**
+     * Register the fact whether the command execution resulted in an exceeded
+     * time limit.
+     *
+     * @param bool $isTimelimit
+     *
+     * @return SSHCommandResultInterface
+     */
+    public function setIsTimelimit(bool $isTimelimit): SSHCommandResultInterface
+    {
+        $this->isTimelimit = $isTimelimit;
+
+        return $this;
+    }
+
+    /**
      * Check if the execution of command resulted in a timeout.
      *
      * @return bool|null
@@ -450,5 +470,15 @@ class SSHCommandResult implements
     public function isTimeout(): ?bool
     {
         return $this->isTimeout;
+    }
+
+    /**
+     * Check if the execution of command resulted in an exceeded time limit.
+     *
+     * @return bool|null
+     */
+    public function isTimelimit(): ?bool
+    {
+        return $this->isTimelimit;
     }
 }

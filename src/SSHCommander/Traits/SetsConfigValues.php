@@ -63,6 +63,8 @@ trait SetsConfigValues
      *                                    any timelimit action.
      *
      * @return $this
+     *
+     * @noinspection PhpUnused
      */
     public function timelimit(int $value = 10, $behavior = false)
     {

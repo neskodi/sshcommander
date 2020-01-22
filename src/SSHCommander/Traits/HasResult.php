@@ -27,6 +27,8 @@ trait HasResult
      * @param SSHCommandResultInterface $result
      *
      * @return $this
+     *
+     * @noinspection PhpUnused
      */
     public function setResult(SSHCommandResultInterface $result)
     {

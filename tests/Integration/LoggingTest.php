@@ -120,7 +120,7 @@ class LoggingTest extends IntegrationTestCase
             : $this->getUnsuccessfulCommand();
 
         // get a fresh logger instance for each command
-        $this->getCommander()->setLogger($this->getTestLogger($level));
+        $this->getCommander()->setLogger($this->getTestableLogger($level));
 
         // run the command to collect log output
         $method = $isolated ? 'runIsolated' : 'run';
@@ -243,7 +243,7 @@ class LoggingTest extends IntegrationTestCase
             ['user' => '****']
         );
 
-        $logger    = $this->getTestLogger($level);
+        $logger    = $this->getTestableLogger($level);
         $commander = new SSHCommander($options, $logger);
 
         return $commander;
@@ -325,7 +325,7 @@ class LoggingTest extends IntegrationTestCase
     {
         $level = LogLevel::INFO;
 
-        $logger    = $this->getTestLogger($level);
+        $logger    = $this->getTestableLogger($level);
         $commander = new SSHCommander($this->sshOptions, $logger);
         $handler   = $commander->getLogger()->popHandler();
 
@@ -341,7 +341,7 @@ class LoggingTest extends IntegrationTestCase
     {
         $level = LogLevel::NOTICE;
 
-        $logger    = $this->getTestLogger($level);
+        $logger    = $this->getTestableLogger($level);
         $commander = new SSHCommander($this->sshOptions, $logger);
         $handler   = $commander->getLogger()->popHandler();
 
@@ -476,7 +476,7 @@ class LoggingTest extends IntegrationTestCase
             ['user' => '****']
         );
 
-        $logger             = $this->getTestLogger($level);
+        $logger             = $this->getTestableLogger($level);
         $exceptionWasThrown = false;
 
         try {
@@ -505,7 +505,7 @@ class LoggingTest extends IntegrationTestCase
             ['user' => '****']
         );
 
-        $logger             = $this->getTestLogger($level);
+        $logger             = $this->getTestableLogger($level);
         $exceptionWasThrown = false;
 
         try {

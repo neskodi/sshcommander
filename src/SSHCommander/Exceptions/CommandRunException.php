@@ -7,8 +7,11 @@ use Throwable;
 
 class CommandRunException extends Exception
 {
-    public function __construct(string $message = '', int $code = 0, Throwable $previous = null)
-    {
+    public function __construct(
+        string $message = '',
+        int $code = 0,
+        Throwable $previous = null
+    ) {
         if (empty($message)) {
             $message = 'Command returned a non-zero exit code.';
         }

@@ -46,5 +46,9 @@ interface SSHCommandResultInterface
 
     public function setIsTimeout(bool $isTimeout): SSHCommandResultInterface;
 
+    public function setIsTimelimit(bool $isTimeout): SSHCommandResultInterface;
+
     public function isTimeout(): ?bool;
+
+    public function isTimelimit(): ?bool;
 }

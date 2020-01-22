@@ -16,11 +16,11 @@ class CRResultDecorator
      *
      * @param SSHCommandInterface $command
      */
-    public function exec(SSHCommandInterface $command): void
+    public function execDecorated(SSHCommandInterface $command): void
     {
         $result = $this->createResult($command);
 
-        $this->runner->exec($command);
+        $this->runner->execDecorated($command);
 
         $this->recordCommandResults($command, $result);
         $this->recordCommandTiming($result);
@@ -58,9 +58,12 @@ class CRResultDecorator
     protected function recordCommandTiming(
         SSHCommandResultInterface $result
     ): void {
+        // timer methods are delegated down the decorator chain and are executed
+        // by CRTimerDecorator
         $result->setCommandStartTime($this->getTimerStart())
                ->setCommandEndTime($this->getTimerEnd())
                ->setCommandElapsedTime($this->getElapsedTime())
-               ->setIsTimeout($this->getConnection()->isTimeout());
+               ->setIsTimeout($this->getConnection()->isTimeout())
+               ->setIsTimelimit($this->getConnection()->isTimelimit());
     }
 }

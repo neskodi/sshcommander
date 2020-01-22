@@ -14,11 +14,11 @@ class CRLoggerDecorator
      *
      * @param SSHCommandInterface $command
      */
-    public function exec(SSHCommandInterface $command): void
+    public function execDecorated(SSHCommandInterface $command): void
     {
         $this->logCommandStart($command);
 
-        $this->runner->exec($command);
+        $this->runner->execDecorated($command);
 
         $this->logCommandEnd();
     }
@@ -49,7 +49,10 @@ class CRLoggerDecorator
     {
         $seconds = $this->runner->getElapsedTime();
 
-        if ($this->getConnection()->isTimeout()) {
+        if (
+            $this->getConnection()->isTimeout() ||
+            $this->getConnection()->isTimelimit()
+        ) {
             $this->notice('Command timed out after {seconds} seconds', [
                 'seconds' => $seconds,
             ]);
