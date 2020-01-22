@@ -155,10 +155,10 @@ class SSHConnection implements
             case SSHConfig::CREDENTIAL_KEY:
             case SSHConfig::CREDENTIAL_KEYFILE:
                 $keyContents = $this->getConfig()->getKeyContents();
-                @$result = $this->authenticateWithKey($keyContents);
+                $result = $this->authenticateWithKey($keyContents);
                 break;
             default:
-                @$result = $this->authenticateWithPassword();
+                $result = $this->authenticateWithPassword();
         }
 
         $this->resetTimeout();
@@ -286,23 +286,31 @@ class SSHConnection implements
      * Handle login error gracefully by recording a message into our own
      * exception and throwing it. Do not pollute the command line.
      *
+     * With these arguments, this method can be used as a standard error handler
+     * or called independently.
+     *
+     * @param null $errno
+     * @param null $errstr
+     *
      * @throws AuthenticationException
      */
-    protected function handleLoginError(): void
+    public function handleLoginError($errno = null, $errstr = null): void
     {
-        $error = $this->getSSH2()->getLastError() ?? error_get_last();
+        if ($errno || $errstr) {
+            $error = sprintf("$errno:$errstr");
+        } else {
+            $error = $this->getSSH2()->getLastError() ?? error_get_last();
 
-        if (is_array($error) && isset($error['message'])) {
-            $error = $error['message'];
+            if (is_array($error) && isset($error['message'])) {
+                $error = $error['message'];
+            }
         }
 
-        if (!is_string($error)) {
-            // error is something unexpected, we will show the standard message
-            $error = '';
-        }
-
-        if (false !== strpos($error, 'SSH_MSG_USERAUTH_FAILURE')) {
-            // standard message about failed authentication is enough
+        if (
+            !is_string($error) ||
+            (false !== strpos($error, 'SSH_MSG_USERAUTH_FAILURE'))
+        ) {
+            // show the standard message in these cases
             $error = '';
         }
 
@@ -322,7 +330,7 @@ class SSHConnection implements
      *
      * @throws CommandRunException
      */
-    protected function handleSSH2Error($errno, $errstr)
+    public function handleCommandError($errno, $errstr)
     {
         throw new CommandRunException("$errno:$errstr");
     }
@@ -651,7 +659,7 @@ class SSHConnection implements
      */
     protected function sshWrite(string $chars)
     {
-        set_error_handler([$this, 'handleSSH2Error']);
+        set_error_handler([$this, 'handleCommandError']);
 
         $result = $this->getSSH2()->write($chars);
 
@@ -671,7 +679,7 @@ class SSHConnection implements
      */
     protected function sshRead(string $chars, int $mode)
     {
-        set_error_handler([$this, 'handleSSH2Error']);
+        set_error_handler([$this, 'handleCommandError']);
 
         $result = $this->getSSH2()->read($chars, $mode);
 
@@ -705,7 +713,7 @@ class SSHConnection implements
      */
     protected function sshExec(SSHCommandInterface $command): void
     {
-        set_error_handler([$this, 'handleSSH2Error']);
+        set_error_handler([$this, 'handleCommandError']);
 
         $ssh = $this->getSSH2();
 
@@ -776,7 +784,7 @@ class SSHConnection implements
      */
     protected function sshLogin(string $username, $credential): bool
     {
-        set_error_handler([$this, 'handleSSH2Error']);
+        set_error_handler([$this, 'handleLoginError']);
 
         $result = $this->getSSH2()->login($username, $credential);
 
