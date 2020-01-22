@@ -53,11 +53,6 @@ class SSHConnection implements
     /**
      * @var bool
      */
-    protected $isTimeout = false;
-
-    /**
-     * @var bool
-     */
     protected $isTimelimit = false;
 
     /**
@@ -350,9 +345,8 @@ class SSHConnection implements
         }
 
         $this->resetOutput();
-        $this->resetTimeoutStatus();
+        $this->resetTimelimitStatus();
         $this->setConfig($command->getConfig());
-
         $this->setTimeout($command->getConfig('timeout_command'));
 
         $this->sshExec($command);
@@ -379,15 +373,18 @@ class SSHConnection implements
         }
 
         $this->resetOutput();
-        $this->resetTimeoutStatus();
+        $this->resetTimelimitStatus();
         $this->setConfig($command->getConfig());
+        $this->setTimeout($command->getConfig('timeout_command'));
 
         $this->writeAndSend((string)$command);
 
         $output = $this->read();
+
+        // clean out the command itself, any prompts, etc
         $output = $this->cleanCommandOutput($output, $command);
 
-        $this->stdoutLines = $this->processOutput($command, $output);
+        $this->stdoutLines = $this->processOutput($output, $command);
 
         return $this;
     }
@@ -715,13 +712,13 @@ class SSHConnection implements
         $ssh->exec((string)$command, function ($str) use ($command) {
             $this->stdoutLines = array_merge(
                 $this->stdoutLines,
-                $this->processOutput($command, $str)
+                $this->processOutput($str, $command)
             );
         });
 
         // don't forget to collect the error stream too
         if ($command->getConfig('separate_stderr')) {
-            $this->stderrLines = $this->processOutput($command, $ssh->getStdError());
+            $this->stderrLines = $this->processOutput($ssh->getStdError(), $command);
         }
 
         $this->lastExitCode = $ssh->getExitStatus();
@@ -734,38 +731,38 @@ class SSHConnection implements
      * with the main array of output lines.
      *
      * @param SSHCommandInterface $command used to look up configuration
-     * @param string              $chars
+     * @param string              $output
      *
      * @return array
      */
-    protected function processOutput(SSHCommandInterface $command, string $chars): array
+    protected function processOutput(string $output, SSHCommandInterface $command): array
     {
-        return $this->splitOutput($command, $chars);
+        return $this->splitOutput($output, $command);
     }
 
     /**
      * Split output lines by a regular expression or simple character(s),
-     * according to command configuraion.
+     * according to command configuration.
      *
+     * @param string              $output
      * @param SSHCommandInterface $command
-     * @param string              $chars
      *
      * @return array
      */
-    protected function splitOutput(SSHCommandInterface $command, string $chars): array
+    protected function splitOutput(string $output, SSHCommandInterface $command): array
     {
         // see if user wants to split by regular expression
         if ($delim = $command->getConfig('delimiter_split_output_regex')) {
-            return preg_split($delim, $chars) ?: [];
+            return preg_split($delim, $output) ?: [];
         }
 
         // see if user wants to explode by a simple delimiter
         if ($delim = $command->getConfig('delimiter_split_output')) {
-            return explode($delim, $chars) ?: [];
+            return explode($delim, $output) ?: [];
         }
 
         // otherwise no splitting can be performed
-        return [$chars];
+        return [$output];
     }
 
     /**
@@ -895,9 +892,8 @@ class SSHConnection implements
      *
      * @return $this
      */
-    public function resetTimeoutStatus(): SSHConnectionInterface
+    public function resetTimelimitStatus(): SSHConnectionInterface
     {
-        $this->isTimeout   = false;
         $this->isTimelimit = false;
 
         return $this;
