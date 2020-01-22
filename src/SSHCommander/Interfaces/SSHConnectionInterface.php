@@ -44,6 +44,8 @@ interface SSHConnectionInterface
 
     public function isTimelimit(): bool;
 
+    public function isTimeoutOrTimelimit(): bool;
+
     public function resetOutput(): SSHConnectionInterface;
 
     public function resetCommandConfig(): SSHConnectionInterface;
@@ -55,4 +57,8 @@ interface SSHConnectionInterface
     public function setMarkerRegex(string $regex): SSHConnectionInterface;
 
     public function resetMarkers(): void;
+
+    public function terminateCommand(): void;
+
+    public function suspendCommand(): void;
 }

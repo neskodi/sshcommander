@@ -15,18 +15,21 @@ class InteractiveCommandRunner
     implements SSHCommandRunnerInterface,
                DecoratedCommandRunnerInterface
 {
-    /**
-     * @var array
-     */
-    protected $options = [];
-
     protected $endMarker = '';
 
     protected $errMarker = '';
 
+    protected $outputLines = [];
+
+    protected $exitCode = null;
+
+    protected $detectedMarker = null;
+
     protected $initialWorkingDirectory = null;
 
     protected $errorTrapStatus = false;
+
+    protected $errorWasTrapped = false;
 
     /**
      * Run the command in the interactive shell and return the result object.
@@ -58,14 +61,21 @@ class InteractiveCommandRunner
         $this->createEndMarker();
         $this->createErrMarker();
 
+        // reset flags and variables
         $this->initialWorkingDirectory = null;
+        $this->outputLines = [];
+        $this->exitCode = null;
+        $this->detectedMarker = null;
+        $this->errorWasTrapped = false;
+        $this->errorTrapStatus = false;
     }
 
     /**
      * Execute command on connection, using end and error markers. This method
      * is used in the decorator chain. It should only be used for the main
      * command (the one user wants to run) and shouldn't be used for
-     * auxiliary / intermediate commands.
+     * auxiliary / intermediate commands pre/app-pended by the command runner
+     * itself.
      *
      * @param SSHCommandInterface $command
      */
@@ -73,9 +83,12 @@ class InteractiveCommandRunner
     {
         $this->enableMarkers();
 
-        $this->getConnection()->execInteractive($command);
+        $this->executeOnConnection($command);
 
         $this->disableMarkers();
+
+        // Prepare the output before running decorators' closing methods.
+        $this->analyzeOutput();
     }
 
     /**
@@ -89,26 +102,100 @@ class InteractiveCommandRunner
     }
 
     /**
-     * Find out the exit code and output lines produced by the command and save
-     * them in the result object.
+     * Execute auxiliary commands before and after the main one.
      *
-     * @param SSHCommandInterface       $command
-     * @param SSHCommandResultInterface $result
+     * @param string $command
+     * @param array  $options
+     *
+     * @return array
      */
-    public function recordCommandResults(
-        SSHCommandInterface $command,
-        SSHCommandResultInterface $result
-    ): void {
-        $outputLines = $this->getStdOutLines($command);
-        $exitCode    = $this->readCommandExitCode($outputLines);
+    protected function executeIntermediateCommand(
+        string $command,
+        array $options = []
+    ): array {
+        $defaultOptions = ['timeout' => 1, 'timelimit' => 1];
+        $options        = array_merge($defaultOptions, $options);
 
-        $result->setOutput($outputLines)
-               ->setErrorOutput($this->getStdErrLines($command))
-               ->setExitCode($exitCode);
+        $command = new SSHCommand($command, $options);
+
+        // intermediate commands run without marker
+        $this->disableMarkers();
+
+        $this->executeOnConnection($command);
+        // if we hit timelimit, cancel the command
+        if ($this->getConnection()->isTimeoutOrTimelimit()) {
+            $this->getConnection()->terminateCommand();
+        }
+
+        return $this->getConnection()->getStdOutLines();
+    }
+
+    /**
+     * Populate $this->outputLines array. Extract necessary information from the
+     * command output, like exit code and detected marker. Remove the line with
+     * the marker from the output, since user is not interested in it.
+     *
+     * @return void
+     */
+    protected function analyzeOutput(): void
+    {
+        $this->outputLines = $this->getConnection()->getStdOutLines();
+
+        if (
+            empty($this->endMarker) ||
+            empty($this->errMarker) ||
+            !count($this->outputLines)
+        ) {
+            return;
+        }
+
+        foreach ($this->outputLines as $i => $line) {
+            if ($found = $this->readMarker($line)) {
+                // remove this line from the output
+                unset($this->outputLines[$i]);
+
+                // set the exit code
+                $this->exitCode = $found['code'];
+                $this->detectedMarker = $found['marker'];
+
+                // if it's a trapped error, set the flag
+                if ($this->getErrMarker() === $found['marker']) {
+                    $this->errorWasTrapped = true;
+                }
+
+                break;
+            }
+        }
+    }
+
+    /**
+     * Read a line of output and see if it contains a marker with an exit code,
+     * if so, return them.
+     *
+     * @param string $line
+     *
+     * @return null|array
+     */
+    protected function readMarker(string $line): ?array
+    {
+        $regex   = $this->getEndMarkerRegex();
+        $matches = [];
+
+        preg_match_all($regex, $line, $matches);
+
+        if (!empty($matches[0])) {
+            return [
+                'code'   => $matches['CODE'][0],
+                'marker' => $matches['MARKER'][0],
+            ];
+        }
+
+        return null;
     }
 
     /**
      * In the interactive mode, we read the exit code directly from the output.
+     * This processing happens in the analyzeOutput method.
      *
      * @param SSHCommandInterface $command
      *
@@ -116,13 +203,13 @@ class InteractiveCommandRunner
      */
     public function getLastExitCode(SSHCommandInterface $command): ?int
     {
-        $outputLines = $this->getStdOutLines($command);
-
-        return $this->readCommandExitCode($outputLines);
+        return $this->exitCode;
     }
 
     /**
-     * Get the output lines produced by the command.
+     * Get the output lines produced by the command, after any processing
+     * has been done by the analyzeOutput method.
+     *
      *
      * @param SSHCommandInterface $command
      *
@@ -130,7 +217,7 @@ class InteractiveCommandRunner
      */
     public function getStdOutLines(SSHCommandInterface $command): array
     {
-        return $this->getConnection()->getStdOutLines();
+        return $this->outputLines;
     }
 
     /**
@@ -143,8 +230,8 @@ class InteractiveCommandRunner
      */
     public function getStdErrLines(SSHCommandInterface $command): array
     {
-        // The interactive runner can't afford the luxury of having the separate
-        // error stream
+        // The interactive runner doesn't enjoy the luxury of a separate error
+        // stream
         return [];
     }
 
@@ -199,11 +286,35 @@ class InteractiveCommandRunner
     }
 
     /**
+     * Enable the SSHConnection to look for markers in the command output by
+     * telling it which regular expression to use. SSHConnection will stop
+     * reading when it detects any of the markers.
+     *
+     * @return void
+     */
+    protected function enableMarkers(): void
+    {
+        $this->getConnection()->setMarkerRegex($this->getEndMarkerRegex());
+    }
+
+    /**
+     * Tell the SSHConnection not to look for any markers in the output. It will
+     * rely on reading the command prompt, using the 'prompt_regex' config value.
+     *
+     * @return void
+     */
+    protected function disableMarkers(): void
+    {
+        $this->getConnection()->resetMarkers();
+    }
+
+    /**
      * Get the echo command that will be appended at the end of user's command
      * and will echo the 'end marker'. SSHConnection will expect to see this
      * marker in the output to understand that user's command has finished
      * running, and stop reading further. In this output, we'll also capture the
-     * exit code of the last command in user's input.
+     * exit code of the last command in user's input, to compensate for inability
+     * to get exit codes from phpseclib during an interactive shell session.
      *
      * @return string
      */
@@ -265,49 +376,10 @@ class InteractiveCommandRunner
     protected function getEndMarkerRegex(): ?string
     {
         return sprintf(
-            '/(\d+):(%s|%s)/',
+            '/(?<CODE>\d+):(?<MARKER>%s|%s)/',
             $this->getEndMarker(),
             $this->getErrMarker()
         );
-    }
-
-    /**
-     * Try to find our end command marker in command result and detect the
-     * last command exit code.
-     *
-     * @param array $outputLines
-     *
-     * @return int
-     */
-    protected function readCommandExitCode(array &$outputLines = []): ?int
-    {
-        if (
-            empty($this->endMarker) ||
-            empty($this->errMarker) ||
-            !count($outputLines)
-        ) {
-            // we won't be able to read the code
-            return null;
-        }
-
-        $regex   = $this->getEndMarkerRegex();
-        $matches = [];
-
-        foreach ($outputLines as $i => $line) {
-            preg_match_all($regex, $line, $matches);
-
-            // TODO use named capturing groups instead of 1 and 2
-            if (!empty($matches[0])) {
-                // remove that line from the output
-                unset($outputLines[$i]);
-
-                // return the exit code
-                return (int)$matches[1][0];
-            }
-        }
-
-        // we were unable to read the exit code
-        return null;
     }
 
     /**
@@ -318,8 +390,6 @@ class InteractiveCommandRunner
      * This function is called by CRErrorHandlerDecorator.
      *
      * @param SSHCommandInterface $command
-     *
-     * @throws CommandRunException
      *
      * @noinspection PhpUnused
      */
@@ -336,8 +406,6 @@ class InteractiveCommandRunner
      * Remove the previously set error trap.
      *
      * This function is called by CRErrorHandlerDecorator.
-     *
-     * @throws CommandRunException
      *
      * @noinspection PhpUnused
      */
@@ -493,56 +561,18 @@ class InteractiveCommandRunner
     }
 
     /**
-     * Execute auxiliary commands before and after the main one.
+     * After running the main command, we need to see if an error was trapped.
+     * If it is so, it means that the SSH connection has been reset and the
+     * channel contains an extra output we'll need to clean up.
      *
-     * @param string $command
-     * @param array  $options
+     * This function is called by the CRCleanupDecorator in the decorator chain.
      *
-     * @return array
+     * @noinspection PhpUnused
      */
-    protected function executeIntermediateCommand(
-        string $command,
-        array $options = []
-    ): array {
-        // by default, intermediate commands run with a strict time limit policy
-        $defaultOptions = [
-            'timeout'            => 1,
-            'timelimit'          => 1,
-            'timelimit_behavior' => SSHConfig::SIGNAL_TERMINATE,
-        ];
-        $options        = array_merge($defaultOptions, $options);
-
-        $command = new SSHCommand($command, $options);
-
-        // intermediate commands run without marker
-        $this->disableMarkers();
-
-        $this->executeOnConnection($command);
-
-        return $this->getStdOutLines($command);
-    }
-
-    /**
-     * Enable the SSHConnection to look for markers in the command output by
-     * telling it which regular expression to use.
-     */
-    protected function enableMarkers(): void
+    public function cleanupAfterCommand(): void
     {
-        $this->getConnection()->setMarkerRegex($this->getEndMarkerRegex());
-    }
-
-    /**
-     * Tell the SSHConnection not to look for any markers in the output. It will
-     * rely on reading the command prompt, using the 'prompt_regex' config value.
-     */
-    protected function disableMarkers(): void
-    {
-        $this->getConnection()->resetMarkers();
-    }
-
-    /** @noinspection PhpUnused */
-    public function cleanupPreCommand()
-    {
-        $this->getConnection()->cleanCommandBuffer();
+        if ($this->errorWasTrapped) {
+            $this->getConnection()->cleanCommandBuffer();
+        }
     }
 }

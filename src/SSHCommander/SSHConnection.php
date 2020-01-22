@@ -477,7 +477,7 @@ class SSHConnection implements
 
             $output .= $str;
 
-            if ($this->exceedsTimeLimit()) {
+            if ($this->exceedsTimelimit()) {
                 $this->isTimelimit = true;
                 break;
             }
@@ -504,7 +504,7 @@ class SSHConnection implements
      *
      * @return bool
      */
-    protected function exceedsTimeLimit(): bool
+    protected function exceedsTimelimit(): bool
     {
         // see if we really need to force the timeout
         if (!$timelimit = $this->getConfig('timelimit')) {
@@ -626,6 +626,22 @@ class SSHConnection implements
         $this->debug('WRITE: ' . Utils::oneLine($chars));
 
         return $this->sshWrite($chars);
+    }
+
+    /**
+     * Send the terminate signal (CTRL+C) to the shell.
+     */
+    public function terminateCommand(): void
+    {
+        $this->write(SSHConfig::SIGNAL_TERMINATE);
+    }
+
+    /**
+     * Send the 'suspend in background' signal (CTRL+Z) to the shell.
+     */
+    public function suspendCommand(): void
+    {
+        $this->write(SSHConfig::SIGNAL_BACKGROUND_SUSPEND);
     }
 
     /**
@@ -929,5 +945,16 @@ class SSHConnection implements
     public function isTimelimit(): bool
     {
         return $this->isTimelimit;
+    }
+
+    /**
+     * Check if either timeout or timelimit condition has been reached while
+     * running this command.
+     *
+     * @return bool
+     */
+    public function isTimeoutOrTimelimit(): bool
+    {
+        return $this->isTimeout() || $this->isTimelimit();
     }
 }
