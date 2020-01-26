@@ -6,9 +6,7 @@ use Neskodi\SSHCommander\Interfaces\SSHCommanderInterface;
 use Neskodi\SSHCommander\Tests\IntegrationTestCase;
 use Neskodi\SSHCommander\SSHCommander;
 use Neskodi\SSHCommander\Traits\Timer;
-use Neskodi\SSHCommander\SSHConfig;
 use Monolog\Handler\TestHandler;
-use Psr\Log\LogLevel;
 use RuntimeException;
 
 class ConfigurationTest extends IntegrationTestCase
@@ -33,8 +31,7 @@ class ConfigurationTest extends IntegrationTestCase
         $config = array_merge($this->sshOptions, [
             'key' => file_get_contents($this->sshOptions['keyfile']),
         ]);
-        $logger = $this->getTestableLogger(LogLevel::DEBUG);
-
+        $logger = $this->createTestLogger();
         $commander = new SSHCommander($config, $logger);
 
         $result = $commander->run('pwd');
@@ -68,9 +65,7 @@ class ConfigurationTest extends IntegrationTestCase
         }
 
         $config = array_merge($this->sshOptions, ['key' => null]);
-
-        $logger = $this->getTestableLogger(LogLevel::DEBUG);
-
+        $logger = $this->createTestLogger();
         $commander = new SSHCommander($config, $logger);
 
         $result = $commander->run('pwd');
@@ -106,9 +101,7 @@ class ConfigurationTest extends IntegrationTestCase
             'key'     => null,
             'keyfile' => null,
         ]);
-
-        $logger = $this->getTestableLogger(LogLevel::DEBUG);
-
+        $logger = $this->createTestLogger();
         $commander = new SSHCommander($config, $logger);
 
         $result = $commander->run('pwd');
@@ -135,95 +128,6 @@ class ConfigurationTest extends IntegrationTestCase
         ));
     }
 
-    /***** TIMEOUT TESTS *****/
-
-    public function testCommandTimeoutFromGlobalConfig(): void
-    {
-        $timeoutValue = 2;
-
-        $config = array_merge(
-            $this->sshOptions,
-            [
-                'timelimit'          => $timeoutValue,
-                'timelimit_behavior' => SSHConfig::SIGNAL_TERMINATE,
-            ]
-        );
-
-        $commander = $this->getSSHCommander($config);
-        $this->assertTrue($commander->getConnection()->isAuthenticated());
-
-        $result = $commander->run('ping 127.0.0.1');
-
-        $this->assertEquals($timeoutValue, (int)$result->getCommandElapsedTime());
-    }
-
-    public function testCommandTimeoutInCommandConfig(): void
-    {
-        $timeoutValue  = 2;
-        $timeoutConfig = [
-            'timelimit'          => $timeoutValue,
-            'timelimit_behavior' => SSHConfig::SIGNAL_TERMINATE,
-        ];
-
-        $commander = $this->getSSHCommander($this->sshOptions);
-        $this->assertTrue($commander->getConnection()->isAuthenticated());
-
-        $result = $commander->run('ping 127.0.0.1', $timeoutConfig);
-
-        $this->assertEquals($timeoutValue, (int)$result->getCommandElapsedTime());
-    }
-
-    /***** BASEDIR TESTS *****/
-
-    public function testBasedirFromGlobalConfig(): void
-    {
-        try {
-            $this->requireUser();
-            $this->requireAuthCredential();
-        } catch (RuntimeException $e) {
-            $this->markTestSkipped($e->getMessage());
-        }
-
-        $basedir = '/usr';
-        $tested  = ['basedir' => $basedir];
-        $config  = array_merge($this->sshOptions, $tested);
-
-        // check that basedir picked for this test differs from default
-        $defaultConfig = $this->getTestConfigAsArray();
-        $this->assertNotEquals($defaultConfig['basedir'], $basedir);
-
-        $commander = $this->getSSHCommander($config);
-
-        $outputLines = $commander->run('pwd')->getOutput();
-
-        $this->assertContains($basedir, $outputLines);
-    }
-
-    public function testBasedirInCommandConfig(): void
-    {
-        try {
-            $this->requireUser();
-            $this->requireAuthCredential();
-        } catch (RuntimeException $e) {
-            $this->markTestSkipped($e->getMessage());
-        }
-
-        $basedir = '/usr';
-        $tested  = ['basedir' => $basedir];
-
-        // check that basedir picked for this test differs from default
-        $defaultConfig = $this->getTestConfigAsArray();
-        $this->assertNotEquals($defaultConfig['basedir'], $basedir);
-
-        $commander = $this->getSSHCommander($this->sshOptions);
-
-        $outputLines = $commander->run('pwd', $tested)->getOutput();
-
-        $this->assertContains($basedir, $outputLines);
-    }
-
-
-    /***** END CONFIG VALUE TESTS *****/
 
     /**
      * Run the command and return an array of output lines.
