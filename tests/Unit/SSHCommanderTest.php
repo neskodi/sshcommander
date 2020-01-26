@@ -19,7 +19,6 @@ use Neskodi\SSHCommander\SSHCommand;
 use Neskodi\SSHCommander\SSHConfig;
 use Neskodi\SSHCommander\Utils;
 use Psr\Log\LoggerInterface;
-use Psr\Log\LogLevel;
 use stdClass;
 
 class SSHCommanderTest extends TestCase
@@ -44,7 +43,7 @@ class SSHCommanderTest extends TestCase
     public function testConstructorWithLogger(): void
     {
         $config = $this->getTestConfigAsArray();
-        $logger = $this->getTestableLogger(LogLevel::DEBUG);
+        $logger = $this->createTestLogger();
 
         $commander = new SSHCommander($config, $logger);
 

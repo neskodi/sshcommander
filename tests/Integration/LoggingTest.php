@@ -120,7 +120,7 @@ class LoggingTest extends IntegrationTestCase
             : $this->getUnsuccessfulCommand();
 
         // get a fresh logger instance for each command
-        $this->getCommander()->setLogger($this->getTestableLogger($level));
+        $this->getCommander()->setLogger($this->createTestLogger($level));
 
         // run the command to collect log output
         $method = $isolated ? 'runIsolated' : 'run';
@@ -243,10 +243,9 @@ class LoggingTest extends IntegrationTestCase
             ['user' => '****']
         );
 
-        $logger    = $this->getTestableLogger($level);
-        $commander = new SSHCommander($options, $logger);
+        $logger    = $this->createTestLogger($level);
 
-        return $commander;
+        return new SSHCommander($options, $logger);
     }
 
     public function testCommandOutputIsLoggedOnDebugLevel(): void
@@ -325,7 +324,7 @@ class LoggingTest extends IntegrationTestCase
     {
         $level = LogLevel::INFO;
 
-        $logger    = $this->getTestableLogger($level);
+        $logger    = $this->createTestLogger($level);
         $commander = new SSHCommander($this->sshOptions, $logger);
         $handler   = $commander->getLogger()->popHandler();
 
@@ -341,7 +340,7 @@ class LoggingTest extends IntegrationTestCase
     {
         $level = LogLevel::NOTICE;
 
-        $logger    = $this->getTestableLogger($level);
+        $logger    = $this->createTestLogger($level);
         $commander = new SSHCommander($this->sshOptions, $logger);
         $handler   = $commander->getLogger()->popHandler();
 
@@ -476,7 +475,7 @@ class LoggingTest extends IntegrationTestCase
             ['user' => '****']
         );
 
-        $logger             = $this->getTestableLogger($level);
+        $logger             = $this->createTestLogger($level);
         $exceptionWasThrown = false;
 
         try {
@@ -505,7 +504,7 @@ class LoggingTest extends IntegrationTestCase
             ['user' => '****']
         );
 
-        $logger             = $this->getTestableLogger($level);
+        $logger             = $this->createTestLogger($level);
         $exceptionWasThrown = false;
 
         try {

@@ -31,7 +31,7 @@ class SSHConnectionTest extends TestCase
     public function testConstructor(): void
     {
         $config = $this->getTestConfigAsObject();
-        $logger = $this->getTestableLogger(LogLevel::DEBUG);
+        $logger = $this->createTestLogger();
 
         $connection = new SSHConnection($config, $logger);
 
@@ -353,7 +353,7 @@ class SSHConnectionTest extends TestCase
             $config
         );
 
-        $logger = $this->getTestableLogger(LogLevel::DEBUG);
+        $logger = $this->createTestLogger();
 
         MockSSHConnection::expect(MockSSHConnection::RESULT_SUCCESS);
         $connection = new MockSSHConnection($config, $logger);
@@ -376,7 +376,7 @@ class SSHConnectionTest extends TestCase
             $config
         );
 
-        $logger = $this->getTestableLogger(LogLevel::DEBUG);
+        $logger = $this->createTestLogger();
 
         $connection = new MockSSHConnection($config, $logger);
 
@@ -401,7 +401,7 @@ class SSHConnectionTest extends TestCase
             $config
         );
 
-        $logger = $this->getTestableLogger(LogLevel::DEBUG);
+        $logger = $this->createTestLogger();
 
         $connection = new MockSSHConnection($config, $logger);
 
