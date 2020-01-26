@@ -275,7 +275,7 @@ class SSHConnectionTest extends TestCase
         $this->assertIsInt($connection->getLastExitCode());
     }
 
-    public function testResetOutput(): void
+    public function testresetResults(): void
     {
         $config = $this->getTestConfigAsObject(
             self::CONFIG_FULL,
@@ -295,7 +295,7 @@ class SSHConnectionTest extends TestCase
         $this->assertNotEmpty($connection->getStdOutLines());
         $this->assertNotEmpty($connection->getStdErrLines());
 
-        $connection->resetOutput();
+        $connection->resetResults();
 
         $this->assertNull($connection->getLastExitCode());
         $this->assertEmpty($connection->getStdOutLines());

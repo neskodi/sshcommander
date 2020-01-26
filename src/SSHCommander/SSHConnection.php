@@ -3,12 +3,12 @@
 namespace Neskodi\SSHCommander;
 
 use Neskodi\SSHCommander\Traits\SSHConnection\AuthenticatesSSH2;
+use Neskodi\SSHCommander\Traits\SSHConnection\InteractsWithSSH2;
 use Neskodi\SSHCommander\Traits\SSHConnection\ConfiguresSSH2;
 use Neskodi\SSHCommander\Exceptions\AuthenticationException;
 use Neskodi\SSHCommander\Interfaces\SSHConnectionInterface;
 use Neskodi\SSHCommander\Interfaces\ConfigAwareInterface;
 use Neskodi\SSHCommander\Interfaces\LoggerAwareInterface;
-use Neskodi\SSHCommander\Exceptions\CommandRunException;
 use Neskodi\SSHCommander\Interfaces\SSHCommandInterface;
 use Neskodi\SSHCommander\Interfaces\SSHConfigInterface;
 use Neskodi\SSHCommander\Interfaces\TimerInterface;
@@ -16,7 +16,6 @@ use Neskodi\SSHCommander\Traits\ConfigAware;
 use Neskodi\SSHCommander\Traits\Loggable;
 use Neskodi\SSHCommander\Traits\Timer;
 use Psr\Log\LoggerInterface;
-
 use phpseclib\Net\SSH2;
 
 class SSHConnection implements
@@ -26,7 +25,7 @@ class SSHConnection implements
     TimerInterface
 {
     use Loggable, Timer, ConfigAware;
-    use AuthenticatesSSH2, ConfiguresSSH2;
+    use AuthenticatesSSH2, ConfiguresSSH2, InteractsWithSSH2;
 
     /**
      * @var SSH2
@@ -139,16 +138,94 @@ class SSHConnection implements
     }
 
     /**
-     * Clear all accumulated results of previous command runs.
+     * Read the channel packets and build the output. Stop when we detect a
+     * marker or a prompt.
      *
-     * @return $this
+     * @return string
      */
-    public function resetResults(): SSHConnectionInterface
+    public function read(): string
     {
-        $this->resetOutput();
-        $this->resetTimeoutStatus();
+        $output = '';
 
-        return $this;
+        $this->startTimer();
+
+        while ($str = $this->sshRead('', SSH2::READ_NEXT)) {
+            if (is_bool($str)) {
+                break;
+            }
+
+            $output .= $str;
+
+            if ($this->exceedsTimelimit()) {
+                $this->isTimelimit = true;
+                break;
+            }
+
+            if ($this->hasMarker($output)) {
+                break;
+            }
+
+            if (!$this->usesMarkers() && $this->hasPrompt($output)) {
+                break;
+            }
+        }
+
+        $this->stopTimer();
+
+        $this->debug('READ: ' . Utils::oneLine($output));
+
+        return $output;
+    }
+
+    /**
+     * Write characters to SSH PTY (interactive shell).
+     *
+     * Characters will be written exactly as provided, nothing is added or
+     * altered. If you don't provide the "line feed", for example, command
+     * will sit there on the command line but won't be submitted.
+     *
+     * @param string $chars
+     *
+     * @return bool
+     */
+    public function write(string $chars)
+    {
+        $this->debug('WRITE: ' . Utils::oneLine($chars));
+
+        return $this->sshWrite($chars);
+    }
+
+    /**
+     * Write a sequence of characters into the command line and submit them for
+     * execution by appending a line feed "\n" at the end (if not already there)
+     *
+     * @param string $chars
+     *
+     * @return bool
+     */
+    public function writeAndSend(string $chars)
+    {
+        if ("\n" !== substr($chars, -1)) {
+            $chars .= "\n";
+        }
+
+        return $this->write($chars);
+    }
+
+    /**
+     * Send the terminate signal (CTRL+C) to the shell.
+     */
+    public function terminateCommand(): void
+    {
+        $this->write(SSHConfig::SIGNAL_TERMINATE);
+    }
+
+    /**
+     * Send the 'suspend in background' signal (CTRL+Z) to the shell.
+     */
+    public function suspendCommand(): void
+    {
+        $this->write(SSHConfig::SIGNAL_BACKGROUND_SUSPEND);
     }
 
     /**
@@ -292,46 +369,6 @@ class SSHConnection implements
     }
 
     /**
-     * Read the channel packets and build the output. Stop when we detect a
-     * marker or a prompt.
-     *
-     * @return string
-     */
-    public function read(): string
-    {
-        $output = '';
-
-        $this->startTimer();
-
-        while ($str = $this->sshRead('', SSH2::READ_NEXT)) {
-            if (is_bool($str)) {
-                break;
-            }
-
-            $output .= $str;
-
-            if ($this->exceedsTimelimit()) {
-                $this->isTimelimit = true;
-                break;
-            }
-
-            if ($this->hasMarker($output)) {
-                break;
-            }
-
-            if (!$this->usesMarkers() && $this->hasPrompt($output)) {
-                break;
-            }
-        }
-
-        $this->stopTimer();
-
-        $this->debug('READ: ' . Utils::oneLine($output));
-
-        return $output;
-    }
-
-    /**
      * If user has decided to force the timeout via the 'timelimit' config
      * option, and we have already exceeded this timeout, return true.
      *
@@ -448,125 +485,6 @@ class SSHConnection implements
     }
 
     /**
-     * Write characters to SSH PTY (interactive shell).
-     *
-     * Characters will be written exactly as provided, nothing is added or
-     * altered. If you don't provide the "line feed", for example, command
-     * will sit there on the command line but won't be submitted.
-     *
-     * @param string $chars
-     *
-     * @return bool
-     */
-    public function write(string $chars)
-    {
-        $this->debug('WRITE: ' . Utils::oneLine($chars));
-
-        return $this->sshWrite($chars);
-    }
-
-    /**
-     * Send the terminate signal (CTRL+C) to the shell.
-     */
-    public function terminateCommand(): void
-    {
-        $this->write(SSHConfig::SIGNAL_TERMINATE);
-    }
-
-    /**
-     * Send the 'suspend in background' signal (CTRL+Z) to the shell.
-     */
-    public function suspendCommand(): void
-    {
-        $this->write(SSHConfig::SIGNAL_BACKGROUND_SUSPEND);
-    }
-
-    /**
-     * Tell phpseclib to write the characters to the channel. Handle errors
-     * thrown by phpseclib on our side.
-     *
-     * @param string $chars
-     *
-     * @return bool
-     */
-    protected function sshWrite(string $chars)
-    {
-        set_error_handler([$this, 'handleSSH2Error']);
-
-        $result = $this->getSSH2()->write($chars);
-
-        restore_error_handler();
-
-        return $result;
-    }
-
-    /**
-     * Tell phpseclib to read packets from the channel and pass through the
-     * result.
-     *
-     * @param string $chars
-     * @param int    $mode
-     *
-     * @return bool|string
-     */
-    protected function sshRead(string $chars, int $mode)
-    {
-        set_error_handler([$this, 'handleSSH2Error']);
-
-        $result = $this->getSSH2()->read($chars, $mode);
-
-        restore_error_handler();
-
-        return $result;
-    }
-
-    /**
-     * Write a sequence of characters into the command line and submit them for
-     * execution by appending a line feed "\n" at the end (if not already there)
-     *
-     * @param string $chars
-     *
-     * @return bool
-     */
-    public function writeAndSend(string $chars)
-    {
-        if ("\n" !== substr($chars, -1)) {
-            $chars .= "\n";
-        }
-
-        return $this->write($chars);
-    }
-
-    /**
-     * Execute the command via phpseclib and collect the returned lines
-     * into an array.
-     *
-     * @param SSHCommandInterface $command
-     */
-    protected function sshExec(SSHCommandInterface $command): void
-    {
-        set_error_handler([$this, 'handleSSH2Error']);
-
-        $ssh = $this->getSSH2();
-
-        $ssh->exec((string)$command, function ($str) use ($command) {
-            $this->stdoutLines = array_merge(
-                $this->stdoutLines,
-                $this->processOutput($command, $str)
-            );
-        });
-
-        // don't forget to collect the error stream too
-        if ($command->getConfig('separate_stderr')) {
-            $this->stderrLines = $this->processOutput($command, $ssh->getStdError());
-        }
-
-        $this->lastExitCode = $ssh->getExitStatus();
-
-        restore_error_handler();
-    }
-
-    /**
      * Process an intermediate sequence of output characters before merging it
      * with the main array of output lines.
      *
@@ -640,18 +558,16 @@ class SSHConnection implements
     }
 
     /**
-     * Phpseclib throws errors using user_error(). We will intercept this by
-     * using our own error handler function that will throw a
-     * CommandRunException.
+     * Clear all accumulated results of previous command runs.
      *
-     * @param $errno
-     * @param $errstr
-     *
-     * @throws CommandRunException
+     * @return $this
      */
-    protected function handleSSH2Error($errno, $errstr)
+    public function resetResults(): SSHConnectionInterface
     {
-        throw new CommandRunException("$errno:$errstr");
+        $this->resetOutput();
+        $this->resetTimeoutStatus();
+
+        return $this;
     }
 
     /**
@@ -659,7 +575,7 @@ class SSHConnection implements
      *
      * @return $this
      */
-    public function resetOutput(): SSHConnectionInterface
+    protected function resetOutput(): SSHConnectionInterface
     {
         $this->stdoutLines  = $this->stderrLines = [];
         $this->lastExitCode = null;
@@ -672,7 +588,7 @@ class SSHConnection implements
      *
      * @return $this
      */
-    public function resetTimeoutStatus(): SSHConnectionInterface
+    protected function resetTimeoutStatus(): SSHConnectionInterface
     {
         $this->isTimeout   = false;
         $this->isTimelimit = false;
