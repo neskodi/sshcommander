@@ -28,10 +28,6 @@ class CRConnectionDecorator
              ->prepareConnection($command);
 
         $this->runner->execDecorated($command);
-
-        // reset connection to the default configuration, such as default
-        // timeout and quiet mode
-        $this->resetConnection();
     }
 
     /**
@@ -90,14 +86,5 @@ class CRConnectionDecorator
         $connection->setTimeout($command->getConfig('timeout_command'));
 
         return $this;
-    }
-
-    /**
-     * Reset connection to the default configuration, such as default
-     * timeout and quiet mode.
-     */
-    protected function resetConnection(): void
-    {
-        $this->getConnection()->resetCommandConfig();
     }
 }

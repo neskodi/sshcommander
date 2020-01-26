@@ -38,19 +38,12 @@ class SSHCommanderTest extends IntegrationTestCase
         $commander->run('pwd');
     }
 
-    public function testFailedCommandIsProperlyReported(): void
+    public function testFailedCommandIsReflectedInResult(): void
     {
-        try {
-            $this->requireUser();
-            $this->requireAuthCredential();
-        } catch (RuntimeException $e) {
-            $this->markTestSkipped($e->getMessage());
-        }
-
         $config = $this->sshOptions;
         $config['break_on_error'] = false;
 
-        $commander  = new SSHCommander($config);
+        $commander = new SSHCommander($config);
 
         $result    = $commander->run('cd /no/such/dir');
 
@@ -60,13 +53,6 @@ class SSHCommanderTest extends IntegrationTestCase
 
     public function testIsolatedCommandRun(): void
     {
-        try {
-            $this->requireUser();
-            $this->requireAuthCredential();
-        } catch (RuntimeException $e) {
-            $this->markTestSkipped($e->getMessage());
-        }
-
         $commander = new SSHCommander($this->sshOptions);
 
         $result = $commander->runIsolated('echo AAA');
@@ -77,13 +63,6 @@ class SSHCommanderTest extends IntegrationTestCase
 
     public function testInteractiveCommandRun(): void
     {
-        try {
-            $this->requireUser();
-            $this->requireAuthCredential();
-        } catch (RuntimeException $e) {
-            $this->markTestSkipped($e->getMessage());
-        }
-
         $commander = new SSHCommander($this->sshOptions);
 
         $commander->run('cd /tmp');
@@ -95,13 +74,6 @@ class SSHCommanderTest extends IntegrationTestCase
 
     public function testMultiCommandCanBeProvidedAsString(): void
     {
-        try {
-            $this->requireUser();
-            $this->requireAuthCredential();
-        } catch (RuntimeException $e) {
-            $this->markTestSkipped($e->getMessage());
-        }
-
         $commander = new SSHCommander($this->sshOptions);
 
         $basedir = '/tmp';
@@ -113,13 +85,6 @@ class SSHCommanderTest extends IntegrationTestCase
 
     public function testMultiCommandCanBeProvidedAsArray(): void
     {
-        try {
-            $this->requireUser();
-            $this->requireAuthCredential();
-        } catch (RuntimeException $e) {
-            $this->markTestSkipped($e->getMessage());
-        }
-
         $commander = new SSHCommander($this->sshOptions);
 
         $basedir = '/tmp';
