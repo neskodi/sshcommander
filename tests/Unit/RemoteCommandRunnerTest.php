@@ -13,14 +13,13 @@ use Neskodi\SSHCommander\Tests\TestCase;
 use Neskodi\SSHCommander\SSHConnection;
 use Neskodi\SSHCommander\SSHCommand;
 use Psr\Log\LoggerInterface;
-use Psr\Log\LogLevel;
 
 class RemoteCommandRunnerTest extends TestCase
 {
     public function testConstructor(): void
     {
         $config = $this->getTestConfigAsObject();
-        $logger = $this->getTestableLogger(LogLevel::DEBUG);
+        $logger = $this->createTestLogger();
 
         $runner = new IsolatedCommandRunner($config, $logger);
 
@@ -38,7 +37,7 @@ class RemoteCommandRunnerTest extends TestCase
             ]
         );
 
-        $logger     = $this->getTestableLogger(LogLevel::DEBUG);
+        $logger     = $this->createTestLogger();
         $connection = new SSHConnection($config);
 
         $runner = new IsolatedCommandRunner($config, $logger);
@@ -63,7 +62,7 @@ class RemoteCommandRunnerTest extends TestCase
     public function testRunSuccess(): void
     {
         $config     = $this->getTestConfigAsObject();
-        $logger     = $this->getTestableLogger(LogLevel::DEBUG);
+        $logger     = $this->createTestLogger();
         $connection = $this->getMockConnection();
 
         $runner = new IsolatedCommandRunner($config, $logger);
@@ -81,7 +80,7 @@ class RemoteCommandRunnerTest extends TestCase
             self::CONFIG_FULL,
             ['autologin' => true]
         );
-        $logger     = $this->getTestableLogger(LogLevel::DEBUG);
+        $logger     = $this->createTestLogger();
 
         // expect success for authentication
         MockSSHConnection::expect(MockSSHConnection::RESULT_SUCCESS);

@@ -323,7 +323,7 @@ class SSHCommandResult implements
             $this->notice(
                 sprintf('Command returned error code: %d', $code)
             );
-        } else {
+        } elseif ($this->isOk()) {
             // success is logged on the debug level only
             $this->debug(
                 sprintf(

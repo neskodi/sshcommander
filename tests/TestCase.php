@@ -4,7 +4,6 @@
 
 namespace Neskodi\SSHCommander\Tests;
 
-use Monolog\Handler\HandlerInterface;
 use Neskodi\SSHCommander\Interfaces\SSHConnectionInterface;
 use Neskodi\SSHCommander\Interfaces\SSHCommanderInterface;
 use Neskodi\SSHCommander\Interfaces\SSHConfigInterface;
@@ -13,6 +12,7 @@ use PHPUnit\Framework\TestCase as PHPUnitTestCase;
 use Neskodi\SSHCommander\Factories\LoggerFactory;
 use Monolog\Processor\PsrLogMessageProcessor;
 use Neskodi\SSHCommander\SSHCommander;
+use Monolog\Handler\HandlerInterface;
 use Monolog\Formatter\LineFormatter;
 use Neskodi\SSHCommander\SSHConfig;
 use Monolog\Handler\StreamHandler;
@@ -176,60 +176,11 @@ class TestCase extends PHPUnitTestCase
         }
     }
 
-    /**
-     * Get an instance of logger with specific logging level. The logger will
-     * have testHandler attached, which will let us inspect log records
-     * programmatically in tests.
-     *
-     * @param string $level
-     *
-     * @return LoggerInterface
-     * @throws Exception
-     */
-    protected function getTestableLogger(string $level): LoggerInterface
-    {
-        $logger = $this->createDebugLogger();
-
-        $this->addTestHandler($logger, $level);
-
-        return $logger;
-    }
-
-    /**
-     * Add handler that will log our test runs into a separate file specified in
-     * testconfig.php
-     *
-     * @param LoggerInterface $logger
-     */
-    protected function addDebugLogHandler(LoggerInterface $logger): void
-    {
-        if ($debugLogFileHandler = $this->getDebugLogFileHandler()) {
-            $logger->pushHandler($debugLogFileHandler);
-        }
-    }
-
-    /**
-     * Add the test handler that we later can inspect for log records.
-     *
-     * @param LoggerInterface $logger
-     * @param string          $level
-     */
-    protected function addTestHandler(LoggerInterface $logger, string $level): void
-    {
-        $handler = new TestHandler($level);
-        $handler->setFormatter(
-            LoggerFactory::getStreamLineFormatter(
-                $this->getTestConfigAsObject()
-            )
-        );
-        $logger->pushHandler($handler);
-    }
-
     protected function getMockConnection(
         ?SSHConfigInterface $config = null
     ): SSHConnectionInterface {
         $config = $config ?? $this->getTestConfigAsObject();
-        $logger = $this->getTestableLogger(LogLevel::DEBUG);
+        $logger = $this->createTestLogger();
 
         return new MockSSHConnection($config, $logger);
     }
@@ -324,8 +275,25 @@ class TestCase extends PHPUnitTestCase
         ];
     }
 
-    protected function getDebugLogFileHandler(): ?HandlerInterface
-    {
+    /**
+     * Add handler that will log our test runs into a separate file specified in
+     * testconfig.php
+     *
+     * @param LoggerInterface $logger
+     * @param string          $level
+     */
+    protected function addDebugLogHandler(
+        LoggerInterface $logger,
+        string $level = LogLevel::DEBUG
+    ): void {
+        if ($debugLogFileHandler = $this->getDebugLogFileHandler($level)) {
+            $logger->pushHandler($debugLogFileHandler);
+        }
+    }
+
+    protected function getDebugLogFileHandler(
+        string $level = LogLevel::DEBUG
+    ): ?HandlerInterface {
         if (!$this->enableDebugLog) {
             return null;
         }
@@ -334,10 +302,28 @@ class TestCase extends PHPUnitTestCase
             return null;
         }
 
-        $logLevel = LogLevel::DEBUG;
         $formatter = new LineFormatter('[%datetime%] %channel%.%level_name%: %message%' . PHP_EOL);
 
-        return (new StreamHandler($file, $logLevel))->setFormatter($formatter);
+        return (new StreamHandler($file, $level))->setFormatter($formatter);
+    }
+
+    /**
+     * Add the test handler that we later can inspect for log records.
+     *
+     * @param LoggerInterface $logger
+     * @param string          $level
+     */
+    protected function addTestHandler(
+        LoggerInterface $logger,
+        string $level = LogLevel::DEBUG
+    ): void {
+        $handler = new TestHandler($level);
+        $handler->setFormatter(
+            LoggerFactory::getStreamLineFormatter(
+                $this->getTestConfigAsObject()
+            )
+        );
+        $logger->pushHandler($handler);
     }
 
     protected function getTestConfigWritableLogFile(): ?string
@@ -352,18 +338,36 @@ class TestCase extends PHPUnitTestCase
         $this->enableDebugLog = true;
     }
 
-    protected function createDebugLogger(): LoggerInterface
+    /**
+     * Create a logger that has a TestHandler (that we can inspect for records)
+     * and also (optionally, if enableDebugLog() was called) write the logs to
+     * the specified file (useful for debugging tests).
+     *
+     * @param string $level
+     *
+     * @return LoggerInterface
+     */
+    protected function createTestLogger(string $level = LogLevel::DEBUG): LoggerInterface
     {
         $logger = new Logger('test-ssh-commander-log');
         $logger->pushProcessor(new PsrLogMessageProcessor);
 
         $this->addDebugLogHandler($logger);
+        $this->addTestHandler($logger, $level);
 
         return $logger;
     }
 
+    /**
+     * Get an instance of SSHCommander armed with a test logger.
+     *
+     * @param $config
+     *
+     * @return SSHCommanderInterface
+     * @throws Exception
+     */
     protected function getSSHCommander($config): SSHCommanderInterface
     {
-        return new SSHCommander($config, $this->createDebugLogger());
+        return new SSHCommander($config, $this->createTestLogger());
     }
 }

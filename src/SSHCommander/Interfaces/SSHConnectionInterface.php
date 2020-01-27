@@ -16,9 +16,17 @@ interface SSHConnectionInterface
 
     public function authenticate(): bool;
 
+    public function getSSH2(): SSH2;
+
     public function setTimeout(int $timeout): SSHConnectionInterface;
 
-    public function getSSH2(): SSH2;
+    public function resetTimeout(): SSHConnectionInterface;
+
+    public function enableQuietMode(): SSHConnectionInterface;
+
+    public function resetQuietMode(): SSHConnectionInterface;
+
+    public function resetSSH2Configuration(): SSHConnectionInterface;
 
     public function execIsolated(SSHCommandInterface $command): SSHConnectionInterface;
 
@@ -46,17 +54,11 @@ interface SSHConnectionInterface
 
     public function isTimeoutOrTimelimit(): bool;
 
-    public function resetOutput(): SSHConnectionInterface;
-
-    public function resetCommandConfig(): SSHConnectionInterface;
-
-    public function resetTimeout(): SSHConnectionInterface;
-
-    public function resetQuietMode(): SSHConnectionInterface;
+    public function resetResults(): SSHConnectionInterface;
 
     public function setMarkerRegex(string $regex): SSHConnectionInterface;
 
-    public function resetMarkers(): void;
+    public function resetMarkers(): SSHConnectionInterface;
 
     public function terminateCommand(): void;
 

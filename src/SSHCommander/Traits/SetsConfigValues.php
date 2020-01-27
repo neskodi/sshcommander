@@ -2,6 +2,7 @@
 
 namespace Neskodi\SSHCommander\Traits;
 
+use Neskodi\SSHCommander\Exceptions\InvalidConfigValueException;
 use Neskodi\SSHCommander\SSHConfig;
 
 trait SetsConfigValues
@@ -18,6 +19,7 @@ trait SetsConfigValues
      * @param mixed $value
      *
      * @return $this
+     * @noinspection PhpUnused
      */
     public function breakOnError($value = SSHConfig::BREAK_ON_ERROR_ALWAYS)
     {
@@ -73,6 +75,25 @@ trait SetsConfigValues
         if (is_string($behavior) || is_null($behavior)) {
             $this->set('timelimit_behavior', $behavior);
         }
+
+        return $this;
+    }
+
+    /**
+     * Set the current working directory on the fly so that all commands running
+     * afterwards will use this directory.
+     *
+     * @param string $value
+     *
+     * @return $this
+     */
+    public function basedir(string $value)
+    {
+        if (empty($value)) {
+            throw new InvalidConfigValueException('Basedir cannot be empty');
+        }
+
+        $this->set('basedir', $value);
 
         return $this;
     }

@@ -2,9 +2,9 @@
 
 namespace Neskodi\SSHCommander;
 
+use Neskodi\SSHCommander\Exceptions\InvalidConfigValueException;
 use Neskodi\SSHCommander\Exceptions\ConfigFileMissingException;
 use Neskodi\SSHCommander\Exceptions\ConfigValidationException;
-use Neskodi\SSHCommander\Exceptions\InvalidConfigException;
 use Neskodi\SSHCommander\Traits\ValidatesConnectionInfo;
 use Neskodi\SSHCommander\Interfaces\SSHConfigInterface;
 use InvalidArgumentException;
@@ -417,7 +417,7 @@ class SSHConfig implements SSHConfigInterface
 
         if ($key = $this->getKey()) {
             if (!is_scalar($key)) {
-                throw new InvalidConfigException(sprintf(
+                throw new InvalidConfigValueException(sprintf(
                     'Invalid SSH key provided (string expected, got %s)',
                     gettype($key)
                 ));

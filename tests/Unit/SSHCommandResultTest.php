@@ -9,7 +9,6 @@ use Neskodi\SSHCommander\Interfaces\SSHCommandInterface;
 use Neskodi\SSHCommander\SSHCommandResult;
 use Neskodi\SSHCommander\Tests\TestCase;
 use Neskodi\SSHCommander\SSHCommand;
-use Psr\Log\LogLevel;
 
 class SSHCommandResultTest extends TestCase
 {
@@ -296,7 +295,7 @@ class SSHCommandResultTest extends TestCase
         $result->setOutput($output);
         $result->setErrorOutput($error);
 
-        $result->setLogger($this->getTestableLogger(LogLevel::DEBUG));
+        $result->setLogger($this->createTestLogger());
 
         $result->logResult();
         $handler = $result->getLogger()->popHandler();
@@ -315,7 +314,7 @@ class SSHCommandResultTest extends TestCase
         $result = $this->createCommandResult();
         $result->setOutput([]);
         $result->setExitCode(0);
-        $result->setLogger($this->getTestableLogger(LogLevel::DEBUG));
+        $result->setLogger($this->createTestLogger());
 
         $result->logResult();
         $handler = $result->getLogger()->popHandler();

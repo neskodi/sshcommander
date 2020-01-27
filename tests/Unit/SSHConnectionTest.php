@@ -31,7 +31,7 @@ class SSHConnectionTest extends TestCase
     public function testConstructor(): void
     {
         $config = $this->getTestConfigAsObject();
-        $logger = $this->getTestableLogger(LogLevel::DEBUG);
+        $logger = $this->createTestLogger();
 
         $connection = new SSHConnection($config, $logger);
 
@@ -275,7 +275,7 @@ class SSHConnectionTest extends TestCase
         $this->assertIsInt($connection->getLastExitCode());
     }
 
-    public function testResetOutput(): void
+    public function testresetResults(): void
     {
         $config = $this->getTestConfigAsObject(
             self::CONFIG_FULL,
@@ -295,7 +295,7 @@ class SSHConnectionTest extends TestCase
         $this->assertNotEmpty($connection->getStdOutLines());
         $this->assertNotEmpty($connection->getStdErrLines());
 
-        $connection->resetOutput();
+        $connection->resetResults();
 
         $this->assertNull($connection->getLastExitCode());
         $this->assertEmpty($connection->getStdOutLines());
@@ -353,7 +353,7 @@ class SSHConnectionTest extends TestCase
             $config
         );
 
-        $logger = $this->getTestableLogger(LogLevel::DEBUG);
+        $logger = $this->createTestLogger();
 
         MockSSHConnection::expect(MockSSHConnection::RESULT_SUCCESS);
         $connection = new MockSSHConnection($config, $logger);
@@ -376,7 +376,7 @@ class SSHConnectionTest extends TestCase
             $config
         );
 
-        $logger = $this->getTestableLogger(LogLevel::DEBUG);
+        $logger = $this->createTestLogger();
 
         $connection = new MockSSHConnection($config, $logger);
 
@@ -401,7 +401,7 @@ class SSHConnectionTest extends TestCase
             $config
         );
 
-        $logger = $this->getTestableLogger(LogLevel::DEBUG);
+        $logger = $this->createTestLogger();
 
         $connection = new MockSSHConnection($config, $logger);
 
