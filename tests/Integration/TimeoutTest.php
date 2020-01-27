@@ -1,4 +1,5 @@
-<?php /** @noinspection PhpUnhandledExceptionInspection */
+<?php /** @noinspection PhpUndefinedMethodInspection */
+/** @noinspection PhpUnhandledExceptionInspection */
 
 /** @noinspection DuplicatedCode */
 
@@ -222,8 +223,8 @@ class TimeoutTest extends IntegrationTestCase
 
     public function testInteractiveSetTimelimitOnTheFly(): void
     {
-        $timelimitValue    = 2;
-        $behavior = SSHConfig::SIGNAL_TERMINATE;
+        $timelimitValue = 2;
+        $behavior       = SSHConfig::SIGNAL_TERMINATE;
         // for the timelimit cases, we need a command that will never time out
         $command = 'ping 127.0.0.1';
 
