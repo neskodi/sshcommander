@@ -356,6 +356,7 @@ class SSHConnection implements
     {
         $firstCommandRegex = '/^.*?(\r\n|\r|\n)/';
         $promptRegex       = $command->getConfig()->getPromptRegex();
+
         // carefully inject command after prompt into prompt regex
         $promptRegexWithCommand = preg_replace(
             '/^(.)(.+?)(\\$)?\\1([a-z]*)$/',

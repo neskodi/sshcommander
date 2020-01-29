@@ -2,6 +2,8 @@
 
 namespace Neskodi\SSHCommander\Traits\SSHConnection;
 
+use Neskodi\SSHCommander\Interfaces\SSHCommandInterface;
+use Neskodi\SSHCommander\SSHCommand;
 use Neskodi\SSHCommander\Utils;
 
 /**
@@ -16,12 +18,24 @@ trait ExaminesFeatureSupport
         'system_timeout' => null,
     ];
 
+    // functions this trait needs during horizontal composition
     abstract public function read(): string;
 
-    abstract public function write(string $chars);
+    abstract public function writeAndSend(string $chars);
 
     abstract public function authenticateIfNecessary(): void;
 
+    abstract public function getConfig(?string $param = null);
+
+    abstract public function cleanCommandOutput(
+        string $output,
+        SSHCommandInterface $command
+    ): string;
+    // end dependency declarations
+
+    /**
+     * Run the inspections listed in the $connectionFeatures property.
+     */
     public function examine(): void
     {
         $this->authenticateIfNecessary();
@@ -59,13 +73,40 @@ trait ExaminesFeatureSupport
     /** @noinspection PhpUnused */
     public function examineSystemTimeout()
     {
-        $this->write("which timeout\n");
+        $timeout = $this->which('timeout');
 
-        $return = $this->read();
-
-        $this->connectionFeatures['system_timeout'] = (false !== strpos($return, 'timeout'));
+        $this->connectionFeatures['system_timeout'] = (bool)$timeout;
     }
 
+    /**
+     * Run the 'which' command and return the output.
+     *
+     * @param string $program
+     *
+     * @return string
+     */
+    public function which(string $program): string
+    {
+        $command = "which $program";
+
+        $this->writeAndSend("$command\n");
+
+        $result = $this->read();
+
+        return $this->cleanCommandOutput(
+            $result,
+            new SSHCommand($command, $this->getConfig())
+        );
+    }
+
+    /**
+     * Check if we have detected support for the given feature during a previous
+     * examination.
+     *
+     * @param string $feature
+     *
+     * @return bool
+     */
     public function supports(string $feature): bool
     {
         return $this->connectionFeatures[$feature] ?? false;
