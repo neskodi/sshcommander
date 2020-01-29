@@ -42,4 +42,6 @@ interface SSHCommanderInterface
         $command,
         array $options = []
     ): SSHCommandResultInterface;
+
+    public function supports(string $feature): bool;
 }

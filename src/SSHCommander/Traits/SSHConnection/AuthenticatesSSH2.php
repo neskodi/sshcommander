@@ -76,6 +76,18 @@ trait AuthenticatesSSH2
     }
 
     /**
+     * A shortcut to authenticate only if the connection is not authenticated yet.
+     *
+     * @noinspection PhpUnhandledExceptionInspection
+     */
+    public function authenticateIfNecessary(): void
+    {
+        if (!$this->isAuthenticated()) {
+            $this->authenticate();
+        }
+    }
+
+    /**
      * Return true is this connection has successfully passed authentication
      * with the remote host, false otherwise.
      *

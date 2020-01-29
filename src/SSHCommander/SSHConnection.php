@@ -2,6 +2,7 @@
 
 namespace Neskodi\SSHCommander;
 
+use Neskodi\SSHCommander\Traits\SSHConnection\ExaminesFeatureSupport;
 use Neskodi\SSHCommander\Traits\SSHConnection\AuthenticatesSSH2;
 use Neskodi\SSHCommander\Traits\SSHConnection\InteractsWithSSH2;
 use Neskodi\SSHCommander\Traits\SSHConnection\ConfiguresSSH2;
@@ -25,7 +26,8 @@ class SSHConnection implements
     TimerInterface
 {
     use Loggable, Timer, ConfigAware;
-    use AuthenticatesSSH2, ConfiguresSSH2, InteractsWithSSH2;
+    use AuthenticatesSSH2, ConfiguresSSH2, InteractsWithSSH2,
+        ExaminesFeatureSupport;
 
     /**
      * @var SSH2
@@ -86,7 +88,7 @@ class SSHConnection implements
         }
 
         if ($this->getConfig('autologin')) {
-            $this->authenticate();
+            $this->initialize();
         }
     }
 
@@ -135,6 +137,17 @@ class SSHConnection implements
         }
 
         return $this->ssh2;
+    }
+
+    /**
+     * Initialize connection by authenticating it and inspecting for features.
+     *
+     * @throws AuthenticationException
+     */
+    public function initialize()
+    {
+        $this->authenticate();
+        $this->examine();
     }
 
     /**
@@ -257,9 +270,7 @@ class SSHConnection implements
     {
         $this->configureForCommand($command->getConfig());
 
-        if (!$this->isAuthenticated()) {
-            $this->authenticate();
-        }
+        $this->authenticateIfNecessary();
 
         $this->resetResults();
         $this->setTimeout($command->getConfig('timeout_command'));
@@ -285,9 +296,7 @@ class SSHConnection implements
     {
         $this->configureForCommand($command->getConfig());
 
-        if (!$this->isAuthenticated()) {
-            $this->authenticate();
-        }
+        $this->authenticateIfNecessary();
 
         $this->resetResults();
         $this->setTimeout($command->getConfig('timeout_command'));

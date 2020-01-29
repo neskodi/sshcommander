@@ -10,13 +10,30 @@ interface SSHConnectionInterface
 
     public function getConfig(?string $param = null);
 
+
     public function startTimer();
 
     public function stopTimer(): float;
 
+
     public function authenticate(): bool;
 
+    public function isAuthenticated(): bool;
+
+    public function authenticateIfNecessary(): void;
+
+    public function isValid(): bool;
+
+
+    public function examine(): void;
+
+    public function isExamined(): bool;
+
+    public function supports(string $feature): bool;
+
+
     public function getSSH2(): SSH2;
+
 
     public function setTimeout(int $timeout): SSHConnectionInterface;
 
@@ -28,9 +45,11 @@ interface SSHConnectionInterface
 
     public function resetSSH2Configuration(): SSHConnectionInterface;
 
+
     public function execIsolated(SSHCommandInterface $command): SSHConnectionInterface;
 
     public function execInteractive(SSHCommandInterface $command): SSHConnectionInterface;
+
 
     public function read(): string;
 
@@ -38,9 +57,6 @@ interface SSHConnectionInterface
 
     public function writeAndSend(string $chars);
 
-    public function isAuthenticated(): bool;
-
-    public function isValid(): bool;
 
     public function getStdOutLines(): array;
 
@@ -48,17 +64,20 @@ interface SSHConnectionInterface
 
     public function getLastExitCode(): ?int;
 
+
     public function isTimeout(): bool;
 
     public function isTimelimit(): bool;
 
     public function isTimeoutOrTimelimit(): bool;
 
+
     public function resetResults(): SSHConnectionInterface;
 
     public function setMarkerRegex(string $regex): SSHConnectionInterface;
 
     public function resetMarkers(): SSHConnectionInterface;
+
 
     public function terminateCommand(): void;
 

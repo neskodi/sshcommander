@@ -25,7 +25,10 @@ class CRConnectionDecorator
     public function execDecorated(SSHCommandInterface $command): void
     {
         $this->validateConnection()
-             ->prepareConnection($command);
+             ->setQuietMode($command)
+             ->setTimeout($command)
+             ->authenticateConnection()
+             ->examineConnectionFeatures();
 
         $this->runner->execDecorated($command);
     }
@@ -56,34 +59,65 @@ class CRConnectionDecorator
     }
 
     /**
-     * Fluently prepare the connection according to command config.
+     * Authenticate the connection if it hasn't been authenticated previously.
+     *
+     * @return $this
+     */
+    protected function authenticateConnection()
+    {
+        $this->getConnection()->authenticateIfNecessary();
+
+        return $this;
+    }
+
+    /**
+     * Test support for various features, such as system_timeout, job control
+     * etc.
+     *
+     * @return $this
+     */
+    protected function examineConnectionFeatures()
+    {
+        $connection = $this->getConnection();
+
+        if (!$connection->isExamined()) {
+            $connection->examine();
+        }
+
+        return $this;
+    }
+
+    /**
+     * If command configuration requires, set the quiet mode.
      *
      * @param SSHCommandInterface $command
      *
      * @return $this
      */
-    protected function prepareConnection(
-        SSHCommandInterface $command
-    ) {
-        $connection = $this->getConnection();
-
-        // authenticate if necessary. We do it early so that any incurring time
-        // does not count towards command execution time in the logs.
-        if (!$connection->isAuthenticated()) {
-            $connection->authenticate();
-        }
-
-        // if user wants stderr as separate stream or wants to suppress it
-        // altogether, tell phpseclib about it
+    protected function setQuietMode(SSHCommandInterface $command)
+    {
         if (
             $command->getConfig('separate_stderr') ||
             $command->getConfig('suppress_stderr')
         ) {
-            $connection->enableQuietMode();
+            $this->getConnection()->enableQuietMode();
         }
 
-        // Set command timeout
-        $connection->setTimeout($command->getConfig('timeout_command'));
+        return $this;
+    }
+
+    /**
+     * Set the requested timeout on SSH2 object.
+     *
+     * @param SSHCommandInterface $command
+     *
+     * @return $this
+     */
+    protected function setTimeout(SSHCommandInterface $command)
+    {
+        $this->getConnection()->setTimeout(
+            $command->getConfig('timeout_command')
+        );
 
         return $this;
     }
