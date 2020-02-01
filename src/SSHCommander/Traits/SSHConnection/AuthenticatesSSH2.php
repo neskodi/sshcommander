@@ -27,8 +27,6 @@ trait AuthenticatesSSH2
 
     abstract public function debug($message, array $context = array());
 
-    abstract public function handleSSH2Error($errno, $errstr);
-
     /** end declaring external required methods **/
 
     /**
@@ -206,7 +204,7 @@ trait AuthenticatesSSH2
      */
     protected function sshLogin(string $username, $credential): bool
     {
-        set_error_handler([$this, 'handleSSH2Error']);
+        set_error_handler([$this, 'handleLoginError']);
 
         $result = $this->getSSH2()->login($username, $credential);
 
@@ -221,7 +219,7 @@ trait AuthenticatesSSH2
      *
      * @throws AuthenticationException
      */
-    protected function handleLoginError(): void
+    public function handleLoginError(): void
     {
         $error = $this->getSSH2()->getLastError() ?? error_get_last();
 
