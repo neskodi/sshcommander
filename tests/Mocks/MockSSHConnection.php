@@ -68,7 +68,7 @@ class MockSSHConnection extends SSHConnection implements
         return $result;
     }
 
-    protected function sshExec(SSHCommandInterface $command): void
+    public function exec(SSHCommandInterface $command): void
     {
         usleep(rand(100000, 200000));
         $this->populateOutput();

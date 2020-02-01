@@ -1,5 +1,5 @@
 <?php /** @noinspection PhpIncludeInspection */
-
+/** @noinspection DuplicatedCode */
 /** @noinspection PhpUnhandledExceptionInspection */
 
 namespace Neskodi\SSHCommander\Tests\Integration;

@@ -209,6 +209,32 @@ class SSHConnection implements
     }
 
     /**
+     * Execute the command on the SSH connection, using phpseclib's exec()
+     * method. Populate the stdout, stderr, and exitcode variables.
+     *
+     * @param SSHCommandInterface $command
+     */
+    public function exec(SSHCommandInterface $command): void
+    {
+        $ssh = $this->getSSH2();
+
+        $this->sshExec((string)$command, function ($str) use ($command) {
+            // collect the stdout stream
+            $this->stdoutLines = array_merge(
+                $this->stdoutLines,
+                $this->processOutput($command, $str)
+            );
+        });
+
+        // don't forget to collect the error stream too
+        if ($command->getConfig('separate_stderr')) {
+            $this->stderrLines = $this->processOutput($command, $ssh->getStdError());
+        }
+
+        $this->lastExitCode = $ssh->getExitStatus();
+    }
+
+    /**
      * Write a sequence of characters into the command line and submit them for
      * execution by appending a line feed "\n" at the end (if not already there)
      *
@@ -275,7 +301,7 @@ class SSHConnection implements
         $this->resetResults();
         $this->setTimeout($command->getConfig('timeout_command'));
 
-        $this->sshExec($command);
+        $this->exec($command);
 
         return $this;
     }

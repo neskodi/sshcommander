@@ -57,6 +57,7 @@ interface SSHConnectionInterface
 
     public function writeAndSend(string $chars);
 
+    public function exec(SSHCommandInterface $command): void;
 
     public function getStdOutLines(): array;
 

@@ -13,10 +13,6 @@ use phpseclib\Net\SSH2;
  */
 trait InteractsWithSSH2
 {
-    protected $stdoutLines = [];
-
-    protected $lastExitCode;
-
     abstract public function getSSH2(): SSH2;
 
     abstract public function processOutput(SSHCommandInterface $command, string $output): array;
@@ -31,7 +27,7 @@ trait InteractsWithSSH2
      *
      * @throws CommandRunException
      */
-    protected function handleSSH2Error($errno, $errstr)
+    public function handleSSH2Error($errno, $errstr)
     {
         throw new CommandRunException("$errno:$errstr");
     }
@@ -76,30 +72,17 @@ trait InteractsWithSSH2
     }
 
     /**
-     * Execute the command via phpseclib and collect the returned lines
-     * into an array.
+     * Execute the command via phpseclib, possibly applying the requested
+     * callback to each piece of output.
      *
-     * @param SSHCommandInterface $command
+     * @param string        $command
+     * @param callable|null $function
      */
-    protected function sshExec(SSHCommandInterface $command): void
+    protected function sshExec(string $command, ?callable $function = null): void
     {
         set_error_handler([$this, 'handleSSH2Error']);
 
-        $ssh = $this->getSSH2();
-
-        $ssh->exec((string)$command, function ($str) use ($command) {
-            $this->stdoutLines = array_merge(
-                $this->stdoutLines,
-                $this->processOutput($command, $str)
-            );
-        });
-
-        // don't forget to collect the error stream too
-        if ($command->getConfig('separate_stderr')) {
-            $this->stderrLines = $this->processOutput($command, $ssh->getStdError());
-        }
-
-        $this->lastExitCode = $ssh->getExitStatus();
+        $this->getSSH2()->exec($command, $function);
 
         restore_error_handler();
     }
