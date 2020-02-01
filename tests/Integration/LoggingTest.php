@@ -92,7 +92,7 @@ class LoggingTest extends IntegrationTestCase
     protected function getCommander(): SSHCommanderInterface
     {
         if (!$this->commander) {
-            $this->commander = new SSHCommander($this->sshOptions);
+            $this->commander = $this->getSSHCommander($this->sshOptions);
         }
 
         return $this->commander;
@@ -245,7 +245,7 @@ class LoggingTest extends IntegrationTestCase
 
         $logger    = $this->createTestLogger($level);
 
-        return new SSHCommander($options, $logger);
+        return $this->getSSHCommander($options, $logger);
     }
 
     public function testCommandOutputIsLoggedOnDebugLevel(): void
@@ -325,7 +325,7 @@ class LoggingTest extends IntegrationTestCase
         $level = LogLevel::INFO;
 
         $logger    = $this->createTestLogger($level);
-        $commander = new SSHCommander($this->sshOptions, $logger);
+        $commander = $this->getSSHCommander($this->sshOptions, $logger);
         $handler   = $commander->getLogger()->popHandler();
 
         $this->assertTrue(
@@ -341,7 +341,7 @@ class LoggingTest extends IntegrationTestCase
         $level = LogLevel::NOTICE;
 
         $logger    = $this->createTestLogger($level);
-        $commander = new SSHCommander($this->sshOptions, $logger);
+        $commander = $this->getSSHCommander($this->sshOptions, $logger);
         $handler   = $commander->getLogger()->popHandler();
 
         $this->assertFalse(
@@ -479,7 +479,7 @@ class LoggingTest extends IntegrationTestCase
         $exceptionWasThrown = false;
 
         try {
-            new SSHCommander($options, $logger);
+            $this->getSSHCommander($options, $logger);
         } catch (AuthenticationException $e) {
             $exceptionWasThrown = true;
             /** @var TestHandler $handler */
@@ -508,7 +508,7 @@ class LoggingTest extends IntegrationTestCase
         $exceptionWasThrown = false;
 
         try {
-            new SSHCommander($options, $logger);
+            $this->getSSHCommander($options, $logger);
         } catch (AuthenticationException $e) {
             $exceptionWasThrown = true;
             /** @var TestHandler $handler */

@@ -361,13 +361,19 @@ class TestCase extends PHPUnitTestCase
     /**
      * Get an instance of SSHCommander armed with a test logger.
      *
-     * @param $config
+     * @param                      $config
+     *
+     * @param LoggerInterface|null $logger
      *
      * @return SSHCommanderInterface
      * @throws Exception
      */
-    protected function getSSHCommander($config): SSHCommanderInterface
+    protected function getSSHCommander($config, ?LoggerInterface $logger = null): SSHCommanderInterface
     {
-        return new SSHCommander($config, $this->createTestLogger());
+        if (!$logger instanceof LoggerInterface) {
+            $logger = $this->createTestLogger();
+        }
+
+        return new SSHCommander($config, $logger);
     }
 }

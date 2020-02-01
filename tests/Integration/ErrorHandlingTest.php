@@ -1,5 +1,5 @@
 <?php /** @noinspection PhpUnhandledExceptionInspection */
-
+/** @noinspection PhpRedundantCatchClauseInspection */
 /** @noinspection DuplicatedCode */
 
 namespace Neskodi\SSHCommander\Tests\Integration;
@@ -80,7 +80,6 @@ class ErrorHandlingTest extends IntegrationTestCase
         $this->assertTrue($result->isOk());
     }
 
-    /** @noinspection PhpRedundantCatchClauseInspection */
     public function testIsolatedCompoundBOE(): void
     {
         if (!$this->hasAuthCredentials()) {
@@ -152,7 +151,6 @@ class ErrorHandlingTest extends IntegrationTestCase
         $this->assertEquals('/tmp', (string)$results[2]);
     }
 
-    /** @noinspection PhpRedundantCatchClauseInspection */
     public function testInteractiveSimpleBOE(): void
     {
         if (!$this->hasAuthCredentials()) {
@@ -183,7 +181,6 @@ class ErrorHandlingTest extends IntegrationTestCase
         }
     }
 
-    /** @noinspection PhpRedundantCatchClauseInspection */
     public function testInteractiveSimpleBOESoftfail(): void
     {
         if (!$this->hasAuthCredentials()) {

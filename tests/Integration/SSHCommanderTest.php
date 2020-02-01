@@ -1,12 +1,11 @@
-<?php /** @noinspection PhpIncludeInspection */
-/** @noinspection DuplicatedCode */
+<?php /** @noinspection DuplicatedCode */
+/** @noinspection PhpIncludeInspection */
 /** @noinspection PhpUnhandledExceptionInspection */
 
 namespace Neskodi\SSHCommander\Tests\Integration;
 
 use Neskodi\SSHCommander\Exceptions\AuthenticationException;
 use Neskodi\SSHCommander\Tests\IntegrationTestCase;
-use Neskodi\SSHCommander\SSHCommander;
 use Neskodi\SSHCommander\SSHConfig;
 use RuntimeException;
 
@@ -16,7 +15,7 @@ class SSHCommanderTest extends IntegrationTestCase
     {
         $this->expectException(AuthenticationException::class);
 
-        $commander = new SSHCommander([
+        $commander = $this->getSSHCommander([
             'host'            => 'example.com',
             'user'            => '*',
             'password'        => '*',
@@ -34,7 +33,7 @@ class SSHCommanderTest extends IntegrationTestCase
             'user' => '****',
         ]);
 
-        $commander = new SSHCommander($options);
+        $commander = $this->getSSHCommander($options);
         $commander->run('pwd');
     }
 
@@ -43,7 +42,7 @@ class SSHCommanderTest extends IntegrationTestCase
         $config = $this->sshOptions;
         $config['break_on_error'] = false;
 
-        $commander = new SSHCommander($config);
+        $commander = $this->getSSHCommander($config);
 
         $result    = $commander->run('cd /no/such/dir');
 
@@ -51,9 +50,9 @@ class SSHCommanderTest extends IntegrationTestCase
         $this->assertStringContainsStringIgnoringCase('no such', $result);
     }
 
-    public function testIsolatedCommandRun(): void
+    public function testIsolatedCommand(): void
     {
-        $commander = new SSHCommander($this->sshOptions);
+        $commander = $this->getSSHCommander($this->sshOptions);
 
         $result = $commander->runIsolated('echo AAA');
 
@@ -61,9 +60,9 @@ class SSHCommanderTest extends IntegrationTestCase
         $this->assertTrue($result->isOk());
     }
 
-    public function testInteractiveCommandRun(): void
+    public function testInteractiveCommand(): void
     {
-        $commander = new SSHCommander($this->sshOptions);
+        $commander = $this->getSSHCommander($this->sshOptions);
 
         $commander->run('cd /tmp');
         $result = $commander->run('pwd');
@@ -72,9 +71,41 @@ class SSHCommanderTest extends IntegrationTestCase
         $this->assertTrue($result->isOk());
     }
 
+    public function testConseсutiveIsolatedCommands(): void
+    {
+        $commander = $this->getSSHCommander($this->sshOptions);
+
+        $resultA = $commander->runIsolated('echo AAA');
+        $resultB = $commander->runIsolated('echo BBB');
+        $resultC = $commander->runIsolated('echo CCC');
+
+        $this->assertSame('AAA', (string)$resultA);
+        $this->assertTrue($resultA->isOk());
+        $this->assertSame('BBB', (string)$resultB);
+        $this->assertTrue($resultB->isOk());
+        $this->assertSame('CCC', (string)$resultC);
+        $this->assertTrue($resultC->isOk());
+    }
+
+    public function testConseсutiveInteractiveCommands(): void
+    {
+        $commander = $this->getSSHCommander($this->sshOptions);
+
+        $resultA = $commander->run('echo AAA');
+        $resultB = $commander->run('echo BBB');
+        $resultC = $commander->run('echo CCC');
+
+        $this->assertSame('AAA', (string)$resultA);
+        $this->assertTrue($resultA->isOk());
+        $this->assertSame('BBB', (string)$resultB);
+        $this->assertTrue($resultB->isOk());
+        $this->assertSame('CCC', (string)$resultC);
+        $this->assertTrue($resultC->isOk());
+    }
+
     public function testMultiCommandCanBeProvidedAsString(): void
     {
-        $commander = new SSHCommander($this->sshOptions);
+        $commander = $this->getSSHCommander($this->sshOptions);
 
         $basedir = '/tmp';
 
@@ -85,7 +116,7 @@ class SSHCommanderTest extends IntegrationTestCase
 
     public function testMultiCommandCanBeProvidedAsArray(): void
     {
-        $commander = new SSHCommander($this->sshOptions);
+        $commander = $this->getSSHCommander($this->sshOptions);
 
         $basedir = '/tmp';
 
@@ -112,7 +143,7 @@ class SSHCommanderTest extends IntegrationTestCase
             'autologin' => true,
         ];
 
-        $commander = new SSHCommander($options);
+        $commander = $this->getSSHCommander($options);
 
         $connection = $commander->getConnection();
 
@@ -137,7 +168,7 @@ class SSHCommanderTest extends IntegrationTestCase
             'autologin' => true,
         ];
 
-        $commander = new SSHCommander($options);
+        $commander = $this->getSSHCommander($options);
 
         $connection = $commander->getConnection();
 
@@ -162,7 +193,7 @@ class SSHCommanderTest extends IntegrationTestCase
             'autologin' => true,
         ];
 
-        $commander = new SSHCommander($options);
+        $commander = $this->getSSHCommander($options);
 
         $connection = $commander->getConnection();
 
@@ -187,7 +218,7 @@ class SSHCommanderTest extends IntegrationTestCase
             'autologin' => true,
         ];
 
-        $commander = new SSHCommander($options);
+        $commander = $this->getSSHCommander($options);
 
         $connection = $commander->getConnection();
 
@@ -199,7 +230,7 @@ class SSHCommanderTest extends IntegrationTestCase
         $config = new SSHConfig($this->sshOptions);
         $config->set('autologin', false);
 
-        $commander = new SSHCommander($config);
+        $commander = $this->getSSHCommander($config);
 
         $this->assertFalse($commander->getConnection()->isAuthenticated());
 

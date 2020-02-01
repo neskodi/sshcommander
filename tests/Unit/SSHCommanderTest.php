@@ -273,7 +273,7 @@ class SSHCommanderTest extends TestCase
     public function testRunCommandIsolated(): void
     {
         $config    = $this->getTestConfigAsArray();
-        $commander = new SSHCommander($config);
+        $commander = $this->getSSHCommander($config);
 
         MockSSHConnection::expect(MockSSHConnection::RESULT_SUCCESS);
         $commander->setConnection($this->getMockConnection());

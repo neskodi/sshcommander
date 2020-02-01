@@ -32,7 +32,7 @@ class ConfigurationTest extends IntegrationTestCase
             'key' => file_get_contents($this->sshOptions['keyfile']),
         ]);
         $logger = $this->createTestLogger();
-        $commander = new SSHCommander($config, $logger);
+        $commander = $this->getSSHCommander($config, $logger);
 
         $result = $commander->run('pwd');
 
@@ -66,7 +66,7 @@ class ConfigurationTest extends IntegrationTestCase
 
         $config = array_merge($this->sshOptions, ['key' => null]);
         $logger = $this->createTestLogger();
-        $commander = new SSHCommander($config, $logger);
+        $commander = $this->getSSHCommander($config, $logger);
 
         $result = $commander->run('pwd');
 
@@ -102,7 +102,7 @@ class ConfigurationTest extends IntegrationTestCase
             'keyfile' => null,
         ]);
         $logger = $this->createTestLogger();
-        $commander = new SSHCommander($config, $logger);
+        $commander = $this->getSSHCommander($config, $logger);
 
         $result = $commander->run('pwd');
 
