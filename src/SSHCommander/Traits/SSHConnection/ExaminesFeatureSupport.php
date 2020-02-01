@@ -2,8 +2,6 @@
 
 namespace Neskodi\SSHCommander\Traits\SSHConnection;
 
-use Neskodi\SSHCommander\Interfaces\SSHCommandInterface;
-use Neskodi\SSHCommander\SSHCommand;
 use Neskodi\SSHCommander\Utils;
 
 /**
@@ -18,6 +16,8 @@ trait ExaminesFeatureSupport
         'system_timeout' => null,
     ];
 
+    protected $isExamined = false;
+
     // functions this trait needs during horizontal composition
     abstract public function read(): string;
 
@@ -26,12 +26,6 @@ trait ExaminesFeatureSupport
     abstract public function authenticateIfNecessary(): void;
 
     abstract public function getConfig(?string $param = null);
-
-    abstract public function cleanCommandOutput(
-        string $output,
-        SSHCommandInterface $command
-    ): string;
-    // end dependency declarations
 
     /**
      * Run the inspections listed in the $connectionFeatures property.
@@ -50,53 +44,29 @@ trait ExaminesFeatureSupport
                 $this->$method();
             }
         }
+
+        // calls to exec() may leave artifacts in the channel, so let's clean up
+        $this->cleanCommandBuffer();
+        $this->isExamined = true;
     }
 
     /**
-     * Tell if an examination has been attempted. At least one feature should be
-     * either true or false, but not null.
+     * Tell if an examination has been attempted.
      *
      * @return bool
      * @noinspection PhpUnused
      */
     public function isExamined(): bool
     {
-        foreach ($this->connectionFeatures as $feature => $result) {
-            if (!is_null($result)) {
-                return true;
-            }
-        }
-
-        return false;
+        return $this->isExamined;
     }
 
     /** @noinspection PhpUnused */
     public function examineSystemTimeout()
     {
-        $timeout = $this->which('timeout');
+        $timeout = $this->getSSH2()->exec('which timeout');
 
         $this->connectionFeatures['system_timeout'] = (bool)$timeout;
-    }
-
-    /**
-     * Run the 'which' command and return the output.
-     *
-     * @param string $program
-     *
-     * @return string
-     */
-    public function which(string $program): string
-    {
-        $command = "which $program";
-
-        $this->writeAndSend("$command\n");
-
-        $result = $this->read();
-
-        return $this->cleanCommandOutput(
-            $result,
-            new SSHCommand($command, $this->getConfig())
-        );
     }
 
     /**
