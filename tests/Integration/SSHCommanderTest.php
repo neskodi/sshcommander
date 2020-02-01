@@ -71,7 +71,7 @@ class SSHCommanderTest extends IntegrationTestCase
         $this->assertTrue($result->isOk());
     }
 
-    public function testConseсutiveIsolatedCommands(): void
+    public function testConsecutiveIsolatedCommands(): void
     {
         $commander = $this->getSSHCommander($this->sshOptions);
 
@@ -87,12 +87,28 @@ class SSHCommanderTest extends IntegrationTestCase
         $this->assertTrue($resultC->isOk());
     }
 
-    public function testConseсutiveInteractiveCommands(): void
+    public function testConsecutiveInteractiveCommands(): void
     {
         $commander = $this->getSSHCommander($this->sshOptions);
 
         $resultA = $commander->run('echo AAA');
         $resultB = $commander->run('echo BBB');
+        $resultC = $commander->run('echo CCC');
+
+        $this->assertSame('AAA', (string)$resultA);
+        $this->assertTrue($resultA->isOk());
+        $this->assertSame('BBB', (string)$resultB);
+        $this->assertTrue($resultB->isOk());
+        $this->assertSame('CCC', (string)$resultC);
+        $this->assertTrue($resultC->isOk());
+    }
+
+    public function testConsecutiveInteractiveAndIsolatedCommands(): void
+    {
+        $commander = $this->getSSHCommander($this->sshOptions);
+
+        $resultA = $commander->run('echo AAA');
+        $resultB = $commander->runIsolated('echo BBB');
         $resultC = $commander->run('echo CCC');
 
         $this->assertSame('AAA', (string)$resultA);
