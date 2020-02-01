@@ -71,7 +71,7 @@ class SSHCommanderTest extends IntegrationTestCase
         $this->assertTrue($result->isOk());
     }
 
-    public function testConseсutiveIsolatedCommands(): void
+    public function testConsecutiveIsolatedCommands(): void
     {
         $commander = $this->getSSHCommander($this->sshOptions);
 
@@ -87,7 +87,7 @@ class SSHCommanderTest extends IntegrationTestCase
         $this->assertTrue($resultC->isOk());
     }
 
-    public function testConseсutiveInteractiveCommands(): void
+    public function testConsecutiveInteractiveCommands(): void
     {
         $commander = $this->getSSHCommander($this->sshOptions);
 
