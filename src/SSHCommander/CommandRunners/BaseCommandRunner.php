@@ -75,12 +75,11 @@ abstract class BaseCommandRunner implements
         $this->with(CRTimerDecorator::class)
              ->with(CRLoggerDecorator::class)
              ->with(CRResultDecorator::class)
-             ->with(CRErrorHandlerDecorator::class)
              ->with(CRBasedirDecorator::class)
+             ->with(CRErrorHandlerDecorator::class)
              ->with(CRTimeoutHandlerDecorator::class)
              ->with(CRCleanupDecorator::class)
              ->with(CRConnectionDecorator::class)
-
              ->execDecorated($command);
 
         return $this->getResult();
