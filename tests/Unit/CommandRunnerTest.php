@@ -4,6 +4,8 @@
 
 namespace Neskodi\SSHCommander\Tests\Unit;
 
+use Neskodi\SSHCommander\CommandRunners\Decorators\CRTimeoutHandlerDecorator;
+use Neskodi\SSHCommander\CommandRunners\InteractiveCommandRunner;
 use Neskodi\SSHCommander\Interfaces\SSHCommandResultInterface;
 use Neskodi\SSHCommander\CommandRunners\IsolatedCommandRunner;
 use Neskodi\SSHCommander\Interfaces\SSHConnectionInterface;
@@ -14,7 +16,7 @@ use Neskodi\SSHCommander\SSHConnection;
 use Neskodi\SSHCommander\SSHCommand;
 use Psr\Log\LoggerInterface;
 
-class RemoteCommandRunnerTest extends TestCase
+class CommandRunnerTest extends TestCase
 {
     public function testConstructor(): void
     {
@@ -76,11 +78,11 @@ class RemoteCommandRunnerTest extends TestCase
 
     public function testRunError(): void
     {
-        $config     = $this->getTestConfigAsObject(
+        $config = $this->getTestConfigAsObject(
             self::CONFIG_FULL,
             ['autologin' => true]
         );
-        $logger     = $this->createTestLogger();
+        $logger = $this->createTestLogger();
 
         // expect success for authentication
         MockSSHConnection::expect(MockSSHConnection::RESULT_SUCCESS);
@@ -96,5 +98,22 @@ class RemoteCommandRunnerTest extends TestCase
 
         $this->assertInstanceOf(SSHCommandResultInterface::class, $result);
         $this->assertTrue($result->isError());
+    }
+
+    public function testWrapCommand()
+    {
+        $config    = $this->getTestConfigAsObject(self::CONFIG_FULL);
+        $runner    = new InteractiveCommandRunner($config);
+        $decorator = new CRTimeoutHandlerDecorator($runner);
+
+        $command = new SSHCommand('ls', ['timeout' => 11]);
+        $decorator->wrapCommandIntoTimeout($command);
+
+        $result = $command->getCommand();
+
+        $this->assertRegExp(
+            '/timeout --preserve-status 11 `ps -p \\$\\$ -ocomm=` <<(\\w+)\\nls\\n\\1/s',
+            $result
+        );
     }
 }

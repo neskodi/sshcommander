@@ -1,6 +1,5 @@
 <?php /** @noinspection PhpUndefinedMethodInspection */
 /** @noinspection PhpUnhandledExceptionInspection */
-
 /** @noinspection DuplicatedCode */
 
 namespace Neskodi\SSHCommander\Tests\Integration;
@@ -15,13 +14,16 @@ class TimeoutTest extends IntegrationTestCase
     public function testIsolatedSetTimeoutFromGlobalConfig(): void
     {
         $timeoutValue = 2;
-        $behavior     = SSHConfig::SIGNAL_TERMINATE;
+        $behavior     = SSHConfig::TIMEOUT_BEHAVIOR_TERMINATE;
+        $condition    = SSHConfig::TIMEOUT_CONDITION_NOOUT;
+
         $command      = 'tail -f /etc/hostname';
 
         $config = array_merge(
             $this->sshOptions,
             [
-                'timeout_command'  => $timeoutValue,
+                'timeout'          => $timeoutValue,
+                'timeout_conditon' => $condition,
                 'timeout_behavior' => $behavior,
             ]
         );
@@ -40,11 +42,13 @@ class TimeoutTest extends IntegrationTestCase
     public function testIsolatedSetTimeoutFromCommandConfig(): void
     {
         $timeoutValue = 2;
-        $behavior     = SSHConfig::SIGNAL_TERMINATE;
+        $behavior     = SSHConfig::TIMEOUT_BEHAVIOR_TERMINATE;
+        $condition    = SSHConfig::TIMEOUT_CONDITION_NOOUT;
         $command      = 'tail -f /etc/hostname';
 
         $config = [
-            'timeout_command'  => $timeoutValue,
+            'timeout'          => $timeoutValue,
+            'timeout_conditon' => $condition,
             'timeout_behavior' => $behavior,
         ];
 
@@ -62,14 +66,16 @@ class TimeoutTest extends IntegrationTestCase
     public function testIsolatedSetTimeoutOnTheFly(): void
     {
         $timeoutValue = 2;
-        $behavior     = SSHConfig::SIGNAL_TERMINATE;
+        $behavior     = SSHConfig::TIMEOUT_BEHAVIOR_TERMINATE;
+        $condition    = SSHConfig::TIMEOUT_CONDITION_NOOUT;
+
         $command      = 'tail -f /etc/hostname';
 
         $commander = $this->getSSHCommander($this->sshOptions);
         $this->assertTrue($commander->getConnection()->isAuthenticated());
 
         // set timeout on the fly
-        $commander->timeout($timeoutValue, $behavior);
+        $commander->timeout($timeoutValue, $condition, $behavior);
 
         $result = $commander->runIsolated($command);
 
@@ -80,14 +86,19 @@ class TimeoutTest extends IntegrationTestCase
 
     public function testInteractiveSetTimeoutFromGlobalConfig(): void
     {
+        $this->enableDebugLog();
+
         $timeoutValue = 2;
-        $behavior     = SSHConfig::SIGNAL_TERMINATE;
+        $behavior     = SSHConfig::TIMEOUT_BEHAVIOR_TERMINATE;
+        $condition    = SSHConfig::TIMEOUT_CONDITION_NOOUT;
+
         $command      = 'tail -f /etc/hostname';
 
         $config = array_merge(
             $this->sshOptions,
             [
-                'timeout_command'  => $timeoutValue,
+                'timeout'          => $timeoutValue,
+                'timeout_conditon' => $condition,
                 'timeout_behavior' => $behavior,
             ]
         );
@@ -112,11 +123,14 @@ class TimeoutTest extends IntegrationTestCase
     public function testInteractiveSetTimeoutFromCommandConfig(): void
     {
         $timeoutValue = 2;
-        $behavior     = SSHConfig::SIGNAL_TERMINATE;
+        $behavior     = SSHConfig::TIMEOUT_BEHAVIOR_TERMINATE;
+        $condition    = SSHConfig::TIMEOUT_CONDITION_NOOUT;
+
         $command      = 'tail -f /etc/hostname';
 
         $config = [
-            'timeout_command'  => $timeoutValue,
+            'timeout'          => $timeoutValue,
+            'timeout_conditon' => $condition,
             'timeout_behavior' => $behavior,
         ];
 
@@ -140,14 +154,16 @@ class TimeoutTest extends IntegrationTestCase
     public function testInteractiveSetTimeoutOnTheFly(): void
     {
         $timeoutValue = 2;
-        $behavior     = SSHConfig::SIGNAL_TERMINATE;
+        $behavior     = SSHConfig::TIMEOUT_BEHAVIOR_TERMINATE;
+        $condition    = SSHConfig::TIMEOUT_CONDITION_NOOUT;
+
         $command      = 'tail -f /etc/hostname';
 
         $commander = $this->getSSHCommander($this->sshOptions);
         $this->assertTrue($commander->getConnection()->isAuthenticated());
 
         // set timeout on the fly
-        $commander->timeout($timeoutValue, $behavior);
+        $commander->timeout($timeoutValue, $condition, $behavior);
 
         $result = $commander->run($command);
 
@@ -165,15 +181,19 @@ class TimeoutTest extends IntegrationTestCase
     public function testInteractiveSetTimelimitFromGlobalConfig(): void
     {
         $timelimitValue = 2;
-        $behavior       = SSHConfig::SIGNAL_TERMINATE;
-        // for the timelimit cases, we need a command that will never time out
+        $condition      = SSHConfig::TIMEOUT_CONDITION_RUNTIME;
+        $behavior       = SSHConfig::TIMEOUT_BEHAVIOR_TERMINATE;
+
+        // for the timelimit cases, we need a command that will never trigger
+        // the 'noout' condition, i.e. constantly produce output
         $command = 'ping 127.0.0.1';
 
         $config = array_merge(
             $this->sshOptions,
             [
-                'timelimit'          => $timelimitValue,
-                'timelimit_behavior' => $behavior,
+                'timeout'          => $timelimitValue,
+                'timeout_conditon' => $condition,
+                'timeout_behavior' => $behavior,
             ]
         );
 
@@ -196,13 +216,15 @@ class TimeoutTest extends IntegrationTestCase
     public function testInteractiveSetTimelimitFromCommandConfig(): void
     {
         $timelimitValue = 2;
-        $behavior       = SSHConfig::SIGNAL_TERMINATE;
+        $condition      = SSHConfig::TIMEOUT_CONDITION_RUNTIME;
+        $behavior       = SSHConfig::TIMEOUT_BEHAVIOR_TERMINATE;
         // for the timelimit cases, we need a command that will never time out
         $command = 'ping 127.0.0.1';
 
         $config = [
-            'timelimit'          => $timelimitValue,
-            'timelimit_behavior' => $behavior,
+            'timeout'          => $timelimitValue,
+            'timeout_conditon' => $condition,
+            'timeout_behavior' => $behavior,
         ];
 
         $commander = $this->getSSHCommander($this->sshOptions);
@@ -224,7 +246,8 @@ class TimeoutTest extends IntegrationTestCase
     public function testInteractiveSetTimelimitOnTheFly(): void
     {
         $timelimitValue = 2;
-        $behavior       = SSHConfig::SIGNAL_TERMINATE;
+        $condition      = SSHConfig::TIMEOUT_CONDITION_RUNTIME;
+        $behavior       = SSHConfig::TIMEOUT_BEHAVIOR_TERMINATE;
         // for the timelimit cases, we need a command that will never time out
         $command = 'ping 127.0.0.1';
 
@@ -232,7 +255,7 @@ class TimeoutTest extends IntegrationTestCase
         $this->assertTrue($commander->getConnection()->isAuthenticated());
 
         // set time limit on the fly
-        $commander->timelimit($timelimitValue, $behavior);
+        $commander->timeout($timelimitValue, $condition, $behavior);
 
         $result = $commander->run($command);
 

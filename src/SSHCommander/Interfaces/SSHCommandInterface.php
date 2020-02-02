@@ -18,5 +18,7 @@ interface SSHCommandInterface
 
     public function prependCommand($command): SSHCommandInterface;
 
+    public function wrap(string $pattern): SSHCommandInterface;
+
     public function toLoggableString(): string;
 }

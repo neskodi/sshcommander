@@ -2,10 +2,10 @@
 
 namespace Neskodi\SSHCommander\CommandRunners;
 
-use Neskodi\SSHCommander\CommandRunners\Decorators\CRCleanupDecorator;
 use Neskodi\SSHCommander\CommandRunners\Decorators\CRTimeoutHandlerDecorator;
 use Neskodi\SSHCommander\CommandRunners\Decorators\CRErrorHandlerDecorator;
 use Neskodi\SSHCommander\CommandRunners\Decorators\CRConnectionDecorator;
+use Neskodi\SSHCommander\CommandRunners\Decorators\CRCleanupDecorator;
 use Neskodi\SSHCommander\CommandRunners\Decorators\CRBasedirDecorator;
 use Neskodi\SSHCommander\CommandRunners\Decorators\CRLoggerDecorator;
 use Neskodi\SSHCommander\CommandRunners\Decorators\CRResultDecorator;
@@ -72,12 +72,11 @@ abstract class BaseCommandRunner implements
     {
         // Add command decorators and execute the command.
         // !! ORDER MATTERS !!
-        // (Some later decorators depend on earlier ones)
         $this->with(CRTimerDecorator::class)
              ->with(CRLoggerDecorator::class)
              ->with(CRResultDecorator::class)
-             ->with(CRBasedirDecorator::class)
              ->with(CRErrorHandlerDecorator::class)
+             ->with(CRBasedirDecorator::class)
              ->with(CRTimeoutHandlerDecorator::class)
              ->with(CRCleanupDecorator::class)
              ->with(CRConnectionDecorator::class)
@@ -105,6 +104,8 @@ abstract class BaseCommandRunner implements
      *
      * @param SSHCommandInterface       $command
      * @param SSHCommandResultInterface $result
+     *
+     * @noinspection PhpUnused
      */
     public function recordCommandResults(
         SSHCommandInterface $command,

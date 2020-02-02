@@ -26,7 +26,6 @@ class CRConnectionDecorator
     {
         $this->validateConnection()
              ->setQuietMode($command)
-             ->setTimeout($command)
              ->authenticateConnection()
              ->examineConnectionFeatures();
 
@@ -78,11 +77,7 @@ class CRConnectionDecorator
      */
     protected function examineConnectionFeatures()
     {
-        $connection = $this->getConnection();
-
-        if (!$connection->isExamined()) {
-            $connection->examine();
-        }
+        $this->getConnection()->examineIfNecessary();
 
         return $this;
     }
@@ -102,22 +97,6 @@ class CRConnectionDecorator
         ) {
             $this->getConnection()->enableQuietMode();
         }
-
-        return $this;
-    }
-
-    /**
-     * Set the requested timeout on SSH2 object.
-     *
-     * @param SSHCommandInterface $command
-     *
-     * @return $this
-     */
-    protected function setTimeout(SSHCommandInterface $command)
-    {
-        $this->getConnection()->setTimeout(
-            $command->getConfig('timeout_command')
-        );
 
         return $this;
     }

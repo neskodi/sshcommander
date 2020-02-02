@@ -325,7 +325,7 @@ class SSHConnectionTest extends TestCase
             self::CONFIG_FULL,
             ['autologin' => false]
         );
-        $default = $config->getDefault('timeout_command');
+        $default = $config->getDefault('timeout');
 
         $connection = new SSHConnection($config);
         $connection->setTimeout($timeout);

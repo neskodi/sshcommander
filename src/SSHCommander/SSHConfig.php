@@ -22,11 +22,11 @@ class SSHConfig implements SSHConfigInterface
     const BREAK_ON_ERROR_ALWAYS          = true;
     const BREAK_ON_ERROR_LAST_SUBCOMMAND = 'softfail';
 
-    const SIGNAL_TERMINATE          = "\x03"; // CTRL+C
-    const SIGNAL_BACKGROUND_SUSPEND = "\x1A"; // CTRL+Z
-    const SIGNAL_DELAYED_SUSPEND    = "\x19"; // CTRL+Y
-    const SIGNAL_END_INPUT          = "\x04"; // CTRL+D
+    const TIMEOUT_CONDITION_RUNTIME = 'runtime';
+    const TIMEOUT_CONDITION_NOOUT   = 'noout';
 
+    const TIMEOUT_BEHAVIOR_TERMINATE = "\x03"; // CTRL+C
+    const TIMEOUT_BEHAVIOR_SUSPEND   = "\x1A"; // CTRL+Z
 
     /**
      * Location of the config file.

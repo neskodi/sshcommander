@@ -63,4 +63,20 @@ class Utils
     {
         return str_replace(["\r", "\n"], ['\r', '\n'], $string);
     }
+
+    /**
+     * See if the character user wants to send is a control (non-printable)
+     * character such as CTRL+C or CTRL+Z
+     *
+     * For our purposes, let's just consider everything below ASCII code 32 a
+     * control character.
+     *
+     * @param string $char
+     *
+     * @return bool
+     */
+    public static function isAsciiControlCharacter(string $char): bool
+    {
+        return (1 === strlen($char)) && (32 > ord($char));
+    }
 }
