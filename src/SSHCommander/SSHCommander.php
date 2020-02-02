@@ -383,17 +383,4 @@ class SSHCommander implements
             $options
         );
     }
-
-    /**
-     * Tell if the underlying connection supports the given feature.
-     *
-     * @param string $feature
-     *
-     * @return bool
-     * @throws AuthenticationException
-     */
-    public function supports(string $feature): bool
-    {
-        return $this->getConnection()->supports($feature);
-    }
 }

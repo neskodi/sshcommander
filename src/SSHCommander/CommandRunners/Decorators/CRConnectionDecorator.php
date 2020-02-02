@@ -26,8 +26,7 @@ class CRConnectionDecorator
     {
         $this->validateConnection()
              ->setQuietMode($command)
-             ->authenticateConnection()
-             ->examineConnectionFeatures();
+             ->authenticateConnection();
 
         $this->runner->execDecorated($command);
     }
@@ -65,19 +64,6 @@ class CRConnectionDecorator
     protected function authenticateConnection()
     {
         $this->getConnection()->authenticateIfNecessary();
-
-        return $this;
-    }
-
-    /**
-     * Test support for various features, such as system_timeout, job control
-     * etc.
-     *
-     * @return $this
-     */
-    protected function examineConnectionFeatures()
-    {
-        $this->getConnection()->examineIfNecessary();
 
         return $this;
     }

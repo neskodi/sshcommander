@@ -25,13 +25,6 @@ interface SSHConnectionInterface
     public function isValid(): bool;
 
 
-    public function examine(): void;
-
-    public function isExamined(): bool;
-
-    public function supports(string $feature): bool;
-
-
     public function getSSH2(): SSH2;
 
 
