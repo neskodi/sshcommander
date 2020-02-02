@@ -22,12 +22,12 @@ class SSHCommandTest extends TestCase
     {
         $command = $this->createCommand('ls');
 
-        $options = ['basedir' => '/test', 'timeout_command' => 12];
+        $options = ['basedir' => '/test', 'timeout' => 12];
         $command->set($options);
         $options = $command->getConfig();
 
         $this->assertEquals($options->get('basedir'), '/test');
-        $this->assertEquals($options->get('timeout_command'), 12);
+        $this->assertEquals($options->get('timeout'), 12);
     }
 
     public function testSetOption(): void
@@ -225,6 +225,17 @@ class SSHCommandTest extends TestCase
         $command = $this->createCommand('ls');
 
         $command->appendCommand(null);
+    }
+
+    public function testWrapCommand(): void
+    {
+        $command = $this->createCommand('ls');
+        $pattern = 'timeout 5 %s';
+        $command->wrap($pattern);
+
+        $result = $command->getCommand();
+
+        $this->assertEquals('timeout 5 ls', $result);
     }
 
     public function testCreateCommandFromString(): void

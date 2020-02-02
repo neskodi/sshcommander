@@ -103,22 +103,6 @@ class SSHCommanderTest extends IntegrationTestCase
         $this->assertTrue($resultC->isOk());
     }
 
-    public function testConsecutiveInteractiveAndIsolatedCommands(): void
-    {
-        $commander = $this->getSSHCommander($this->sshOptions);
-
-        $resultA = $commander->run('echo AAA');
-        $resultB = $commander->runIsolated('echo BBB');
-        $resultC = $commander->run('echo CCC');
-
-        $this->assertSame('AAA', (string)$resultA);
-        $this->assertTrue($resultA->isOk());
-        $this->assertSame('BBB', (string)$resultB);
-        $this->assertTrue($resultB->isOk());
-        $this->assertSame('CCC', (string)$resultC);
-        $this->assertTrue($resultC->isOk());
-    }
-
     public function testMultiCommandCanBeProvidedAsString(): void
     {
         $commander = $this->getSSHCommander($this->sshOptions);

@@ -172,9 +172,9 @@ class SSHCommanderTest extends TestCase
 
         $commander = new SSHCommander($testConfig);
 
-        $command = $commander->createCommand('pwd', ['timeout_command' => 120]);
+        $command = $commander->createCommand('pwd', ['timeout' => 120]);
 
-        $this->assertEquals($command->getConfig('timeout_command'), 120);
+        $this->assertEquals($command->getConfig('timeout'), 120);
         $this->assertEquals($command->getConfig('host'), $testConfig['host']);
         $this->assertEquals($command->getCommand(), $strcmd);
     }
@@ -185,12 +185,12 @@ class SSHCommanderTest extends TestCase
         $strcmd = 'pwd';
 
         $commander = new SSHCommander($config);
-        $commandA  = new SSHCommand($strcmd, ['timeout_command' => 120]);
+        $commandA  = new SSHCommand($strcmd, ['timeout' => 120]);
         $commandB  = $commander->createCommand($commandA);
 
         // test that config options from commandA and default config were
         // properly merged
-        $this->assertEquals($commandB->getConfig('timeout_command'), 120);
+        $this->assertEquals($commandB->getConfig('timeout'), 120);
         $this->assertEquals($commandB->getConfig('host'), $config['host']);
         $this->assertEquals($commandB->getCommand(), $strcmd);
     }

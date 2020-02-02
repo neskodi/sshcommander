@@ -9,6 +9,7 @@ use Neskodi\SSHCommander\Exceptions\CommandRunException;
 use Neskodi\SSHCommander\Interfaces\SSHCommandInterface;
 use Neskodi\SSHCommander\SSHCommand;
 use Neskodi\SSHCommander\SSHConfig;
+use Neskodi\SSHCommander\Utils;
 
 class InteractiveCommandRunner
     extends BaseCommandRunner
@@ -63,11 +64,11 @@ class InteractiveCommandRunner
 
         // reset flags and variables
         $this->initialWorkingDirectory = null;
-        $this->outputLines = [];
-        $this->exitCode = null;
-        $this->detectedMarker = null;
-        $this->errorWasTrapped = false;
-        $this->errorTrapStatus = false;
+        $this->outputLines             = [];
+        $this->exitCode                = null;
+        $this->detectedMarker          = null;
+        $this->errorWasTrapped         = false;
+        $this->errorTrapStatus         = false;
     }
 
     /**
@@ -113,8 +114,12 @@ class InteractiveCommandRunner
         string $command,
         array $options = []
     ): array {
-        $defaultOptions = ['timeout' => 1, 'timelimit' => 1];
-        $options        = array_merge($defaultOptions, $options);
+        $defaultOptions = [
+            'timeout'           => 1,
+            'timeout_condition' => SSHConfig::TIMEOUT_CONDITION_RUNTIME,
+        ];
+
+        $options = array_merge($defaultOptions, $options);
 
         $command = new SSHCommand($command, $options);
 
@@ -122,7 +127,7 @@ class InteractiveCommandRunner
         $this->disableMarkers();
 
         $this->executeOnConnection($command);
-        // if we hit timelimit, cancel the command
+        // if we hit time limit, cancel the command
         if ($this->getConnection()->isTimeoutOrTimelimit()) {
             $this->getConnection()->terminateCommand();
         }
@@ -155,7 +160,7 @@ class InteractiveCommandRunner
                 unset($this->outputLines[$i]);
 
                 // set the exit code
-                $this->exitCode = $found['code'];
+                $this->exitCode       = $found['code'];
                 $this->detectedMarker = $found['marker'];
 
                 // if it's a trapped error, set the flag
@@ -500,10 +505,14 @@ class InteractiveCommandRunner
     }
 
     /**
-     * Handle the timeout and timelimit situations by executing whatever
-     * behavior user has configured for these cases. The most common example is
-     * to send CTRL+C to cancel command execution, which is achieved by setting
-     * 'timelimit_behavior' => SSHConfig::SIGNAL_TERMINATE in the command config.
+     * If the command has timed out by running time condition, it may mean that
+     * the connection is left with an unfinished command. In this case, we
+     * need to execute the timeout behavior, if user has configured one.
+     *
+     * The most common example is to send CTRL+C to cancel command execution,
+     * which is achieved by setting
+     * 'timeout_behavior' => SSHConfig::TIMEOUT_BEHAVIOR_TERMINATE
+     * in the command config. This is also the default behavior.
      *
      * @param SSHCommandInterface $command
      *
@@ -511,10 +520,11 @@ class InteractiveCommandRunner
      */
     public function handleTimeouts(SSHCommandInterface $command): void
     {
-        if ($this->getConnection()->isTimeout()) {
+        if (
+            SSHConfig::TIMEOUT_CONDITION_RUNTIME === $command->getConfig('timeout_condition') &&
+            $this->getConnection()->isTimelimit()
+        ) {
             $this->executeTimeoutBehavior($command);
-        } elseif ($this->getConnection()->isTimelimit()) {
-            $this->executeTimelimitBehavior($command);
         }
     }
 
@@ -522,7 +532,8 @@ class InteractiveCommandRunner
      * Execute the behavior user has set up for the timeout situations (i.e. for
      * situations when SSH connection is waiting for command output longer than
      * allowed). User can define this behavior by setting e.g.
-     * 'timeout_behavior' => SSHConfig::SIGNAL_TERMINATE in the command config.
+     * 'timeout_behavior' => SSHConfig::TIMEOUT_BEHAVIOR_TERMINATE
+     * in the command config.
      *
      * By default, no action is taken.
      *
@@ -530,34 +541,31 @@ class InteractiveCommandRunner
      */
     protected function executeTimeoutBehavior(SSHCommandInterface $command): void
     {
-        $behavior = $command->getConfig('timeout_behavior');
+        $behavior   = $command->getConfig('timeout_behavior');
+        $connection = $this->getConnection();
 
-        if (!is_string($behavior)) {
+        // if user wants to send a control character such as CTRL+C, just send it
+        if (Utils::isAsciiControlCharacter($behavior)) {
+            $connection->write($behavior);
+            $connection->cleanCommandBuffer();
+
             return;
         }
 
-        $this->getConnection()->write($behavior);
-    }
+        // if user wants to send a custom command, ensure \n in the end
+        if (is_string($behavior)) {
+            $connection->writeAndSend($behavior);
+            $connection->cleanCommandBuffer();
 
-    /**
-     * Execute the behavior user has set up for the timeout situations (i.e. for
-     * situations when SSH command is running longer than allowed, regardless
-     * of whether it produces any output). User can define this behavior by setting e.g.
-     * 'timelimit_behavior' => SSHConfig::SIGNAL_TERMINATE in the command config.
-     *
-     * By default, no action is taken.
-     *
-     * @param SSHCommandInterface $command
-     */
-    protected function executeTimelimitBehavior(SSHCommandInterface $command): void
-    {
-        $behavior = $command->getConfig('timelimit_behavior');
-
-        if (!is_string($behavior)) {
             return;
         }
 
-        $this->getConnection()->write($behavior);
+        // if user has specified a callable, execute it
+        if (is_callable($behavior)) {
+            $behavior($connection, $command);
+
+            return;
+        }
     }
 
     /**

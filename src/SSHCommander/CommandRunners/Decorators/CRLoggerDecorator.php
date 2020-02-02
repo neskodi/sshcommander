@@ -49,10 +49,7 @@ class CRLoggerDecorator
     {
         $seconds = $this->runner->getElapsedTime();
 
-        if (
-            $this->getConnection()->isTimeout() ||
-            $this->getConnection()->isTimelimit()
-        ) {
+        if ($this->getConnection()->isTimeoutOrTimelimit()) {
             $this->notice('Command timed out after {seconds} seconds', [
                 'seconds' => $seconds,
             ]);

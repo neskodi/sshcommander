@@ -169,7 +169,7 @@ class SSHConnection implements
 
             $output .= $str;
 
-            if ($this->exceedsTimelimit()) {
+            if ($this->exceedsTimeLimit()) {
                 $this->isTimelimit = true;
                 break;
             }
@@ -256,7 +256,7 @@ class SSHConnection implements
      */
     public function terminateCommand(): void
     {
-        $this->write(SSHConfig::SIGNAL_TERMINATE);
+        $this->write(SSHConfig::TIMEOUT_BEHAVIOR_TERMINATE);
     }
 
     /**
@@ -264,7 +264,7 @@ class SSHConnection implements
      */
     public function suspendCommand(): void
     {
-        $this->write(SSHConfig::SIGNAL_BACKGROUND_SUSPEND);
+        $this->write(SSHConfig::TIMEOUT_BEHAVIOR_SUSPEND);
     }
 
     /**
@@ -299,7 +299,6 @@ class SSHConnection implements
         $this->authenticateIfNecessary();
 
         $this->resetResults();
-        $this->setTimeout($command->getConfig('timeout_command'));
 
         $this->exec($command);
 
@@ -325,7 +324,6 @@ class SSHConnection implements
         $this->authenticateIfNecessary();
 
         $this->resetResults();
-        $this->setTimeout($command->getConfig('timeout_command'));
 
         $this->writeAndSend((string)$command);
 
@@ -362,7 +360,7 @@ class SSHConnection implements
             }
         }
 
-        $ssh->setTimeout($this->getConfig('timeout_command'));
+        $ssh->setTimeout($this->getConfig('timeout'));
 
         $this->debug('JUNK: ' . Utils::oneLine($output));
         $this->debug('End cleaning buffer');
@@ -405,19 +403,28 @@ class SSHConnection implements
     }
 
     /**
-     * If user has decided to force the timeout via the 'timelimit' config
-     * option, and we have already exceeded this timeout, return true.
+     * If user has set the timeout condition to be 'runtime' and the command is
+     * already running longer than specified by the 'timeout' config value,
+     * return true.
      *
      * @return bool
      */
-    protected function exceedsTimelimit(): bool
+    protected function exceedsTimeLimit(): bool
     {
-        // see if we really need to force the timeout
-        if (!$timelimit = $this->getConfig('timelimit')) {
+        // if user didn't set the timeout condition to 'runtime', no action
+        // is necessary either
+        if (SSHConfig::TIMEOUT_CONDITION_RUNTIME !== $this->getConfig('timeout_condition')) {
             return false;
         }
 
-        return microtime(true) > ($this->getTimerStart() + $timelimit);
+        // finally, if user has set the timeout to 0 or a falsy value, no action
+        // is necessary
+        if (!$timeout = $this->getConfig('timeout')) {
+            // user does not want any timeout
+            return false;
+        }
+
+        return microtime(true) > ($this->getTimerStart() + $timeout);
     }
 
     /**
@@ -633,7 +640,8 @@ class SSHConnection implements
     }
 
     /**
-     * Check if timeout flag has been set by SSH2 object.
+     * Check if 'noout' timeout condition has been reached while running this
+     * command.
      *
      * @return bool
      */
@@ -643,7 +651,8 @@ class SSHConnection implements
     }
 
     /**
-     * Check if command has exceeded the timelimit set in configuration.
+     * Check if the 'runtime' timeout condition has been reached while running
+     * this command.
      *
      * @return bool
      */
@@ -653,8 +662,8 @@ class SSHConnection implements
     }
 
     /**
-     * Check if either timeout or timelimit condition has been reached while
-     * running this command.
+     * Check if either 'runtime' or 'noout' timeout condition has been reached
+     * while running this command.
      *
      * @return bool
      */

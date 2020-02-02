@@ -139,6 +139,21 @@ class SSHCommand implements SSHCommandInterface, ConfigAwareInterface
     }
 
     /**
+     * Wrap the command into the given sprintf pattern. The first placeholder
+     * in the pattern will be replaced by the actual command.
+     *
+     * @param string $pattern
+     *
+     * @return $this
+     */
+    public function wrap(string $pattern): SSHCommandInterface
+    {
+        $this->command = sprintf($pattern, $this->command);
+
+        return $this;
+    }
+
+    /**
      * Cast user's input from any permitted type to string, or throw an
      * exception if this is not possible.
      *

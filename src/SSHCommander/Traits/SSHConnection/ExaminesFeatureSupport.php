@@ -51,6 +51,19 @@ trait ExaminesFeatureSupport
     }
 
     /**
+     * Run the feature support inspections, but only if they haven't been run
+     * previously.
+     *
+     * @noinspection PhpUnused
+     */
+    public function examineIfNecessary(): void
+    {
+        if (!$this->isExamined()) {
+            $this->examine();
+        }
+    }
+
+    /**
      * Tell if an examination has been attempted.
      *
      * @return bool

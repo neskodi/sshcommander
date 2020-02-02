@@ -19,8 +19,6 @@ trait AuthenticatesSSH2
 
     abstract public function setTimeout(int $timeout);
 
-    abstract public function resetTimeout();
-
     abstract public function read(): string;
 
     abstract public function info($message, array $context = array());
@@ -56,7 +54,8 @@ trait AuthenticatesSSH2
                 @$result = $this->authenticateWithPassword();
         }
 
-        $this->resetTimeout();
+        // restore to command timeout
+        $this->setTimeout($this->getConfig('timeout'));
 
         // throws AuthenticationException
         if (!$result) {

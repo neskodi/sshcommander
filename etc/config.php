@@ -31,10 +31,11 @@ return [
     // after a timeout is detected. For instance, you may use "\x03" to send
     // CTRL+C after a timeout. This will cancel the old command and make sure
     // that its late output does not interfere with subsequent commands.
-    // "\x03" or SSHConfig::SIGNAL_TERMINATE - send CTRL+C
-    // "\x1A" or SSHConfig::SIGNAL_BACKGROUND_SUSPEND - send CTRL+Z
-    // null - do not handle timeout at all
-    'timeout_behavior' => null,
+    // "\x03" or SSHConfig::TIMEOUT_BEHAVIOR_TERMINATE - send CTRL+C
+    // "\x1A" or SSHConfig::TIMEOUT_BEHAVIOR_SUSPEND - send CTRL+Z
+    // null - do not handle timeout in any special way
+    // provide a callable function ($command) { ... } to define your own behavior
+    'timeout_behavior' => "\x03",
 
     // Character or string used to glue multiple commands when passed to SSH2
     // for execution. Don't change unless you know what you are doing.

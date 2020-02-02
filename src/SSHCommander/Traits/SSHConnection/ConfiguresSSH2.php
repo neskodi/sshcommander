@@ -32,7 +32,7 @@ trait ConfiguresSSH2
      */
     public function resetTimeout(): SSHConnectionInterface
     {
-        $this->setTimeout($this->getConfig()->getDefault('timeout_command'));
+        $this->setTimeout($this->getConfig()->getDefault('timeout'));
 
         return $this;
     }
