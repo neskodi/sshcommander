@@ -4,7 +4,7 @@ namespace Neskodi\SSHCommander\Traits\SSHConnection;
 
 use Neskodi\SSHCommander\Exceptions\CommandRunException;
 use Neskodi\SSHCommander\Interfaces\SSHCommandInterface;
-use phpseclib\Net\SSH2;
+use Neskodi\SSHCommander\Dependencies\SSH2;
 
 /**
  * Trait InteractsWithSSH2

@@ -3,9 +3,9 @@
 namespace Neskodi\SSHCommander\Traits\SSHConnection;
 
 use Neskodi\SSHCommander\Exceptions\AuthenticationException;
+use Neskodi\SSHCommander\Dependencies\SSH2;
 use Neskodi\SSHCommander\SSHConfig;
 use phpseclib\Crypt\RSA;
-use phpseclib\Net\SSH2;
 
 trait AuthenticatesSSH2
 {

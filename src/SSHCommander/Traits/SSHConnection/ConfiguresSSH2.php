@@ -5,7 +5,7 @@
 namespace Neskodi\SSHCommander\Traits\SSHConnection;
 
 use Neskodi\SSHCommander\Interfaces\SSHConnectionInterface;
-use phpseclib\Net\SSH2;
+use Neskodi\SSHCommander\Dependencies\SSH2;
 
 trait ConfiguresSSH2
 {

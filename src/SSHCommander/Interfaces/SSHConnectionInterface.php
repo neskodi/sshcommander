@@ -2,7 +2,7 @@
 
 namespace Neskodi\SSHCommander\Interfaces;
 
-use phpseclib\Net\SSH2;
+use Neskodi\SSHCommander\Dependencies\SSH2;
 
 interface SSHConnectionInterface
 {

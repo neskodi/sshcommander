@@ -13,10 +13,10 @@ use Neskodi\SSHCommander\Interfaces\SSHCommandInterface;
 use Neskodi\SSHCommander\Interfaces\SSHConfigInterface;
 use Neskodi\SSHCommander\Interfaces\TimerInterface;
 use Neskodi\SSHCommander\Traits\ConfigAware;
+use Neskodi\SSHCommander\Dependencies\SSH2;
 use Neskodi\SSHCommander\Traits\Loggable;
 use Neskodi\SSHCommander\Traits\Timer;
 use Psr\Log\LoggerInterface;
-use phpseclib\Net\SSH2;
 
 class SSHConnection implements
     SSHConnectionInterface,
