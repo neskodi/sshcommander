@@ -157,6 +157,27 @@ class TimeoutTest extends IntegrationTestCase
         $this->assertFalse($result->isTimelimit());
     }
 
+    public function testIsolatedSetTimelimitSleep(): void
+    {
+        $timeoutValue = 2;
+        $behavior     = SSHConfig::TIMEOUT_BEHAVIOR_TERMINATE;
+        $condition    = SSHConfig::TIMEOUT_CONDITION_RUNTIME;
+
+        $command      = 'sleep 5';
+
+        $commander = $this->getSSHCommander($this->sshOptions);
+        $this->assertTrue($commander->getConnection()->isAuthenticated());
+
+        // set timeout on the fly
+        $commander->timeout($timeoutValue, $condition, $behavior);
+
+        $result = $commander->runIsolated($command);
+
+        $this->assertEquals($timeoutValue, (int)$result->getCommandElapsedTime());
+        $this->assertTrue($result->isTimeout());
+        $this->assertFalse($result->isTimelimit());
+    }
+
     public function testInteractiveSetTimeoutFromGlobalConfig(): void
     {
         $this->enableDebugLog();
