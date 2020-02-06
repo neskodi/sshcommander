@@ -13,8 +13,6 @@ class TimeoutTest extends IntegrationTestCase
 {
     public function testIsolatedSetTimeoutFromGlobalConfig(): void
     {
-        $this->enableDebugLog();
-
         $timeoutValue = 2;
         $behavior     = SSHConfig::TIMEOUT_BEHAVIOR_TERMINATE;
         $condition    = SSHConfig::TIMEOUT_CONDITION_NOOUT;
@@ -161,6 +159,8 @@ class TimeoutTest extends IntegrationTestCase
 
     public function testIsolatedSetTimelimitSleep(): void
     {
+        $this->enableDebugLog();
+
         $timeoutValue = 2;
         $behavior     = SSHConfig::TIMEOUT_BEHAVIOR_TERMINATE;
         $condition    = SSHConfig::TIMEOUT_CONDITION_RUNTIME;
