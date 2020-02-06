@@ -178,6 +178,12 @@ class TimeoutTest extends IntegrationTestCase
         $this->assertEquals($timeoutValue, (int)$result->getCommandElapsedTime());
         $this->assertTrue($result->isTimeout());
         $this->assertFalse($result->isTimelimit());
+
+        // check that the behavior was executed
+        /** @var TestHandler $handler */
+        $handler = $commander->getLogger()->popHandler();
+        $regex   = sprintf('/^WRITE: %s$/', $behavior);
+        $this->assertTrue($handler->hasRecordThatMatches($regex, LogLevel::DEBUG));
     }
 
     public function testInteractiveSetTimeoutFromGlobalConfig(): void

@@ -269,9 +269,9 @@ class SSHConnection implements
 
         $this->ssh2->configureTimeouts(null, function () {
             $isTimeout = $this->exceedsTimeLimit();
-            if ($isTimeout) {
-                $this->terminateCommand();
-            }
+            // if ($isTimeout) {
+            //     $this->terminateCommand();
+            // }
 
             return $isTimeout;
         });
