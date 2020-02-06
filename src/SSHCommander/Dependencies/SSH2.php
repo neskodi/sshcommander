@@ -115,12 +115,13 @@ class SSH2 extends PhpSecLibSSH2
                     do {
                         // run stream_select in cycle, on each iteration delegate
                         // the timeout check to the caller.
-                        $result           = @stream_select($read, $write, $except, $sec, $usec);
+                        $readTmp          = $read;
+                        $result           = @stream_select($readTmp, $write, $except, $sec, $usec);
                         $elapsed          = microtime(true) - $start;
                         $this->curTimeout -= $elapsed;
                     } while (!$result && !$this->shouldBreak());
 
-                    if (!$result && !count($read)) {
+                    if (!$result && !count($readTmp)) {
                         $this->is_timeout = true;
                         if ($client_channel == self::CHANNEL_EXEC && !$this->request_pty) {
                             $this->_close_channel($client_channel);
