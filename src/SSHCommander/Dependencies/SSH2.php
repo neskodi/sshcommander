@@ -6,10 +6,13 @@
 
 namespace Neskodi\SSHCommander\Dependencies;
 
+use Neskodi\SSHCommander\Traits\Loggable;
 use phpseclib\Net\SSH2 as PhpSecLibSSH2;
 
 class SSH2 extends PhpSecLibSSH2
 {
+    use Loggable;
+
     /**
      * @var null|callable
      */
@@ -80,6 +83,8 @@ class SSH2 extends PhpSecLibSSH2
             return false;
         }
 
+        $this->debug(sprintf('curTimeout: %f', $this->curTimeout));
+
         return $this->curTimeout < 0;
     }
 
@@ -89,13 +94,16 @@ class SSH2 extends PhpSecLibSSH2
             return array_shift($this->channel_buffers[$client_channel]);
         }
 
+        $sec   = $this->readInterval['sec'];
+        $usec  = $this->readInterval['usec'];
+        $write = $except = null;
+
         while (true) {
             if ($this->binary_packet_buffer !== false) {
                 $response                   = $this->binary_packet_buffer;
                 $this->binary_packet_buffer = false;
             } else {
-                $read  = [$this->fsock];
-                $write = $except = null;
+                $read = [$this->fsock];
 
                 if (!$this->timeout) {
                     // no timeout whatsoever
@@ -107,15 +115,11 @@ class SSH2 extends PhpSecLibSSH2
                         return true;
                     }
 
-                    $start = microtime(true);
-
-                    $sec  = $this->readInterval['sec'];
-                    $usec = $this->readInterval['usec'];
-
                     do {
                         // run stream_select in cycle, on each iteration delegate
                         // the timeout check to the caller.
                         $readTmp          = $read;
+                        $start            = microtime(true);
                         $result           = @stream_select($readTmp, $write, $except, $sec, $usec);
                         $elapsed          = microtime(true) - $start;
                         $this->curTimeout -= $elapsed;

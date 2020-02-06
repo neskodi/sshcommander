@@ -17,6 +17,7 @@ use Monolog\Formatter\LineFormatter;
 use Neskodi\SSHCommander\SSHConfig;
 use Monolog\Handler\StreamHandler;
 use Monolog\Handler\TestHandler;
+use Neskodi\SSHCommander\Utils;
 use Psr\Log\LoggerInterface;
 use Psr\Log\LogLevel;
 use RuntimeException;
@@ -330,7 +331,7 @@ class TestCase extends PHPUnitTestCase
     {
         $file = $_ENV['ssh_log_file'];
 
-        return is_writable($file) ? $file : null;
+        return Utils::isWritableOrCreatable($file) ? $file : null;
     }
 
     protected function enableDebugLog()

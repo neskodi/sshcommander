@@ -265,6 +265,8 @@ class SSHConnection implements
     {
         $this->setConfig($config);
 
+        $this->ssh2->setLogger($this->getLogger());
+
         return $this;
     }
 
