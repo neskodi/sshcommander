@@ -1,8 +1,8 @@
 <?php /** @noinspection PhpUndefinedVariableInspection */
 /** @noinspection PhpParamsInspection */
-/** @noinspection PhpMissingBreakStatementInspection  */
+/** @noinspection PhpMissingBreakStatementInspection */
 /** @noinspection PhpInconsistentReturnPointsInspection */
- /** @noinspection PhpUndefinedConstantInspection */
+/** @noinspection PhpUndefinedConstantInspection */
 
 namespace Neskodi\SSHCommander\Dependencies;
 
@@ -10,6 +10,78 @@ use phpseclib\Net\SSH2 as PhpSecLibSSH2;
 
 class SSH2 extends PhpSecLibSSH2
 {
+    /**
+     * @var null|callable
+     */
+    protected $timeoutFunction = null;
+
+    protected $readInterval = [
+        'sec'  => 0,
+        'usec' => 500000,
+    ];
+
+    /**
+     * Set both the readInterval and the timeout function in one call.
+     *
+     * @param float|null    $readInterval
+     * @param callable|null $timeoutFunction
+     */
+    public function configureTimeouts(?float $readInterval = null, ?callable $timeoutFunction = null): void
+    {
+        if (!is_null($readInterval)) {
+            $this->setReadInterval($readInterval);
+        }
+
+        $this->setTimeoutFunction($timeoutFunction);
+    }
+
+    /**
+     * Set the function that will be run after each iteration of stream_select
+     * to determine if we should break out of the waiting cycle.
+     *
+     * @param callable|null $function
+     */
+    public function setTimeoutFunction(?callable $function = null): void
+    {
+        $this->timeoutFunction = $function;
+    }
+
+    /**
+     * Set the interval that each iteration of stream_select will occupy.
+     *
+     * @param float $readInterval
+     */
+    public function setReadInterval(float $readInterval): void
+    {
+        $sec  = floor($readInterval);
+        $usec = ($readInterval - $sec) * 1000000;
+
+        $this->readInterval = compact($sec, $usec);
+    }
+
+    /**
+     * This function will be run on each iteration of stream_select and return
+     * true to tell that we need to break from the cycle.
+     *
+     * First, see if the caller has passed a timeout function. If so, use it
+     * to determine if reading from the stream should stop. If not, use the
+     * standard timeout value.
+     *
+     * @return bool
+     */
+    protected function shouldBreak(): bool
+    {
+        if (is_callable($this->timeoutFunction)) {
+            return (bool)call_user_func($this->timeoutFunction);
+        }
+
+        if (!$this->timeout) {
+            // never break
+            return false;
+        }
+
+        return $this->curTimeout < 0;
+    }
 
     function _get_channel_packet($client_channel, $skip_extended = false)
     {
@@ -19,42 +91,50 @@ class SSH2 extends PhpSecLibSSH2
 
         while (true) {
             if ($this->binary_packet_buffer !== false) {
-                $response = $this->binary_packet_buffer;
+                $response                   = $this->binary_packet_buffer;
                 $this->binary_packet_buffer = false;
             } else {
-                $read = array($this->fsock);
+                $read  = [$this->fsock];
                 $write = $except = null;
 
-                if (!$this->curTimeout) {
+                if (!$this->timeout) {
+                    // no timeout whatsoever
                     @stream_select($read, $write, $except, null);
                 } else {
                     if ($this->curTimeout < 0) {
                         $this->is_timeout = true;
+
                         return true;
                     }
 
-                    $read = array($this->fsock);
-                    $write = $except = null;
-
                     $start = microtime(true);
-                    $sec = floor($this->curTimeout);
-                    $usec = 1000000 * ($this->curTimeout - $sec);
-                    // on windows this returns a "Warning: Invalid CRT parameters detected" error
-                    if (!@stream_select($read, $write, $except, $sec, $usec) && !count($read)) {
+
+                    $sec  = $this->readInterval['sec'];
+                    $usec = $this->readInterval['usec'];
+
+                    do {
+                        // run stream_select in cycle, on each iteration delegate
+                        // the timeout check to the caller.
+                        $result           = @stream_select($read, $write, $except, $sec, $usec);
+                        $elapsed          = microtime(true) - $start;
+                        $this->curTimeout -= $elapsed;
+                    } while (!$result && !$this->shouldBreak());
+
+                    if (!$result && !count($read)) {
                         $this->is_timeout = true;
                         if ($client_channel == self::CHANNEL_EXEC && !$this->request_pty) {
                             $this->_close_channel($client_channel);
                         }
+
                         return true;
                     }
-                    $elapsed = microtime(true) - $start;
-                    $this->curTimeout-= $elapsed;
                 }
 
                 $response = $this->_get_binary_packet(true);
                 if ($response === false) {
                     $this->bitmap = 0;
                     user_error('Connection closed by server');
+
                     return false;
                 }
             }
@@ -79,15 +159,16 @@ class SSH2 extends PhpSecLibSSH2
 
             // will not be setup yet on incoming channel open request
             if (isset($channel) && isset($this->channel_status[$channel]) && isset($this->window_size_server_to_client[$channel])) {
-                $this->window_size_server_to_client[$channel]-= strlen($response);
+                $this->window_size_server_to_client[$channel] -= strlen($response);
 
                 // resize the window, if appropriate
                 if ($this->window_size_server_to_client[$channel] < 0) {
-                    $packet = pack('CNN', NET_SSH2_MSG_CHANNEL_WINDOW_ADJUST, $this->server_channels[$channel], $this->window_size);
+                    $packet = pack('CNN', NET_SSH2_MSG_CHANNEL_WINDOW_ADJUST, $this->server_channels[$channel],
+                        $this->window_size);
                     if (!$this->_send_binary_packet($packet)) {
                         return false;
                     }
-                    $this->window_size_server_to_client[$channel]+= $this->window_size;
+                    $this->window_size_server_to_client[$channel] += $this->window_size;
                 }
 
                 switch ($type) {
@@ -97,8 +178,8 @@ class SSH2 extends PhpSecLibSSH2
                             return false;
                         }
                         extract(unpack('Ndata_type_code/Nlength', $this->_string_shift($response, 8)));
-                        $data = $this->_string_shift($response, $length);
-                        $this->stdErrorLog.= $data;
+                        $data              = $this->_string_shift($response, $length);
+                        $this->stdErrorLog .= $data;
                         if ($skip_extended || $this->quiet_mode) {
                             continue 2;
                         }
@@ -106,7 +187,7 @@ class SSH2 extends PhpSecLibSSH2
                             return $data;
                         }
                         if (!isset($this->channel_buffers[$channel])) {
-                            $this->channel_buffers[$channel] = array();
+                            $this->channel_buffers[$channel] = [];
                         }
                         $this->channel_buffers[$channel][] = $data;
 
@@ -127,18 +208,22 @@ class SSH2 extends PhpSecLibSSH2
                                     return false;
                                 }
                                 extract(unpack('Nlength', $this->_string_shift($response, 4)));
-                                $this->errors[] = 'SSH_MSG_CHANNEL_REQUEST (exit-signal): ' . $this->_string_shift($response, $length);
+                                $this->errors[] = 'SSH_MSG_CHANNEL_REQUEST (exit-signal): ' . $this->_string_shift($response,
+                                        $length);
                                 $this->_string_shift($response, 1);
                                 if (strlen($response) < 4) {
                                     return false;
                                 }
                                 extract(unpack('Nlength', $this->_string_shift($response, 4)));
                                 if ($length) {
-                                    $this->errors[count($this->errors)].= "\r\n" . $this->_string_shift($response, $length);
+                                    $this->errors[count($this->errors)] .= "\r\n" . $this->_string_shift($response,
+                                            $length);
                                 }
 
-                                $this->_send_binary_packet(pack('CN', NET_SSH2_MSG_CHANNEL_EOF, $this->server_channels[$client_channel]));
-                                $this->_send_binary_packet(pack('CN', NET_SSH2_MSG_CHANNEL_CLOSE, $this->server_channels[$channel]));
+                                $this->_send_binary_packet(pack('CN', NET_SSH2_MSG_CHANNEL_EOF,
+                                    $this->server_channels[$client_channel]));
+                                $this->_send_binary_packet(pack('CN', NET_SSH2_MSG_CHANNEL_CLOSE,
+                                    $this->server_channels[$channel]));
 
                                 $this->channel_status[$channel] = NET_SSH2_MSG_CHANNEL_EOF;
 
@@ -175,21 +260,25 @@ class SSH2 extends PhpSecLibSSH2
                                 }
                                 extract(unpack('Nwindow_size', $this->_string_shift($response, 4)));
                                 if ($window_size < 0) {
-                                    $window_size&= 0x7FFFFFFF;
-                                    $window_size+= 0x80000000;
+                                    $window_size &= 0x7FFFFFFF;
+                                    $window_size += 0x80000000;
                                 }
                                 $this->window_size_client_to_server[$channel] = $window_size;
                                 if (strlen($response) < 4) {
-                                     return false;
+                                    return false;
                                 }
-                                $temp = unpack('Npacket_size_client_to_server', $this->_string_shift($response, 4));
+                                $temp                                         = unpack('Npacket_size_client_to_server',
+                                    $this->_string_shift($response, 4));
                                 $this->packet_size_client_to_server[$channel] = $temp['packet_size_client_to_server'];
-                                $result = $client_channel == $channel ? true : $this->_get_channel_packet($client_channel, $skip_extended);
+                                $result                                       = $client_channel == $channel ? true : $this->_get_channel_packet($client_channel,
+                                    $skip_extended);
                                 $this->_on_channel_open();
+
                                 return $result;
                             //case NET_SSH2_MSG_CHANNEL_OPEN_FAILURE:
                             default:
                                 user_error('Unable to open channel');
+
                                 return $this->_disconnect(NET_SSH2_DISCONNECT_BY_APPLICATION);
                         }
                         break;
@@ -201,10 +290,12 @@ class SSH2 extends PhpSecLibSSH2
                                 return false;
                             default:
                                 user_error('Unable to fulfill channel request');
+
                                 return $this->_disconnect(NET_SSH2_DISCONNECT_BY_APPLICATION);
                         }
                     case NET_SSH2_MSG_CHANNEL_CLOSE:
-                        return $type == NET_SSH2_MSG_CHANNEL_CLOSE ? true : $this->_get_channel_packet($client_channel, $skip_extended);
+                        return $type == NET_SSH2_MSG_CHANNEL_CLOSE ? true : $this->_get_channel_packet($client_channel,
+                            $skip_extended);
                 }
             }
 
@@ -239,7 +330,7 @@ class SSH2 extends PhpSecLibSSH2
                         return $data;
                     }
                     if (!isset($this->channel_buffers[$channel])) {
-                        $this->channel_buffers[$channel] = array();
+                        $this->channel_buffers[$channel] = [];
                     }
                     $this->channel_buffers[$channel][] = $data;
                     break;
@@ -247,10 +338,11 @@ class SSH2 extends PhpSecLibSSH2
                     $this->curTimeout = 0;
 
                     if ($this->bitmap & self::MASK_SHELL) {
-                        $this->bitmap&= ~self::MASK_SHELL;
+                        $this->bitmap &= ~self::MASK_SHELL;
                     }
                     if ($this->channel_status[$channel] != NET_SSH2_MSG_CHANNEL_EOF) {
-                        $this->_send_binary_packet(pack('CN', NET_SSH2_MSG_CHANNEL_CLOSE, $this->server_channels[$channel]));
+                        $this->_send_binary_packet(pack('CN', NET_SSH2_MSG_CHANNEL_CLOSE,
+                            $this->server_channels[$channel]));
                     }
 
                     $this->channel_status[$channel] = NET_SSH2_MSG_CHANNEL_CLOSE;
@@ -261,6 +353,7 @@ class SSH2 extends PhpSecLibSSH2
                     break;
                 default:
                     user_error('Error reading channel data');
+
                     return $this->_disconnect(NET_SSH2_DISCONNECT_BY_APPLICATION);
             }
         }
