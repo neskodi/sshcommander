@@ -161,7 +161,7 @@ class SSHConnection implements
                 break;
             }
 
-            if ($this->hasMarker($output)) {
+            if ($this->usesMarkers() && $this->hasMarker($output)) {
                 break;
             }
 
@@ -197,7 +197,7 @@ class SSHConnection implements
 
     /**
      * Execute the command on the SSH connection, using phpseclib's exec()
-     * method. Populate the stdout, stderr, and exitcode variables.
+     * method. Populates the stdout, stderr, and exit code variables.
      *
      * @param SSHCommandInterface $command
      */
@@ -276,8 +276,6 @@ class SSHConnection implements
      *                                     commands separated by newline.
      *
      * @return SSHConnectionInterface
-     *
-     * @throws AuthenticationException
      */
     public function execIsolated(SSHCommandInterface $command): SSHConnectionInterface
     {
@@ -301,8 +299,6 @@ class SSHConnection implements
      * @param SSHCommandInterface $command
      *
      * @return $this
-     *
-     * @throws AuthenticationException
      */
     public function execInteractive(SSHCommandInterface $command): SSHConnectionInterface
     {
@@ -404,8 +400,8 @@ class SSHConnection implements
             return false;
         }
 
-        // finally, if user has set the timeout to 0 or a falsy value, no action
-        // is necessary
+        // If user has set the timeout to 0 or a falsy value, no action
+        // is necessary either
         if (!$timeout = $this->getConfig('timeout')) {
             // user does not want any timeout
             return false;
@@ -439,9 +435,7 @@ class SSHConnection implements
      */
     protected function hasMarker(string $output): bool
     {
-        return
-            $this->usesMarkers() &&
-            $this->hasExpectedOutputRegex($output, $this->markerRegex);
+        return $this->hasExpectedOutputRegex($output, $this->markerRegex);
     }
 
     /**
@@ -530,7 +524,7 @@ class SSHConnection implements
 
     /**
      * Split output lines by a regular expression or simple character(s),
-     * according to command configuraion.
+     * according to command configuration.
      *
      * @param SSHCommandInterface $command
      * @param string              $chars
