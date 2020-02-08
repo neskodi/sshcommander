@@ -5,6 +5,7 @@ namespace Neskodi\SSHCommander;
 use Neskodi\SSHCommander\Traits\SSHConnection\AuthenticatesSSH2;
 use Neskodi\SSHCommander\Traits\SSHConnection\InteractsWithSSH2;
 use Neskodi\SSHCommander\Traits\SSHConnection\ConfiguresSSH2;
+use Neskodi\SSHCommander\VendorOverrides\phpseclib\Net\SSH2;
 use Neskodi\SSHCommander\Exceptions\AuthenticationException;
 use Neskodi\SSHCommander\Interfaces\SSHConnectionInterface;
 use Neskodi\SSHCommander\Interfaces\ConfigAwareInterface;
@@ -13,7 +14,6 @@ use Neskodi\SSHCommander\Interfaces\SSHCommandInterface;
 use Neskodi\SSHCommander\Interfaces\SSHConfigInterface;
 use Neskodi\SSHCommander\Interfaces\TimerInterface;
 use Neskodi\SSHCommander\Traits\ConfigAware;
-use Neskodi\SSHCommander\Dependencies\SSH2;
 use Neskodi\SSHCommander\Traits\Loggable;
 use Neskodi\SSHCommander\Traits\Timer;
 use Psr\Log\LoggerInterface;
@@ -132,6 +132,9 @@ class SSHConnection implements
             ];
 
             $this->ssh2 = new SSH2($host, $port);
+            if ($this->logger) {
+                $this->ssh2->setLogger($this->getLogger());
+            }
         }
 
         return $this->ssh2;
@@ -150,14 +153,11 @@ class SSHConnection implements
         $this->startTimer();
 
         while ($str = $this->sshRead('', SSH2::READ_NEXT)) {
-            if (is_bool($str)) {
-                break;
+            if (is_string($str)) {
+                $output .= $str;
             }
 
-            $output .= $str;
-
-            if ($this->exceedsTimeLimit()) {
-                $this->isTimelimit = true;
+            if ($this->reachedTimeLimit()) {
                 break;
             }
 
@@ -166,6 +166,10 @@ class SSHConnection implements
             }
 
             if (!$this->usesMarkers() && $this->hasPrompt($output)) {
+                break;
+            }
+
+            if (is_bool($str)) {
                 break;
             }
         }
@@ -255,17 +259,15 @@ class SSHConnection implements
     }
 
     /**
-     * Set the currently used config from the provided object.
+     * Set the currently used config from the provided command object.
      *
-     * @param SSHConfigInterface $config
+     * @param SSHCommandInterface $command
      *
      * @return $this
      */
-    public function configureForCommand(SSHConfigInterface $config): SSHConnectionInterface
+    public function configureForCommand(SSHCommandInterface $command): SSHConnectionInterface
     {
-        $this->setConfig($config);
-
-        $this->ssh2->setLogger($this->getLogger());
+        $this->setConfig($command->getConfig());
 
         return $this;
     }
@@ -281,7 +283,7 @@ class SSHConnection implements
      */
     public function execIsolated(SSHCommandInterface $command): SSHConnectionInterface
     {
-        $this->configureForCommand($command->getConfig());
+        $this->configureForCommand($command);
 
         $this->authenticateIfNecessary();
 
@@ -304,7 +306,7 @@ class SSHConnection implements
      */
     public function execInteractive(SSHCommandInterface $command): SSHConnectionInterface
     {
-        $this->configureForCommand($command->getConfig());
+        $this->configureForCommand($command);
 
         $this->authenticateIfNecessary();
 
@@ -321,9 +323,8 @@ class SSHConnection implements
     }
 
     /**
-     * Before running the command, we'll do an additional 'read' operation to
-     * remove any junk that may be hanging there in the channel left by the
-     * previous commands.
+     * Do an additional 'read' operation to remove any junk that may be hanging
+     * there in the channel left by the previous commands.
      */
     public function cleanCommandBuffer(): void
     {
@@ -394,22 +395,78 @@ class SSHConnection implements
      *
      * @return bool
      */
-    public function exceedsTimeLimit(): bool
+    public function reachedTimeLimit(): bool
     {
-        // if user didn't set the timeout condition to 'runtime', no action
-        // is necessary either
-        if (SSHConfig::TIMEOUT_CONDITION_RUNTIME !== $this->getConfig('timeout_condition')) {
-            return false;
+        $timeout   = $this->getConfig('timeout');
+        $condition = $this->getConfig('timeout_condition');
+        $timeSinceCommandStart = $this->timeSinceCommandStart();
+
+        $result = (
+            // user wants to timeout by 'runtime'
+            (SSHConfig::TIMEOUT_CONDITION_RUNTIME === $condition) &&
+            // user has set a non-zero timeout value
+            $timeout &&
+            // and this time has passed since the command started
+            ($timeSinceCommandStart >= $timeout)
+        );
+
+        if ($result) {
+            $this->isTimelimit = true;
         }
 
-        // If user has set the timeout to 0 or a falsy value, no action
-        // is necessary either
-        if (!$timeout = $this->getConfig('timeout')) {
-            // user does not want any timeout
-            return false;
+        return $result;
+    }
+
+    /**
+     * If user has set the timeout condition to be 'noout' and we have been waiting
+     * for output  already longer than specified by the 'timeout' config value,
+     * return true.
+     *
+     * @return bool
+     */
+    public function reachedTimeout(): bool
+    {
+        $timeout             = $this->getConfig('timeout');
+        $condition           = $this->getConfig('timeout_condition');
+        $timeSinceLastPacket = $this->timeSinceLastPacket();
+
+        return (
+            // user wants to timeout by 'noout'
+            (SSHConfig::TIMEOUT_CONDITION_NOOUT === $condition) &&
+            // user has set a non-zero timeout value
+            $timeout &&
+            // and this time has passed since the last packet was received
+            ($timeSinceLastPacket >= $timeout)
+        );
+    }
+
+    /**
+     * Return the time since last packet was received
+     *
+     * @return float
+     */
+    protected function timeSinceLastPacket(): float
+    {
+        $lastPacketTime = $this->getSSH2()->getLastPacketTime();
+
+        // if no packet was yet received, we count from the time when command
+        // started running
+        if (is_null($lastPacketTime)) {
+            return $this->timeSinceCommandStart();
         }
 
-        return microtime(true) > ($this->getTimerStart() + $timeout);
+        // return the actual time since last packet
+        return microtime(true) - $lastPacketTime;
+    }
+
+    /**
+     * Return the time since the current command started running.
+     *
+     * @return float
+     */
+    protected function timeSinceCommandStart(): float
+    {
+        return microtime(true) - $this->getTimerStart();
     }
 
     /**
@@ -623,8 +680,8 @@ class SSHConnection implements
     }
 
     /**
-     * Check if 'noout' timeout condition has been reached while running this
-     * command.
+     * Check if either 'noout' or 'runtime' timeout condition has been reached
+     * while running this command.
      *
      * @return bool
      */
@@ -634,24 +691,13 @@ class SSHConnection implements
     }
 
     /**
-     * Check if the 'runtime' timeout condition has been reached while running
-     * this command.
+     * Check if the 'runtime' timeout condition has specifically been reached
+     * while running this command.
      *
      * @return bool
      */
     public function isTimelimit(): bool
     {
         return $this->isTimelimit;
-    }
-
-    /**
-     * Check if either 'runtime' or 'noout' timeout condition has been reached
-     * while running this command.
-     *
-     * @return bool
-     */
-    public function isTimeoutOrTimelimit(): bool
-    {
-        return $this->isTimeout() || $this->isTimelimit();
     }
 }

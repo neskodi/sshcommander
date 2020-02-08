@@ -9,7 +9,6 @@ use Neskodi\SSHCommander\Exceptions\CommandRunException;
 use Neskodi\SSHCommander\Interfaces\SSHCommandInterface;
 use Neskodi\SSHCommander\SSHCommand;
 use Neskodi\SSHCommander\SSHConfig;
-use Neskodi\SSHCommander\Utils;
 
 class InteractiveCommandRunner
     extends BaseCommandRunner
@@ -127,10 +126,6 @@ class InteractiveCommandRunner
         $this->disableMarkers();
 
         $this->executeOnConnection($command);
-        // if we hit time limit, cancel the command
-        if ($this->getConnection()->isTimeoutOrTimelimit()) {
-            $this->getConnection()->terminateCommand();
-        }
 
         return $this->getConnection()->getStdOutLines();
     }

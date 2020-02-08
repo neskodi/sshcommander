@@ -4,15 +4,14 @@
 /** @noinspection PhpInconsistentReturnPointsInspection */
 /** @noinspection PhpUndefinedConstantInspection */
 
-namespace Neskodi\SSHCommander\Dependencies;
+namespace Neskodi\SSHCommander\VendorOverrides\phpseclib\Net;
 
-use Neskodi\SSHCommander\Traits\HasConnection;
 use Neskodi\SSHCommander\Traits\Loggable;
 use phpseclib\Net\SSH2 as PhpSecLibSSH2;
 
 class SSH2 extends PhpSecLibSSH2
 {
-    use Loggable, HasConnection;
+    use Loggable;
 
     /**
      * @var null|callable
@@ -24,13 +23,22 @@ class SSH2 extends PhpSecLibSSH2
      */
     protected $timeoutHandler = null;
 
+    /**
+     * @var array
+     */
     protected $readInterval = [
         'sec'  => 0,
         'usec' => 500000,
     ];
 
     /**
-     * Set both the readInterval and the timeout function in one call.
+     * @var null|float
+     */
+    protected $lastPacketTime = null;
+
+    /**
+     * Set the readInterval, timeout watching and handling functions
+     * in one call.
      *
      * @param float|null    $readInterval
      * @param callable|null $timeoutWatcher
@@ -42,8 +50,7 @@ class SSH2 extends PhpSecLibSSH2
         ?float $readInterval = null,
         ?callable $timeoutWatcher = null,
         ?callable $timeoutHandler = null
-    ): void
-    {
+    ): void {
         if (!is_null($readInterval)) {
             $this->setReadInterval($readInterval);
         }
@@ -95,6 +102,8 @@ class SSH2 extends PhpSecLibSSH2
      * to determine if reading from the stream should stop. If not, use the
      * standard timeout value.
      *
+     * @param mixed $readResult value returned by stream_select after an iteration
+     *
      * @return bool
      */
     protected function shouldBreak(): bool
@@ -103,6 +112,7 @@ class SSH2 extends PhpSecLibSSH2
             return (bool)call_user_func($this->timeoutWatcher);
         }
 
+        // fallback to the default behavior with timeout and curTimeout
         if (!$this->timeout) {
             // never break
             return false;
@@ -119,6 +129,14 @@ class SSH2 extends PhpSecLibSSH2
         if (is_callable($this->timeoutHandler)) {
             call_user_func($this->timeoutHandler);
         }
+    }
+
+    /**
+     * @return float|null
+     */
+    public function getLastPacketTime(): ?float
+    {
+        return $this->lastPacketTime;
     }
 
     /**
@@ -166,31 +184,43 @@ class SSH2 extends PhpSecLibSSH2
                         return true;
                     }
 
+                    // run stream_select in cycle, on each iteration delegate
+                    // the timeout check to the caller.
                     do {
-                        // run stream_select in cycle, on each iteration delegate
-                        // the timeout check to the caller.
-                        $readTmp          = $read; // temporary array, because stream_select may
-                                                   // overwrite the argument passed by reference
-                                                   // and we need to restore it on each iteration
-                        $start            = microtime(true);
+                        // temporary array, because stream_select may
+                        // overwrite the argument passed by reference
+                        // and we need to restore it on each iteration
+                        $readTmp = $read;
+
+                        $start   = microtime(true);
 
                         // wait until data becomes available on the stream
-                        $result           = @stream_select($readTmp, $write, $except, $sec, $usec);
+                        $result = @stream_select($readTmp, $write, $except, $sec, $usec);
 
+                        // if packets are available, set the last packet time
+                        if ($result) {
+                            $this->lastPacketTime = microtime(true);
+                        }
+
+                        // record the time spent waiting
                         $elapsed          = microtime(true) - $start;
                         $this->curTimeout -= $elapsed;
-                        $shouldBreak      = $this->shouldBreak();
+
+                        // check for timeout ('noout') and timelimit ('runtime') conditions
+                        $shouldBreak = $this->shouldBreak();
+
                     } while (!$result && !$shouldBreak);
 
                     if ($shouldBreak) {
+                        // execute the timeout behavior defined by caller and return
+                        // control to the caller
                         $this->break();
-
                         $this->is_timeout = true;
 
                         return true;
                     }
 
-                    if (!$result && !count($readTmp)) {
+                    if ((!$result && !count($readTmp))) {
                         $this->is_timeout = true;
                         if ($client_channel == self::CHANNEL_EXEC && !$this->request_pty) {
                             $this->_close_channel($client_channel);

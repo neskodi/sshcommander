@@ -2,7 +2,7 @@
 
 namespace Neskodi\SSHCommander\Interfaces;
 
-use Neskodi\SSHCommander\Dependencies\SSH2;
+use Neskodi\SSHCommander\VendorOverrides\phpseclib\Net\SSH2;
 
 interface SSHConnectionInterface
 {
@@ -62,8 +62,6 @@ interface SSHConnectionInterface
     public function isTimeout(): bool;
 
     public function isTimelimit(): bool;
-
-    public function isTimeoutOrTimelimit(): bool;
 
 
     public function resetResults(): SSHConnectionInterface;

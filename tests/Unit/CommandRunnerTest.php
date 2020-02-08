@@ -1,11 +1,8 @@
 <?php /** @noinspection PhpUndefinedMethodInspection */
-
 /** @noinspection PhpUnhandledExceptionInspection */
 
 namespace Neskodi\SSHCommander\Tests\Unit;
 
-use Neskodi\SSHCommander\CommandRunners\Decorators\CRTimeoutHandlerDecorator;
-use Neskodi\SSHCommander\CommandRunners\InteractiveCommandRunner;
 use Neskodi\SSHCommander\Interfaces\SSHCommandResultInterface;
 use Neskodi\SSHCommander\CommandRunners\IsolatedCommandRunner;
 use Neskodi\SSHCommander\Interfaces\SSHConnectionInterface;
@@ -98,22 +95,5 @@ class CommandRunnerTest extends TestCase
 
         $this->assertInstanceOf(SSHCommandResultInterface::class, $result);
         $this->assertTrue($result->isError());
-    }
-
-    public function testWrapCommand()
-    {
-        $config    = $this->getTestConfigAsObject(self::CONFIG_FULL);
-        $runner    = new InteractiveCommandRunner($config);
-        $decorator = new CRTimeoutHandlerDecorator($runner);
-
-        $command = new SSHCommand('ls', ['timeout' => 11]);
-        $decorator->wrapCommandIntoTimeout($command);
-
-        $result = $command->getCommand();
-
-        $this->assertRegExp(
-            '/timeout --preserve-status 11 `ps -p \\$\\$ -ocomm=` <<(\\w+)\\nls\\n\\1/s',
-            $result
-        );
     }
 }

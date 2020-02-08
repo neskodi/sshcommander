@@ -4,12 +4,8 @@ namespace Neskodi\SSHCommander\CommandRunners\Decorators;
 
 use Neskodi\SSHCommander\Interfaces\DecoratedCommandRunnerInterface;
 use Neskodi\SSHCommander\Interfaces\SSHCommandInterface;
-use Neskodi\SSHCommander\SSHConnection;
 use Neskodi\SSHCommander\Utils;
 
-/**
- * @method SSHConnection getConnection()
- */
 class CRTimeoutHandlerDecorator
     extends CRBaseDecorator
     implements DecoratedCommandRunnerInterface
@@ -50,6 +46,8 @@ class CRTimeoutHandlerDecorator
                 $this->getTimeoutWatcherFunction($command),
                 $this->getTimeoutHandlerFunction($command)
             );
+        } else {
+            $this->disableTimeoutHandling();
         }
     }
 
@@ -60,7 +58,12 @@ class CRTimeoutHandlerDecorator
      */
     protected function getTimeoutWatcherFunction(): callable
     {
-        return [$this->getConnection(), 'exceedsTimeLimit'];
+        return function () {
+            $connection = $this->getConnection();
+
+            return $connection->reachedTimeout() ||
+                   $connection->reachedTimeLimit();
+        };
     }
 
     /**

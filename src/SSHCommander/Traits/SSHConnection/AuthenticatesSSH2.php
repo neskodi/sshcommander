@@ -3,7 +3,7 @@
 namespace Neskodi\SSHCommander\Traits\SSHConnection;
 
 use Neskodi\SSHCommander\Exceptions\AuthenticationException;
-use Neskodi\SSHCommander\Dependencies\SSH2;
+use Neskodi\SSHCommander\VendorOverrides\phpseclib\Net\SSH2;
 use Neskodi\SSHCommander\SSHConfig;
 use phpseclib\Crypt\RSA;
 

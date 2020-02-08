@@ -5,7 +5,11 @@ namespace Neskodi\SSHCommander\CommandRunners\Decorators;
 use Neskodi\SSHCommander\Interfaces\DecoratedCommandRunnerInterface;
 use Neskodi\SSHCommander\Interfaces\SSHCommandRunnerInterface;
 use Neskodi\SSHCommander\Interfaces\SSHCommandInterface;
+use Neskodi\SSHCommander\SSHConnection;
 
+/**
+ * @method SSHConnection getConnection()
+ */
 abstract class CRBaseDecorator implements DecoratedCommandRunnerInterface
 {
     /**
