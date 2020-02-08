@@ -4,10 +4,12 @@ namespace Neskodi\SSHCommander\CommandRunners\Decorators;
 
 use Neskodi\SSHCommander\Interfaces\DecoratedCommandRunnerInterface;
 use Neskodi\SSHCommander\Interfaces\SSHCommandInterface;
-use Neskodi\SSHCommander\SSHConfig;
+use Neskodi\SSHCommander\SSHConnection;
 use Neskodi\SSHCommander\Utils;
 
-
+/**
+ * @method SSHConnection getConnection()
+ */
 class CRTimeoutHandlerDecorator
     extends CRBaseDecorator
     implements DecoratedCommandRunnerInterface
@@ -25,40 +27,63 @@ class CRTimeoutHandlerDecorator
         $this->setupTimeoutHandler($command);
 
         $this->runner->execDecorated($command);
-
-        $this->handleTimeouts($command);
     }
 
+    /**
+     * Set the functions responsible for detecting timeout condition and handling
+     * it in a proper manner.
+     *
+     * @param SSHCommandInterface $command
+     *
+     * @noinspection PhpMethodParametersCountMismatchInspection
+     */
     public function setupTimeoutHandler(SSHCommandInterface $command): void
     {
         $connection   = $this->getConnection();
         $timeoutValue = $command->getConfig('timeout');
 
         $connection->setTimeout($timeoutValue);
+
+        if ($timeoutValue) {
+            $connection->getSSH2()->configureTimeouts(
+                0.5,
+                $this->getTimeoutWatcherFunction($command),
+                $this->getTimeoutHandlerFunction($command)
+            );
+        }
     }
 
     /**
-     * If the command has timed out by running time condition, it may mean that
-     * the connection is left with an unfinished command. In this case, we
-     * need to execute the timeout behavior, if user has configured one.
+     * Generate the function that will be used to watch for timelimit condition
      *
-     * The most common example is to send CTRL+C to cancel command execution,
-     * which is achieved by setting
-     * 'timeout_behavior' => SSHConfig::TIMEOUT_BEHAVIOR_TERMINATE
-     * in the command config. This is also the default behavior.
+     * @return callable
+     */
+    protected function getTimeoutWatcherFunction(): callable
+    {
+        return [$this->getConnection(), 'exceedsTimeLimit'];
+    }
+
+    /**
+     * Generate the function that will be called in case of timelimit condition.
      *
      * @param SSHCommandInterface $command
      *
-     * @noinspection PhpUnused
+     * @return callable
      */
-    public function handleTimeouts(SSHCommandInterface $command): void
+    protected function getTimeoutHandlerFunction(SSHCommandInterface $command): callable
     {
-        if (
-            SSHConfig::TIMEOUT_CONDITION_RUNTIME === $command->getConfig('timeout_condition') &&
-            $this->getConnection()->isTimelimit()
-        ) {
+        return function () use ($command) {
             $this->executeTimeoutBehavior($command);
-        }
+        };
+    }
+
+    /**
+     * Tell the underlying SSH2 instance to disable any timeout watching / handling
+     * behavior.
+     */
+    protected function disableTimeoutHandling()
+    {
+        $this->getConnection()->getSSH2()->configureTimeouts(null, null, null);
     }
 
     /**
@@ -76,6 +101,10 @@ class CRTimeoutHandlerDecorator
     {
         $behavior   = $command->getConfig('timeout_behavior');
         $connection = $this->getConnection();
+
+        // disable any timeout handler so that if we want to read from the connection
+        // again, we don't fall into endless nesting loop
+        $this->disableTimeoutHandling();
 
         // if user wants to send a control character such as CTRL+C, just send it
         if (Utils::isAsciiControlCharacter($behavior)) {
@@ -99,34 +128,5 @@ class CRTimeoutHandlerDecorator
 
             return;
         }
-    }
-
-    /**
-     * Execute the user command through the system built-in timeout utility.
-     *
-     * Remember that user's command may be compound, like "command 1; command 2"
-     * hence the complexity.
-     *
-     * @param SSHCommandInterface $command
-     */
-    public function wrapCommandIntoTimeout(SSHCommandInterface $command): void
-    {
-        // produce 'timeout --preserve-status 10'
-        $timeoutCmd = sprintf(
-            'timeout --preserve-status %d',
-            $command->getConfig('timeout')
-        );
-
-        // this will produce e.g. 'bash' when run on command line
-        $detectShellNameCmd = '`ps -p $$ -ocomm=`';
-
-        // user command will be wrapped into unique markers to prevent conflict
-        // with any character sequence that might occur inside user's command
-        $hereDocMarker = uniqid();
-        $hereDoc       = "<<$hereDocMarker\n%s\n$hereDocMarker";
-
-        $pattern = "$timeoutCmd $detectShellNameCmd $hereDoc";
-
-        $command->wrap($pattern);
     }
 }

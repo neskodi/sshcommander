@@ -6,17 +6,23 @@
 
 namespace Neskodi\SSHCommander\Dependencies;
 
+use Neskodi\SSHCommander\Traits\HasConnection;
 use Neskodi\SSHCommander\Traits\Loggable;
 use phpseclib\Net\SSH2 as PhpSecLibSSH2;
 
 class SSH2 extends PhpSecLibSSH2
 {
-    use Loggable;
+    use Loggable, HasConnection;
 
     /**
      * @var null|callable
      */
-    protected $timeoutFunction = null;
+    protected $timeoutWatcher = null;
+
+    /**
+     * @var null|callable
+     */
+    protected $timeoutHandler = null;
 
     protected $readInterval = [
         'sec'  => 0,
@@ -27,15 +33,24 @@ class SSH2 extends PhpSecLibSSH2
      * Set both the readInterval and the timeout function in one call.
      *
      * @param float|null    $readInterval
-     * @param callable|null $timeoutFunction
+     * @param callable|null $timeoutWatcher
+     * @param callable|null $timeoutHandler
+     *
+     * @noinspection PhpUnused
      */
-    public function configureTimeouts(?float $readInterval = null, ?callable $timeoutFunction = null): void
+    public function configureTimeouts(
+        ?float $readInterval = null,
+        ?callable $timeoutWatcher = null,
+        ?callable $timeoutHandler = null
+    ): void
     {
         if (!is_null($readInterval)) {
             $this->setReadInterval($readInterval);
         }
 
-        $this->setTimeoutFunction($timeoutFunction);
+        $this->setTimeoutWatcher($timeoutWatcher);
+
+        $this->setTimeoutHandler($timeoutHandler);
     }
 
     /**
@@ -44,9 +59,19 @@ class SSH2 extends PhpSecLibSSH2
      *
      * @param callable|null $function
      */
-    public function setTimeoutFunction(?callable $function = null): void
+    public function setTimeoutWatcher(?callable $function = null): void
     {
-        $this->timeoutFunction = $function;
+        $this->timeoutWatcher = $function;
+    }
+
+    /**
+     * Set the function that will be run when timeout condition occurs
+     *
+     * @param callable|null $function
+     */
+    public function setTimeoutHandler(?callable $function = null): void
+    {
+        $this->timeoutHandler = $function;
     }
 
     /**
@@ -56,10 +81,10 @@ class SSH2 extends PhpSecLibSSH2
      */
     public function setReadInterval(float $readInterval): void
     {
-        $sec  = floor($readInterval);
-        $usec = ($readInterval - $sec) * 1000000;
+        $sec  = intval(floor($readInterval));
+        $usec = intval(($readInterval - $sec) * 1000000);
 
-        $this->readInterval = compact($sec, $usec);
+        $this->readInterval = compact('sec', 'usec');
     }
 
     /**
@@ -74,8 +99,8 @@ class SSH2 extends PhpSecLibSSH2
      */
     protected function shouldBreak(): bool
     {
-        if (is_callable($this->timeoutFunction)) {
-            return (bool)call_user_func($this->timeoutFunction);
+        if (is_callable($this->timeoutWatcher)) {
+            return (bool)call_user_func($this->timeoutWatcher);
         }
 
         if (!$this->timeout) {
@@ -83,11 +108,37 @@ class SSH2 extends PhpSecLibSSH2
             return false;
         }
 
-        $this->debug(sprintf('curTimeout: %f', $this->curTimeout));
-
         return $this->curTimeout < 0;
     }
 
+    /**
+     * If user has defined any timeout behavior, execute it now.
+     */
+    protected function break(): void
+    {
+        if (is_callable($this->timeoutHandler)) {
+            call_user_func($this->timeoutHandler);
+        }
+    }
+
+    /**
+     * Slightly modified version of the underlying method
+     * phpseclib\Net\SSH2::_get_channel_packet().
+     *
+     * Instead of setting the user-requested timeout directly to stream_select,
+     * we will run stream_select in a cycle with a small interval (0.5 sec by
+     * default). This will let us break out of the cycle even in cases where
+     * the previous version fails to do so (e.g. with the 'sleep' command).
+     *
+     * It will also allow us to inject user-defined behavior into this moment,
+     * e.g. user may want to cancel execution by sending (CTRL+C) or continue
+     * in the background by sending (CTRL+Z) and then 'bg'.
+     *
+     * @param      $client_channel
+     * @param bool $skip_extended
+     *
+     * @return bool|int|mixed|string
+     */
     function _get_channel_packet($client_channel, $skip_extended = false)
     {
         if (!empty($this->channel_buffers[$client_channel])) {
@@ -132,6 +183,8 @@ class SSH2 extends PhpSecLibSSH2
                     } while (!$result && !$shouldBreak);
 
                     if ($shouldBreak) {
+                        $this->break();
+
                         $this->is_timeout = true;
 
                         return true;

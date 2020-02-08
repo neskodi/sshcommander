@@ -267,15 +267,6 @@ class SSHConnection implements
 
         $this->ssh2->setLogger($this->getLogger());
 
-        $this->ssh2->configureTimeouts(null, function () {
-            $isTimeout = $this->exceedsTimeLimit();
-            // if ($isTimeout) {
-            //     $this->terminateCommand();
-            // }
-
-            return $isTimeout;
-        });
-
         return $this;
     }
 
@@ -403,7 +394,7 @@ class SSHConnection implements
      *
      * @return bool
      */
-    protected function exceedsTimeLimit(): bool
+    public function exceedsTimeLimit(): bool
     {
         // if user didn't set the timeout condition to 'runtime', no action
         // is necessary either
