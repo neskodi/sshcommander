@@ -4,7 +4,6 @@ namespace Neskodi\SSHCommander\Tests\Integration;
 
 use Neskodi\SSHCommander\Interfaces\SSHCommanderInterface;
 use Neskodi\SSHCommander\Tests\IntegrationTestCase;
-use Neskodi\SSHCommander\SSHCommander;
 use Neskodi\SSHCommander\Traits\Timer;
 use Monolog\Handler\TestHandler;
 use RuntimeException;
@@ -12,10 +11,6 @@ use RuntimeException;
 class ConfigurationTest extends IntegrationTestCase
 {
     use Timer;
-
-    /***** CONFIGURATION PROPAGATION TESTS *****/
-
-    //
 
     /***** CREDENTIAL SELECTION TESTS *****/
 

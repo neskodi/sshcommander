@@ -42,12 +42,12 @@ class SSHCommanderTest extends IntegrationTestCase
 
     public function testFailedCommandIsReflectedInResult(): void
     {
-        $config = $this->sshOptions;
+        $config                   = $this->sshOptions;
         $config['break_on_error'] = false;
 
         $commander = $this->getSSHCommander($config);
 
-        $result    = $commander->run('cd /no/such/dir');
+        $result = $commander->run('cd /no/such/dir');
 
         $this->assertTrue($result->isError());
         $this->assertStringContainsStringIgnoringCase('no such', $result);
@@ -263,5 +263,23 @@ class SSHCommanderTest extends IntegrationTestCase
         $this->assertInstanceOf(SSHCommandResultInterface::class, $result);
         $this->assertTrue($result->isError());
         $this->assertStringContainsString('cd /no/such/dir', (string)$result->getCommand());
+    }
+
+    public function testCustomSuccessCodes(): void
+    {
+        $config    = new SSHConfig($this->sshOptions);
+        $commander = $this->getSSHCommander($config);
+
+        // grep returns 1 when no lines have matched
+        $command   = 'grep "show must go on" /etc/hostname';
+
+        $commander->breakOnError(false);
+        $result = $commander->run($command);
+
+        $this->assertFalse($result->isOk());
+
+        $result = $commander->run($command, ['success_codes' => [1]]);
+
+        $this->assertTrue($result->isOk());
     }
 }
