@@ -4,7 +4,6 @@ namespace Neskodi\SSHCommander\Traits\SSHConnection;
 
 use Neskodi\SSHCommander\VendorOverrides\phpseclib\Net\SSH2;
 use Neskodi\SSHCommander\Exceptions\CommandRunException;
-use Neskodi\SSHCommander\Interfaces\SSHCommandInterface;
 
 /**
  * Trait InteractsWithSSH2
@@ -14,8 +13,6 @@ use Neskodi\SSHCommander\Interfaces\SSHCommandInterface;
 trait InteractsWithSSH2
 {
     abstract public function getSSH2(): SSH2;
-
-    abstract public function processOutput(SSHCommandInterface $command, string $output): array;
 
     /**
      * Phpseclib throws errors using user_error(). We will intercept this by

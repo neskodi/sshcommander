@@ -63,6 +63,10 @@ interface SSHConnectionInterface
 
     public function isTimelimit(): bool;
 
+    public function reachedTimeLimit(): bool;
+
+    public function reachedTimeout(): bool;
+
 
     public function resetResults(): SSHConnectionInterface;
 

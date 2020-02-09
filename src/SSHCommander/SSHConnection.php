@@ -12,6 +12,7 @@ use Neskodi\SSHCommander\Interfaces\ConfigAwareInterface;
 use Neskodi\SSHCommander\Interfaces\LoggerAwareInterface;
 use Neskodi\SSHCommander\Interfaces\SSHCommandInterface;
 use Neskodi\SSHCommander\Interfaces\SSHConfigInterface;
+use Neskodi\SSHCommander\Traits\HasOutputProcessor;
 use Neskodi\SSHCommander\Interfaces\TimerInterface;
 use Neskodi\SSHCommander\Traits\ConfigAware;
 use Neskodi\SSHCommander\Traits\Loggable;
@@ -26,25 +27,20 @@ class SSHConnection implements
 {
     use Loggable, Timer, ConfigAware;
     use AuthenticatesSSH2, ConfiguresSSH2, InteractsWithSSH2;
+    use HasOutputProcessor;
 
     /**
      * @var SSH2
      */
     protected $ssh2;
 
-    /**
-     * @var array
-     */
+    /** @var array */
     protected $stdoutLines = [];
 
-    /**
-     * @var array
-     */
+    /** @var array */
     protected $stderrLines = [];
 
-    /**
-     * @var int
-     */
+    /** @var int */
     protected $lastExitCode;
 
     /**
@@ -84,6 +80,9 @@ class SSHConnection implements
         if ($logger) {
             $this->setLogger($logger);
         }
+
+        // the default output processor, mainly for the authentication stage
+        $this->setOutputProcessor(new SSHOutputProcessor($config));
 
         if ($this->getConfig('autologin')) {
             $this->authenticate();
@@ -154,18 +153,23 @@ class SSHConnection implements
 
         while ($str = $this->sshRead('', SSH2::READ_NEXT)) {
             if (is_string($str)) {
-                $output .= $str;
+                $this->output->add($str);
             }
 
             if ($this->reachedTimeLimit()) {
                 break;
             }
 
-            if ($this->usesMarkers() && $this->hasMarker($output)) {
+            if (
+                $this->usesMarkers() &&
+                $this->output->hasMarker($this->markerRegex)
+            ) {
                 break;
             }
 
-            if (!$this->usesMarkers() && $this->hasPrompt($output)) {
+            if (
+                !$this->usesMarkers() &&
+                $this->output->hasPrompt()) {
                 break;
             }
 
@@ -176,7 +180,7 @@ class SSHConnection implements
 
         $this->stopTimer();
 
-        $this->debug('READ: ' . Utils::oneLine($output));
+        $this->debug('READ: ' . Utils::oneLine($this->output->getRaw()));
 
         return $output;
     }
@@ -209,17 +213,16 @@ class SSHConnection implements
     {
         $ssh = $this->getSSH2();
 
+        $this->debug('EXEC: ' . Utils::oneLine((string)$command));
+
         $this->sshExec((string)$command, function ($str) use ($command) {
             // collect the stdout stream
-            $this->stdoutLines = array_merge(
-                $this->stdoutLines,
-                $this->processOutput($command, $str)
-            );
+            $this->output->add($str);
         });
 
         // don't forget to collect the error stream too
         if ($command->getConfig('separate_stderr')) {
-            $this->stderrLines = $this->processOutput($command, $ssh->getStdError());
+            $this->output->addErr($this->getSSH2()->getStdError());
         }
 
         $this->lastExitCode = $ssh->getExitStatus();
@@ -267,7 +270,10 @@ class SSHConnection implements
      */
     public function configureForCommand(SSHCommandInterface $command): SSHConnectionInterface
     {
-        $this->setConfig($command->getConfig());
+        $config = $command->getConfig();
+
+        $this->setConfig($config);
+        $this->setOutputProcessor(new SSHOutputProcessor($config));
 
         return $this;
     }
@@ -284,12 +290,14 @@ class SSHConnection implements
     public function execIsolated(SSHCommandInterface $command): SSHConnectionInterface
     {
         $this->configureForCommand($command);
-
         $this->authenticateIfNecessary();
-
         $this->resetResults();
 
         $this->exec($command);
+
+        // get back the output (and error) as separate lines
+        // (without cleaning it)
+        $this->collectOutput(false);
 
         return $this;
     }
@@ -307,17 +315,15 @@ class SSHConnection implements
     public function execInteractive(SSHCommandInterface $command): SSHConnectionInterface
     {
         $this->configureForCommand($command);
-
         $this->authenticateIfNecessary();
-
         $this->resetResults();
-
         $this->writeAndSend((string)$command);
 
         $output = $this->read();
-        $output = $this->cleanCommandOutput($output, $command);
+        $this->output->add($output);
 
-        $this->stdoutLines = $this->processOutput($command, $output);
+        // get back the output split into separate lines
+        $this->collectOutput();
 
         return $this;
     }
@@ -341,7 +347,7 @@ class SSHConnection implements
             }
 
             $output .= $str;
-            if ($this->hasPrompt($output)) {
+            if ($this->output->hasPrompt($output)) {
                 break;
             }
         }
@@ -350,42 +356,6 @@ class SSHConnection implements
 
         $this->debug('JUNK: ' . Utils::oneLine($output));
         $this->debug('End cleaning buffer');
-    }
-
-    /**
-     * SSH2::read() returns the entire interactive buffer, including the command
-     * itself and the command prompt in the end. We are only interested in the
-     * command output, so we will strip off these artifacts.
-     *
-     * @param string              $output
-     * @param SSHCommandInterface $command
-     *
-     * @return false|string|string[]|null
-     */
-    protected function cleanCommandOutput(string $output, SSHCommandInterface $command): string
-    {
-        $firstCommandRegex = '/^.*?(\r\n|\r|\n)/';
-        $promptRegex       = $command->getConfig()->getPromptRegex();
-
-        // carefully inject command after prompt into prompt regex
-        $promptRegexWithCommand = preg_replace(
-            '/^(.)(.+?)(\\$)?\\1([a-z]*)$/',
-            '\1\2.*(\r\n|\r|\n)\1\4',
-            $promptRegex
-        );
-
-        // clean out the first subcommand from the beginning
-        $output = preg_replace($firstCommandRegex, '', $output);
-
-        // clean out all subsequent prompts with following commands
-        $output = preg_replace($promptRegexWithCommand, '', $output);
-
-        // clean out the command prompt from the end
-        $output = preg_replace($promptRegex, '', $output);
-
-        $this->debug('CLEAN: ' . Utils::oneLine($output));
-
-        return $output;
     }
 
     /**
@@ -441,63 +411,6 @@ class SSHConnection implements
     }
 
     /**
-     * Return the time since last packet was received
-     *
-     * @return float
-     */
-    protected function timeSinceLastPacket(): float
-    {
-        $lastPacketTime = $this->getSSH2()->getLastPacketTime();
-
-        // if no packet was yet received, we count from the time when command
-        // started running
-        if (is_null($lastPacketTime)) {
-            return $this->timeSinceCommandStart();
-        }
-
-        // return the actual time since last packet
-        return microtime(true) - $lastPacketTime;
-    }
-
-    /**
-     * Return the time since the current command started running.
-     *
-     * @return float
-     */
-    protected function timeSinceCommandStart(): float
-    {
-        return microtime(true) - $this->getTimerStart();
-    }
-
-    /**
-     * See if current received output from the command contains a command
-     * prompt, as defined by the config value 'prompt_regex'.
-     *
-     * @param string $output
-     *
-     * @return bool
-     */
-    protected function hasPrompt(string $output): bool
-    {
-        $regex = $this->getConfig()->getPromptRegex();
-
-        return $this->hasExpectedOutputRegex($output, $regex);
-    }
-
-    /**
-     * See if current received output from the command contains the specified
-     * marker, which is matched via a regular expression, like prompt.
-     *
-     * @param string $output
-     *
-     * @return bool
-     */
-    protected function hasMarker(string $output): bool
-    {
-        return $this->hasExpectedOutputRegex($output, $this->markerRegex);
-    }
-
-    /**
      * Set the regular expression used to detect 'end' and 'error' markers in
      * the output.
      *
@@ -523,87 +436,6 @@ class SSHConnection implements
         $this->markerRegex = null;
 
         return $this;
-    }
-
-    /**
-     * See if we are told to look for markers in the output.
-     *
-     * @return bool
-     */
-    protected function usesMarkers(): bool
-    {
-        return (bool)$this->markerRegex;
-    }
-
-    /**
-     * Check if current received output from the command already contains a
-     * substring expected by user.
-     *
-     * @param string $output
-     * @param string $expect
-     *
-     * @return bool
-     *
-     * @noinspection PhpUnused
-     */
-    protected function hasExpectedOutputSimple(string $output, string $expect)
-    {
-        $strPosFunction = function_exists('mb_strpos') ? 'mb_strpos' : 'strpos';
-
-        return false !== $strPosFunction($output, $expect);
-    }
-
-    /**
-     * Check if current received output matches the regular expression expected
-     * by user.
-     *
-     * @param string $output
-     * @param string $expect
-     *
-     * @return false|int
-     */
-    protected function hasExpectedOutputRegex(string $output, string $expect)
-    {
-        return preg_match($expect, $output);
-    }
-
-    /**
-     * Process an intermediate sequence of output characters before merging it
-     * with the main array of output lines.
-     *
-     * @param SSHCommandInterface $command used to look up configuration
-     * @param string              $chars
-     *
-     * @return array
-     */
-    protected function processOutput(SSHCommandInterface $command, string $chars): array
-    {
-        return $this->splitOutput($command, $chars);
-    }
-
-    /**
-     * Split output lines by a regular expression or simple character(s),
-     * according to command configuration.
-     *
-     * @param SSHCommandInterface $command
-     * @param string              $chars
-     *
-     * @return array
-     */
-    protected function splitOutput(SSHCommandInterface $command, string $chars): array
-    {
-        // see if user wants to split by regular expression
-        if ($delim = $command->getConfig('delimiter_split_output_regex')) {
-            return preg_split($delim, $chars) ?: [];
-        }
-
-        // see if user wants to explode by a simple delimiter
-        if ($delim = $command->getConfig('delimiter_split_output')) {
-            return explode($delim, $chars) ?: [];
-        }
-
-        // otherwise no splitting can be performed
-        return [$chars];
     }
 
     /**
@@ -654,6 +486,28 @@ class SSHConnection implements
     }
 
     /**
+     * Check if either 'noout' or 'runtime' timeout condition has been reached
+     * while running this command.
+     *
+     * @return bool
+     */
+    public function isTimeout(): bool
+    {
+        return (bool)$this->getSSH2()->isTimeout();
+    }
+
+    /**
+     * Check if the 'runtime' timeout condition has specifically been reached
+     * while running this command.
+     *
+     * @return bool
+     */
+    public function isTimelimit(): bool
+    {
+        return $this->isTimelimit;
+    }
+
+    /**
      * Clear all traces of previous commands.
      *
      * @return $this
@@ -680,24 +534,54 @@ class SSHConnection implements
     }
 
     /**
-     * Check if either 'noout' or 'runtime' timeout condition has been reached
-     * while running this command.
+     * Get the processed (and possibly cleaned) output back from the
+     * output processor.
      *
-     * @return bool
+     * @param bool $clean whether to tell the output processor to clean
+     *                    the output. read/write needs this, while exec doesn't.
      */
-    public function isTimeout(): bool
+    protected function collectOutput(bool $clean = true): void
     {
-        return (bool)$this->getSSH2()->isTimeout();
+        $this->stdoutLines = $this->output->get($clean);
+        $this->stderrLines = $this->output->getErr($clean);
     }
 
     /**
-     * Check if the 'runtime' timeout condition has specifically been reached
-     * while running this command.
+     * Return the time since last packet was received
+     *
+     * @return float
+     */
+    protected function timeSinceLastPacket(): float
+    {
+        $lastPacketTime = $this->getSSH2()->getLastPacketTime();
+
+        // if no packet was yet received, we count from the time when command
+        // started running
+        if (is_null($lastPacketTime)) {
+            return $this->timeSinceCommandStart();
+        }
+
+        // return the actual time since last packet
+        return microtime(true) - $lastPacketTime;
+    }
+
+    /**
+     * Return the time since the current command started running.
+     *
+     * @return float
+     */
+    protected function timeSinceCommandStart(): float
+    {
+        return microtime(true) - $this->getTimerStart();
+    }
+
+    /**
+     * See if we are told to look for markers in the output.
      *
      * @return bool
      */
-    public function isTimelimit(): bool
+    protected function usesMarkers(): bool
     {
-        return $this->isTimelimit;
+        return (bool)$this->markerRegex;
     }
 }

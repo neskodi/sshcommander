@@ -36,5 +36,4 @@ trait HasConnection
 
         return $this;
     }
-
 }
