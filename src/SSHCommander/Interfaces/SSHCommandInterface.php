@@ -21,4 +21,6 @@ interface SSHCommandInterface
     public function wrap(string $pattern): SSHCommandInterface;
 
     public function toLoggableString(): string;
+
+    public function getSuccessfulExitCodes(): array;
 }

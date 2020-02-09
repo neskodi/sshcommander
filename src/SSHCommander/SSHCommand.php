@@ -154,6 +154,24 @@ class SSHCommand implements SSHCommandInterface, ConfigAwareInterface
     }
 
     /**
+     * Allow user to specify their own array of codes that will be considered
+     * successful.
+     *
+     * @return array
+     * @noinspection PhpIncompatibleReturnTypeInspection
+     */
+    public function getSuccessfulExitCodes(): array
+    {
+        $configured = $this->getConfig('success_codes');
+
+        if (Utils::isArrayOfIntegers($configured)) {
+            return $configured;
+        }
+
+        return [0];
+    }
+
+    /**
      * Cast user's input from any permitted type to string, or throw an
      * exception if this is not possible.
      *

@@ -79,4 +79,26 @@ class Utils
     {
         return (1 === strlen($char)) && (32 > ord($char));
     }
+
+    /**
+     * Check if the passed variable is an array that only contains integers.
+     *
+     * @param $value
+     *
+     * @return bool
+     */
+    public static function isArrayOfIntegers($value): bool
+    {
+        if (!is_array($value)) {
+            return false;
+        }
+
+        foreach ($value as $item) {
+            if (!is_int($item)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
 }

@@ -53,7 +53,7 @@ class SSHCommandResultTest extends TestCase
             ? $this->getCommandSuccessMessage()
             : $this->getCommandErrorMessage($exitCode);
 
-        $acc     = [];
+        $acc = [];
 
         $outhead = 'Command returned:';
         $errhead = 'Command STDERR:';
@@ -86,7 +86,7 @@ class SSHCommandResultTest extends TestCase
     public function testConstructorWithSuccessfulExitCode(): void
     {
         $command = $this->getCommand();
-        $result = new SSHCommandResult($command, 0);
+        $result  = new SSHCommandResult($command, 0);
 
         $this->assertSame(0, $result->getExitCode());
         $this->assertSame(SSHCommandResult::STATUS_OK, $result->getStatus());
@@ -99,7 +99,7 @@ class SSHCommandResultTest extends TestCase
     public function testConstructorWithErrorExitCode(): void
     {
         $command = $this->getCommand();
-        $result = new SSHCommandResult($command, 255);
+        $result  = new SSHCommandResult($command, 255);
 
         $this->assertSame(255, $result->getExitCode());
         $this->assertSame(SSHCommandResult::STATUS_ERROR, $result->getStatus());
@@ -112,7 +112,7 @@ class SSHCommandResultTest extends TestCase
     public function testConstructorWithStdout(): void
     {
         $command = $this->getCommand();
-        $result = new SSHCommandResult($command, null, ['test']);
+        $result  = new SSHCommandResult($command, null, ['test']);
 
         $this->assertNull($result->getExitCode());
         $this->assertNull($result->getStatus());
@@ -125,7 +125,7 @@ class SSHCommandResultTest extends TestCase
     public function testConstructorWithStderr(): void
     {
         $command = $this->getCommand();
-        $result = new SSHCommandResult($command, null, null, ['test']);
+        $result  = new SSHCommandResult($command, null, null, ['test']);
 
         $this->assertNull($result->getExitCode());
         $this->assertNull($result->getStatus());
@@ -137,10 +137,10 @@ class SSHCommandResultTest extends TestCase
 
     public function testRemoveLastEmptyLine(): void
     {
-        $defaultConfig = $this->getTestConfigAsArray();
+        $defaultConfig                                = $this->getTestConfigAsArray();
         $defaultConfig['output_trim_last_empty_line'] = true;
 
-        $command       = new SSHCommand('ls', $defaultConfig);
+        $command = new SSHCommand('ls', $defaultConfig);
 
         $result = new SSHCommandResult(
             $command,
@@ -155,10 +155,10 @@ class SSHCommandResultTest extends TestCase
 
     public function testLeaveLastEmptyLine(): void
     {
-        $defaultConfig = $this->getTestConfigAsArray();
+        $defaultConfig                                = $this->getTestConfigAsArray();
         $defaultConfig['output_trim_last_empty_line'] = false;
 
-        $command       = new SSHCommand('ls', $defaultConfig);
+        $command = new SSHCommand('ls', $defaultConfig);
 
         $result = new SSHCommandResult(
             $command,
@@ -171,7 +171,7 @@ class SSHCommandResultTest extends TestCase
         $this->assertEquals(['test err', ''], $result->getErrorOutput());
     }
 
-    public function test__toString(): void
+    public function testtoString(): void
     {
         $result = $this->createCommandResult();
         $result->setOutput([
@@ -242,6 +242,21 @@ class SSHCommandResultTest extends TestCase
         $this->assertTrue($result->isOk());
         $result->setExitCode(255);
         $this->assertFalse($result->isOk());
+    }
+
+    public function testCustomSuccessCodes(): void
+    {
+        $defaultConfig = $this->getTestConfigAsArray();
+        $command       = new SSHCommand('test', $defaultConfig);
+        $command->set('success_codes', [1, 2]);
+        $result = new SSHCommandResult($command);
+
+        $result->setExitCode(0);
+        $this->assertFalse($result->isOk());
+        $result->setExitCode(1);
+        $this->assertTrue($result->isOk());
+        $result->setExitCode(2);
+        $this->assertTrue($result->isOk());
     }
 
     public function testSetOutput(): void

@@ -192,15 +192,11 @@ class SSHCommandResult implements
      */
     public function getStatus(): ?string
     {
-        if (is_null($this->exitCode)) {
+        if (is_null($this->getExitCode())) {
             return null;
         }
 
-        if (0 === $this->exitCode) {
-            return static::STATUS_OK;
-        }
-
-        return static::STATUS_ERROR;
+        return $this->isOk() ? static::STATUS_OK : static::STATUS_ERROR;
     }
 
     /**
@@ -272,11 +268,14 @@ class SSHCommandResult implements
      */
     public function isOk(): ?bool
     {
-        if (is_null($this->getStatus())) {
+        if (is_null($this->getExitCode())) {
             return null;
         }
 
-        return static::STATUS_OK === $this->getStatus();
+        return in_array(
+            $this->getExitCode(),
+            $this->getCommand()->getSuccessfulExitCodes()
+        );
     }
 
     /**
@@ -286,11 +285,11 @@ class SSHCommandResult implements
      */
     public function isError(): ?bool
     {
-        if (is_null($this->getStatus())) {
+        if (is_null($this->getExitCode())) {
             return null;
         }
 
-        return static::STATUS_ERROR === $this->getStatus();
+        return !$this->isOk();
     }
 
     /**
