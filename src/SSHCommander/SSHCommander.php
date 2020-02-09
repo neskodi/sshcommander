@@ -14,6 +14,7 @@ use Neskodi\SSHCommander\Interfaces\LoggerAwareInterface;
 use Neskodi\SSHCommander\Exceptions\CommandRunException;
 use Neskodi\SSHCommander\Interfaces\SSHCommandInterface;
 use Neskodi\SSHCommander\Factories\LoggerFactory;
+use Neskodi\SSHCommander\Traits\HasResultCollection;
 use Neskodi\SSHCommander\Traits\SetsConfigValues;
 use Neskodi\SSHCommander\Traits\ConfigAware;
 use Neskodi\SSHCommander\Traits\Loggable;
@@ -26,6 +27,7 @@ class SSHCommander implements
     ConfigAwareInterface
 {
     use Loggable, ConfigAware, SetsConfigValues;
+    use HasResultCollection;
 
     /**
      * @var SSHConnectionInterface
@@ -313,6 +315,9 @@ class SSHCommander implements
         $commandObject = $this->createCommand($command, $options);
 
         $result = $runner->run($commandObject);
+
+        // put result into the collection
+        $this->getResultCollection()[] = $result;
 
         $this->checkForError($commandObject, $result);
 

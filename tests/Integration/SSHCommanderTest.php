@@ -4,7 +4,10 @@
 
 namespace Neskodi\SSHCommander\Tests\Integration;
 
+use Neskodi\SSHCommander\Interfaces\SSHResultCollectionInterface;
+use Neskodi\SSHCommander\Interfaces\SSHCommandResultInterface;
 use Neskodi\SSHCommander\Exceptions\AuthenticationException;
+use Neskodi\SSHCommander\Exceptions\CommandRunException;
 use Neskodi\SSHCommander\Tests\IntegrationTestCase;
 use Neskodi\SSHCommander\SSHConfig;
 use RuntimeException;
@@ -237,5 +240,28 @@ class SSHCommanderTest extends IntegrationTestCase
         $commander->run('ls');
 
         $this->assertTrue($commander->getConnection()->isAuthenticated());
+    }
+
+    /** @noinspection PhpRedundantCatchClauseInspection */
+    public function testResultCollection(): void
+    {
+        $commander = $this->getSSHCommander($this->sshOptions);
+
+        try {
+            $commander->runIsolated('ls');
+            $commander->runIsolated('cd /no/such/dir');
+        } catch (CommandRunException $e) {
+        }
+
+        $collection = $commander->getResultCollection();
+        $this->assertInstanceOf(SSHResultCollectionInterface::class, $collection);
+        $this->assertEquals(2, $collection->count());
+
+        // check that the last failed result was put into collection
+        $result = $collection->last();
+
+        $this->assertInstanceOf(SSHCommandResultInterface::class, $result);
+        $this->assertTrue($result->isError());
+        $this->assertStringContainsString('cd /no/such/dir', (string)$result->getCommand());
     }
 }

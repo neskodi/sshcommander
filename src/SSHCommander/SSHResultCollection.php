@@ -4,41 +4,42 @@ namespace Neskodi\SSHCommander;
 
 use Neskodi\SSHCommander\Interfaces\SSHResultCollectionInterface;
 use Neskodi\SSHCommander\Interfaces\SSHCommandResultInterface;
+use Neskodi\SSHCommander\Traits\ArrayBehavior\ActsLikeArray;
 use InvalidArgumentException;
 use RuntimeException;
+use ArrayAccess;
+use Countable;
+use Iterator;
 
-class SSHResultCollection implements SSHResultCollectionInterface
+class SSHResultCollection implements
+    SSHResultCollectionInterface,
+    ArrayAccess,
+    Countable,
+    Iterator
 {
+    use ActsLikeArray {
+        offsetSet as ArrayAccessOffsetSet;
+    }
+
     const MATCHING_MODE_REGEX     = 'regex';
     const MATCHING_MODE_STRING_CS = 'string_cs';
     const MATCHING_MODE_STRING_CI = 'string_ci';
 
+    /**
+     * @var array
+     */
     protected $items = [];
 
     /**
-     * This function is needed to implement ArrayAccess.
-     *
-     * @inheritDoc
+     * @var int
      */
-    public function offsetExists($offset)
-    {
-        return array_key_exists($offset, $this->items);
-    }
+    private $position = 0;
 
     /**
-     * This function is needed to implement ArrayAccess.
+     * Only allow adding objects implementing SSHCommandResultInterface
      *
-     * @inheritDoc
-     */
-    public function offsetGet($offset)
-    {
-        return $this->items[$offset] ?? null;
-    }
-
-    /**
-     * This function is needed to implement ArrayAccess.
-     *
-     * @inheritDoc
+     * @param mixed $offset
+     * @param mixed $value
      */
     public function offsetSet($offset, $value)
     {
@@ -49,21 +50,7 @@ class SSHResultCollection implements SSHResultCollectionInterface
             );
         }
 
-        if (is_null($offset)) {
-            $this->items[] = $value;
-        } else {
-            $this->items[$offset] = $value;
-        }
-    }
-
-    /**
-     * This function is needed to implement ArrayAccess.
-     *
-     * @inheritDoc
-     */
-    public function offsetUnset($offset)
-    {
-        unset($this->items[$offset]);
+        $this->ArrayAccessOffsetSet($offset, $value);
     }
 
     /**
@@ -297,7 +284,7 @@ class SSHResultCollection implements SSHResultCollectionInterface
      */
     public function getLastResultThatMatches(
         string $pattern,
-        ?string $mode = null
+        ?string $mode = self::MATCHING_MODE_REGEX
     ): ?SSHCommandResultInterface {
         $match = $this->getMatchFunction($pattern, $mode);
 
@@ -319,7 +306,7 @@ class SSHResultCollection implements SSHResultCollectionInterface
      */
     public function getFirstResultThatContains(
         string $pattern,
-        ?string $mode = null
+        ?string $mode = self::MATCHING_MODE_STRING_CS
     ): ?SSHCommandResultInterface {
         $match = $this->getContainFunction($pattern, $mode);
 
@@ -341,7 +328,7 @@ class SSHResultCollection implements SSHResultCollectionInterface
      */
     public function getLastResultThatContains(
         string $pattern,
-        ?string $mode = null
+        ?string $mode = self::MATCHING_MODE_STRING_CS
     ): ?SSHCommandResultInterface {
         $match = $this->getContainFunction($pattern, $mode);
 
@@ -404,9 +391,9 @@ class SSHResultCollection implements SSHResultCollectionInterface
      *
      * @return SSHResultCollectionInterface
      */
-    public function map(callable $function): SSHResultCollectionInterface
+    public function map(callable $function): array
     {
-        $newCollection = new SSHResultCollection;
+        $newCollection = [];
 
         foreach ($this->items as $key => $item) {
             $newCollection[$key] = $function($item, $key);
@@ -429,7 +416,7 @@ class SSHResultCollection implements SSHResultCollectionInterface
 
         foreach ($this->items as $key => $item) {
             if ($function($item, $key)) {
-                $newCollection[$key] = $item;
+                $newCollection[] = $item;
             }
         }
 
@@ -544,8 +531,10 @@ class SSHResultCollection implements SSHResultCollectionInterface
      *
      * @return callable
      */
-    protected function getMatchFunction(string $pattern, ?string $mode): callable
-    {
+    protected function getMatchFunction(
+        string $pattern,
+        ?string $mode = self::MATCHING_MODE_REGEX
+    ): callable {
         switch ($mode) {
             case self::MATCHING_MODE_REGEX:
                 $match = function (SSHCommandResultInterface $result) use ($pattern) {

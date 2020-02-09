@@ -11,6 +11,7 @@ use Neskodi\SSHCommander\Interfaces\SSHCommandResultInterface;
 use Neskodi\SSHCommander\CommandRunners\IsolatedCommandRunner;
 use Neskodi\SSHCommander\Exceptions\InvalidConfigException;
 use Neskodi\SSHCommander\Interfaces\SSHConnectionInterface;
+use Neskodi\SSHCommander\Interfaces\SSHResultCollectionInterface;
 use Neskodi\SSHCommander\Tests\Mocks\MockSSHConnection;
 use Neskodi\SSHCommander\Tests\TestCase;
 use Neskodi\SSHCommander\SSHConnection;
@@ -282,5 +283,29 @@ class SSHCommanderTest extends TestCase
 
         $this->assertInstanceOf(SSHCommandResultInterface::class, $result);
         $this->assertTrue($result->isOk());
+    }
+
+    public function testResultCollection(): void
+    {
+        $config    = $this->getTestConfigAsArray(self::CONFIG_FULL, [
+            'basedir' => null,
+        ]);
+
+        $commander = $this->getSSHCommander($config);
+
+        MockSSHConnection::expect(MockSSHConnection::RESULT_SUCCESS);
+        $commander->setConnection($this->getMockConnection());
+
+        $commander->runIsolated('ls');
+
+        $collection = $commander->getResultCollection();
+        $this->assertInstanceOf(SSHResultCollectionInterface::class, $collection);
+        $this->assertEquals(1, $collection->count());
+
+        $result = $collection->last();
+
+        $this->assertInstanceOf(SSHCommandResultInterface::class, $result);
+        $this->assertTrue($result->isOk());
+        $this->assertEquals('ls', (string)$result->getCommand());
     }
 }

@@ -2,9 +2,7 @@
 
 namespace Neskodi\SSHCommander\Interfaces;
 
-use ArrayAccess;
-
-interface SSHResultCollectionInterface extends ArrayAccess
+interface SSHResultCollectionInterface
 {
     public function all(): array;
 
@@ -48,13 +46,13 @@ interface SSHResultCollectionInterface extends ArrayAccess
 
     public function getLastSuccessfulResult(): ?SSHCommandResultInterface;
 
-    public function map(callable $function): SSHResultCollectionInterface;
+    public function map(callable $function): array;
 
     public function filter(callable $function): SSHResultCollectionInterface;
 
-    public function first(?callable $function): ?SSHCommandResultInterface;
+    public function first(?callable $function = null): ?SSHCommandResultInterface;
 
-    public function last(?callable $function): ?SSHCommandResultInterface;
+    public function last(?callable $function = null): ?SSHCommandResultInterface;
 
     public function count(?callable $function = null): int;
 
