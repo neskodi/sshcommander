@@ -2,6 +2,7 @@
 
 namespace Neskodi\SSHCommander;
 
+use Neskodi\SSHCommander\Traits\SSHConnection\ControlsCommandFlow;
 use Neskodi\SSHCommander\Traits\SSHConnection\AuthenticatesSSH2;
 use Neskodi\SSHCommander\Traits\SSHConnection\InteractsWithSSH2;
 use Neskodi\SSHCommander\Traits\SSHConnection\ConfiguresSSH2;
@@ -26,7 +27,7 @@ class SSHConnection implements
     TimerInterface
 {
     use Loggable, Timer, ConfigAware;
-    use AuthenticatesSSH2, ConfiguresSSH2, InteractsWithSSH2;
+    use AuthenticatesSSH2, ConfiguresSSH2, InteractsWithSSH2, ControlsCommandFlow;
     use HasOutputProcessor;
 
     /**
@@ -243,22 +244,6 @@ class SSHConnection implements
         }
 
         return $this->write($chars);
-    }
-
-    /**
-     * Send the terminate signal (CTRL+C) to the shell.
-     */
-    public function terminateCommand(): void
-    {
-        $this->write(SSHConfig::TIMEOUT_BEHAVIOR_TERMINATE);
-    }
-
-    /**
-     * Send the 'suspend in background' signal (CTRL+Z) to the shell.
-     */
-    public function suspendCommand(): void
-    {
-        $this->write(SSHConfig::TIMEOUT_BEHAVIOR_SUSPEND);
     }
 
     /**
