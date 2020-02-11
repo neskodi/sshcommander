@@ -25,8 +25,9 @@ class SSHConfig implements SSHConfigInterface
     const TIMEOUT_CONDITION_RUNTIME = 'runtime';
     const TIMEOUT_CONDITION_NOOUT   = 'noout';
 
-    const TIMEOUT_BEHAVIOR_TERMINATE = "\x03"; // CTRL+C
-    const TIMEOUT_BEHAVIOR_SUSPEND   = "\x1A"; // CTRL+Z
+    const TIMEOUT_BEHAVIOR_TERMINATE              = "\x03"; // CTRL+C
+    const TIMEOUT_BEHAVIOR_SUSPEND                = "\x1A"; // CTRL+Z
+    const TIMEOUT_BEHAVIOR_CONTINUE_IN_BACKGROUND = "\x1Abg"; // CTRL+Z + 'bg'
 
     /**
      * Location of the config file.

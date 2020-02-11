@@ -164,6 +164,8 @@ trait SetsConfigValues
         } elseif (is_string($behavior)) {
             // set the behavior to the desired character sequence
             $this->set('timeout_behavior', $behavior);
+        } elseif (is_callable($behavior)) {
+            $this->set('timeout_behavior', $behavior);
         } else {
             // anything else is invalid
             throw new InvalidConfigValueException(sprintf(

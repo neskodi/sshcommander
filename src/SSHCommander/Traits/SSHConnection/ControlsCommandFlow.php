@@ -8,6 +8,8 @@ trait ControlsCommandFlow
 {
     abstract public function write(string $chars);
 
+    abstract public function writeAndSend(string $chars);
+
     /**
      * Send the terminate signal (CTRL+C) to the shell.
      */
@@ -22,5 +24,10 @@ trait ControlsCommandFlow
     public function suspendCommand(): void
     {
         $this->write(SSHConfig::TIMEOUT_BEHAVIOR_SUSPEND);
+    }
+
+    public function continueCommandInBackground(): void
+    {
+        $this->writeAndSend(SSHConfig::TIMEOUT_BEHAVIOR_CONTINUE_IN_BACKGROUND);
     }
 }

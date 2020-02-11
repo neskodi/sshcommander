@@ -27,6 +27,8 @@ interface SSHConnectionInterface
 
     public function getSSH2(): SSH2;
 
+    public function addReadIterationHook(callable $hook): void;
+
 
     public function setTimeout(int $timeout): SSHConnectionInterface;
 

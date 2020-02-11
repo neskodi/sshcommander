@@ -53,6 +53,8 @@ class CRTimeoutHandlerDecorator
 
     /**
      * Generate the function that will be used to watch for timelimit condition
+     * and return true when this condition occurs. This function will be called
+     * upon each iteration of read(), which normally is 0.5 sec.
      *
      * @return callable
      */

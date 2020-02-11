@@ -71,13 +71,17 @@ class Utils
      * For our purposes, let's just consider everything below ASCII code 32 a
      * control character.
      *
-     * @param string $char
+     * @param mixed $input
      *
      * @return bool
      */
-    public static function isAsciiControlCharacter(string $char): bool
+    public static function isAsciiControlCharacter($input): bool
     {
-        return (1 === strlen($char)) && (32 > ord($char));
+        return (
+            is_string($input) &&
+            1 === strlen($input) &&
+            32 > ord($input)
+        );
     }
 
     /**

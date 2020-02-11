@@ -30,9 +30,7 @@ class SSHConnection implements
     use AuthenticatesSSH2, ConfiguresSSH2, InteractsWithSSH2, ControlsCommandFlow;
     use HasOutputProcessor;
 
-    /**
-     * @var SSH2
-     */
+    /** @var SSH2 */
     protected $ssh2;
 
     /** @var array */
@@ -44,25 +42,20 @@ class SSHConnection implements
     /** @var int */
     protected $lastExitCode;
 
-    /**
-     * @var SSHCommandInterface
-     */
+    /** @var SSHCommandInterface */
     protected $command;
 
-    /**
-     * @var bool
-     */
+    /** @var bool */
     protected $isTimeout = false;
 
-    /**
-     * @var bool
-     */
+    /** @var bool */
     protected $isTimelimit = false;
 
-    /**
-     * @var string|null
-     */
+    /** @var string|null */
     protected $markerRegex = null;
+
+    /** @var array */
+    protected $readIterationHooks = [];
 
     /**
      * SSHConnection constructor.
@@ -259,8 +252,65 @@ class SSHConnection implements
 
         $this->setConfig($config);
         $this->setOutputProcessor(new SSHOutputProcessor($config));
+        $this->getSSH2()->configureReadCycle(
+            0.5,
+            function ($streamSelectResult) use ($command) {
+                return $this->runReadIterationHooks($command, $streamSelectResult);
+            }
+        );
 
         return $this;
+    }
+
+    /**
+     * Add a function that will be run on each iteration of
+     *
+     * @param callable $hook
+     */
+    public function addReadIterationHook(callable $hook): void
+    {
+        $this->readIterationHooks[] = $hook;
+    }
+
+    /**
+     * This SSHConnection object registers a number of hook functions to be
+     * executed after each stream_select iteration (by default this happens
+     * every 0.5 seconds while connection is waiting for output. If output comes
+     * earlier than 0.5s, the hooks will be executed as soon as output is
+     * available).
+     *
+     * CRTimeoutDecorator and other decorators register their own logic as hooks.
+     * You may also register your own watcher to run per iteration, by calling
+     * addReadIterationHook(). Your hook, when called, will receive $connection
+     * (this object), current $command and $streamSelectResult as arguments.
+     * If you return a truthy value, the read iteration will stop and control
+     * will be returned to your program.
+     *
+     * Please note that if you break the normal flow of command run,
+     * it's your responsibility to clean up the channel from remaining output
+     * artifacts by calling $connection->getSSH()->read() in your hook function.
+     *
+     * @param SSHCommandInterface $command
+     * @param int|bool            $streamSelectResult the result of stream_select
+     *                                                on this iteration. A non-falsy
+     *                                                value means some output is
+     *                                                available on this iteration.
+     *
+     * @return bool
+     */
+    protected function runReadIterationHooks(
+        SSHCommandInterface $command,
+        $streamSelectResult
+    ) {
+        $shouldBreak = false;
+
+        foreach ($this->readIterationHooks as $hook) {
+            if ($hook($this, $command, $streamSelectResult)) {
+                $shouldBreak = true;
+            }
+        }
+
+        return $shouldBreak;
     }
 
     /**
@@ -352,8 +402,8 @@ class SSHConnection implements
      */
     public function reachedTimeLimit(): bool
     {
-        $timeout   = $this->getConfig('timeout');
-        $condition = $this->getConfig('timeout_condition');
+        $timeout               = $this->getConfig('timeout');
+        $condition             = $this->getConfig('timeout_condition');
         $timeSinceCommandStart = $this->timeSinceCommandStart();
 
         $result = (

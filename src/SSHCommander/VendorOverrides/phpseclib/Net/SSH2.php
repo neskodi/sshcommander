@@ -16,12 +16,7 @@ class SSH2 extends PhpSecLibSSH2
     /**
      * @var null|callable
      */
-    protected $timeoutWatcher = null;
-
-    /**
-     * @var null|callable
-     */
-    protected $timeoutHandler = null;
+    protected $readIterationHook = null;
 
     /**
      * @var array
@@ -41,48 +36,24 @@ class SSH2 extends PhpSecLibSSH2
      * in one call.
      *
      * @param float|null    $readInterval
-     * @param callable|null $timeoutWatcher
+     * @param callable|null $readIterationHook
      * @param callable|null $timeoutHandler
      *
      * @noinspection PhpUnused
      */
-    public function configureTimeouts(
+    public function configureReadCycle(
         ?float $readInterval = null,
-        ?callable $timeoutWatcher = null,
-        ?callable $timeoutHandler = null
+        ?callable $readIterationHook = null
     ): void {
         if (!is_null($readInterval)) {
             $this->setReadInterval($readInterval);
         }
 
-        $this->setTimeoutWatcher($timeoutWatcher);
-
-        $this->setTimeoutHandler($timeoutHandler);
+        $this->setReadIterationHook($readIterationHook);
     }
 
     /**
-     * Set the function that will be run after each iteration of stream_select
-     * to determine if we should break out of the waiting cycle.
-     *
-     * @param callable|null $function
-     */
-    public function setTimeoutWatcher(?callable $function = null): void
-    {
-        $this->timeoutWatcher = $function;
-    }
-
-    /**
-     * Set the function that will be run when timeout condition occurs
-     *
-     * @param callable|null $function
-     */
-    public function setTimeoutHandler(?callable $function = null): void
-    {
-        $this->timeoutHandler = $function;
-    }
-
-    /**
-     * Set the interval that each iteration of stream_select will occupy.
+     * Set the interval that each iteration of stream_select will last.
      *
      * @param float $readInterval
      */
@@ -95,39 +66,37 @@ class SSH2 extends PhpSecLibSSH2
     }
 
     /**
-     * This function will be run on each iteration of stream_select and return
-     * true to tell that we need to break from the cycle.
+     * Set the function that will be run after each iteration of stream_select
+     * to determine if we should break out of the waiting cycle.
      *
-     * First, see if the caller has passed a timeout function. If so, use it
-     * to determine if reading from the stream should stop. If not, use the
-     * standard timeout value.
-     *
-     * @param mixed $readResult value returned by stream_select after an iteration
-     *
-     * @return bool
+     * @param callable|null $function
      */
-    protected function shouldBreak(): bool
+    public function setReadIterationHook(?callable $function = null): void
     {
-        if (is_callable($this->timeoutWatcher)) {
-            return (bool)call_user_func($this->timeoutWatcher);
-        }
-
-        // fallback to the default behavior with timeout and curTimeout
-        if (!$this->timeout) {
-            // never break
-            return false;
-        }
-
-        return $this->curTimeout < 0;
+        $this->readIterationHook = $function;
     }
 
     /**
-     * If user has defined any timeout behavior, execute it now.
+     * This function will be run on each iteration of stream_select and return
+     * true to tell that we need to break from the cycle.
+     *
+     * First, see if the caller has passed a hook function. If so, use it
+     * to determine if reading from the stream should stop and return control
+     * to the caller. If not, use the standard timeout behavior.
+     *
+     * @param int|bool $streamSelectResult the value returned by stream_select on this iteration.
+     *                         Non-falsy value will indicate that there's some output
+     *                         present on the channel.
+     *
+     * @return bool
      */
-    protected function break(): void
+    protected function runIterationHook($streamSelectResult): bool
     {
-        if (is_callable($this->timeoutHandler)) {
-            call_user_func($this->timeoutHandler);
+        if (is_callable($this->readIterationHook)) {
+            return (bool)call_user_func(
+                $this->readIterationHook,
+                $streamSelectResult
+            );
         }
     }
 
@@ -158,6 +127,7 @@ class SSH2 extends PhpSecLibSSH2
      * @return bool|int|mixed|string
      */
     function _get_channel_packet($client_channel, $skip_extended = false)
+
     {
         if (!empty($this->channel_buffers[$client_channel])) {
             return array_shift($this->channel_buffers[$client_channel]);
@@ -174,60 +144,53 @@ class SSH2 extends PhpSecLibSSH2
             } else {
                 $read = [$this->fsock];
 
-                if (!$this->timeout) {
-                    // no timeout whatsoever
-                    @stream_select($read, $write, $except, null);
-                } else {
-                    if ($this->curTimeout < 0) {
-                        $this->is_timeout = true;
+                if ($this->curTimeout < 0) {
+                    $this->is_timeout = true;
 
-                        return true;
+                    return true;
+                }
+
+                // run stream_select in cycle, on each iteration delegate
+                // the timeout check to the caller.
+                do {
+                    // temporary array, because stream_select may
+                    // overwrite the argument passed by reference
+                    // and we need to restore it on each iteration
+                    $readTmp = $read;
+
+                    $start = microtime(true);
+
+                    // wait until data becomes available on the stream
+                    $result = @stream_select($readTmp, $write, $except, $sec, $usec);
+
+                    $end = microtime(true);
+
+                    // if packets are available, set the last packet time
+                    if ($result) {
+                        $this->lastPacketTime = $end;
                     }
 
-                    // run stream_select in cycle, on each iteration delegate
-                    // the timeout check to the caller.
-                    do {
-                        // temporary array, because stream_select may
-                        // overwrite the argument passed by reference
-                        // and we need to restore it on each iteration
-                        $readTmp = $read;
+                    // record the time spent waiting
+                    $elapsed          = $end - $start;
+                    $this->curTimeout -= $elapsed;
 
-                        $start   = microtime(true);
+                    // execute read interation callbacks defined by the connection
+                    $shouldBreak = $this->runIterationHook($result);
 
-                        // wait until data becomes available on the stream
-                        $result = @stream_select($readTmp, $write, $except, $sec, $usec);
+                } while (!$result && !$shouldBreak);
 
-                        // if packets are available, set the last packet time
-                        if ($result) {
-                            $this->lastPacketTime = microtime(true);
-                        }
+                if ($shouldBreak) {
+                    // return control to the caller
+                    return true;
+                }
 
-                        // record the time spent waiting
-                        $elapsed          = microtime(true) - $start;
-                        $this->curTimeout -= $elapsed;
-
-                        // check for timeout ('noout') and timelimit ('runtime') conditions
-                        $shouldBreak = $this->shouldBreak();
-
-                    } while (!$result && !$shouldBreak);
-
-                    if ($shouldBreak) {
-                        // execute the timeout behavior defined by caller and return
-                        // control to the caller
-                        $this->break();
-                        $this->is_timeout = true;
-
-                        return true;
+                if ((!$result && !count($readTmp))) {
+                    $this->is_timeout = true;
+                    if ($client_channel == self::CHANNEL_EXEC && !$this->request_pty) {
+                        $this->_close_channel($client_channel);
                     }
 
-                    if ((!$result && !count($readTmp))) {
-                        $this->is_timeout = true;
-                        if ($client_channel == self::CHANNEL_EXEC && !$this->request_pty) {
-                            $this->_close_channel($client_channel);
-                        }
-
-                        return true;
-                    }
+                    return true;
                 }
 
                 $response = $this->_get_binary_packet(true);
@@ -457,5 +420,114 @@ class SSH2 extends PhpSecLibSSH2
                     return $this->_disconnect(NET_SSH2_DISCONNECT_BY_APPLICATION);
             }
         }
+    }
+
+    /**
+     * Creates an interactive shell
+     *
+     * @return bool
+     * @access private
+     * @see    self::write()
+     * @see    self::read()
+     */
+    function _initShell()
+    {
+        if ($this->in_request_pty_exec === true) {
+            return true;
+        }
+
+        $this->window_size_server_to_client[self::CHANNEL_SHELL] = $this->window_size;
+        $packet_size                                             = 0x4000;
+
+        $packet = pack(
+            'CNa*N3',
+            NET_SSH2_MSG_CHANNEL_OPEN,
+            strlen('session'),
+            'session',
+            self::CHANNEL_SHELL,
+            $this->window_size_server_to_client[self::CHANNEL_SHELL],
+            $packet_size
+        );
+
+        if (!$this->_send_binary_packet($packet)) {
+            return false;
+        }
+
+        $this->channel_status[self::CHANNEL_SHELL] = NET_SSH2_MSG_CHANNEL_OPEN;
+
+        $response = $this->_get_channel_packet(self::CHANNEL_SHELL);
+        if ($response === false) {
+            return false;
+        }
+
+        $terminal_modes = pack('C', NET_SSH2_TTY_OP_END);
+        $packet         = pack(
+            'CNNa*CNa*N5a*',
+            NET_SSH2_MSG_CHANNEL_REQUEST,
+            $this->server_channels[self::CHANNEL_SHELL],
+            strlen('pty-req'),
+            'pty-req',
+            1,
+            strlen('vt100'),
+            'vt100',
+            $this->windowColumns,
+            $this->windowRows,
+            0,
+            0,
+            strlen($terminal_modes),
+            $terminal_modes
+        );
+
+        if (!$this->_send_binary_packet($packet)) {
+            return false;
+        }
+
+        $response = $this->_get_binary_packet();
+        if ($response === false) {
+            $this->bitmap = 0;
+            user_error('Connection closed by server');
+
+            return false;
+        }
+
+        if (!strlen($response)) {
+            return false;
+        }
+        [, $type] = unpack('C', $this->_string_shift($response, 1));
+
+        switch ($type) {
+            case NET_SSH2_MSG_CHANNEL_SUCCESS:
+                // if a pty can't be opened maybe commands can still be executed
+            case NET_SSH2_MSG_CHANNEL_FAILURE:
+                break;
+            default:
+                user_error('Unable to request pseudo-terminal');
+                return $this->_disconnect(NET_SSH2_DISCONNECT_BY_APPLICATION);
+        }
+
+        $packet = pack(
+            'CNNa*C',
+            NET_SSH2_MSG_CHANNEL_REQUEST,
+            $this->server_channels[self::CHANNEL_SHELL],
+            strlen('shell'),
+            'shell',
+            1
+        );
+        if (!$this->_send_binary_packet($packet)) {
+            return false;
+        }
+
+        $this->channel_status[self::CHANNEL_SHELL] = NET_SSH2_MSG_CHANNEL_REQUEST;
+
+        $response = $this->_get_channel_packet(self::CHANNEL_SHELL);
+        if ($response === false) {
+            return false;
+        }
+
+        $this->channel_status[self::CHANNEL_SHELL] = NET_SSH2_MSG_CHANNEL_DATA;
+
+        $this->bitmap |= self::MASK_SHELL;
+
+        return true;
     }
 }
