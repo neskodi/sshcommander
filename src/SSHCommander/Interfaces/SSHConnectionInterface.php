@@ -27,8 +27,6 @@ interface SSHConnectionInterface
 
     public function getSSH2(): SSH2;
 
-    public function addReadIterationHook(callable $hook): void;
-
 
     public function setTimeout(int $timeout): SSHConnectionInterface;
 
@@ -54,6 +52,8 @@ interface SSHConnectionInterface
 
     public function exec(SSHCommandInterface $command): void;
 
+    public function runReadCycleHooks(string $stepOutput = ''): bool;
+
     public function getStdOutLines(): array;
 
     public function getStdErrLines(): array;
@@ -69,6 +69,10 @@ interface SSHConnectionInterface
 
     public function reachedTimeout(): bool;
 
+    public function timeSinceLastResponse(): float;
+
+    public function timeSinceCommandStart(): float;
+
 
     public function resetResults(): SSHConnectionInterface;
 
@@ -80,4 +84,6 @@ interface SSHConnectionInterface
     public function terminateCommand(): void;
 
     public function suspendCommand(): void;
+
+    public function getOutputProcessor(): ?OutputProcessorInterface;
 }

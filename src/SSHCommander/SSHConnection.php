@@ -54,9 +54,6 @@ class SSHConnection implements
     /** @var string|null */
     protected $markerRegex = null;
 
-    /** @var array */
-    protected $readIterationHooks = [];
-
     /**
      * SSHConnection constructor.
      *
@@ -125,12 +122,31 @@ class SSHConnection implements
             ];
 
             $this->ssh2 = new SSH2($host, $port);
+            $this->ssh2->setConnection($this);
             if ($this->logger) {
                 $this->ssh2->setLogger($this->getLogger());
             }
         }
 
         return $this->ssh2;
+    }
+
+    /**
+     * Set the currently used config from the provided command object.
+     *
+     * @param SSHCommandInterface $command
+     *
+     * @return $this
+     */
+    public function setCommand(SSHCommandInterface $command): SSHConnectionInterface
+    {
+        $this->command = $command;
+        $config = $command->getConfig();
+
+        $this->setConfig($config);
+        $this->setOutputProcessor(new SSHOutputProcessor($config));
+
+        return $this;
     }
 
     /**
@@ -141,42 +157,15 @@ class SSHConnection implements
      */
     public function read(): string
     {
-        $output = '';
-
-        $this->startTimer();
-
-        while ($str = $this->sshRead('', SSH2::READ_NEXT)) {
-            if (is_string($str)) {
-                $this->output->add($str);
-            }
-
-            if ($this->reachedTimeLimit()) {
-                break;
-            }
-
-            if (
-                $this->usesMarkers() &&
-                $this->output->hasMarker($this->markerRegex)
-            ) {
-                break;
-            }
-
-            if (
-                !$this->usesMarkers() &&
-                $this->output->hasPrompt()) {
-                break;
-            }
-
-            if (is_bool($str)) {
+        while ($result = $this->sshRead('', SSH2::READ_NEXT)) {
+            if ($this->processPartialOutput($result)) {
                 break;
             }
         }
 
-        $this->stopTimer();
-
         $this->debug('READ: ' . Utils::oneLine($this->output->getRaw()));
 
-        return $output;
+        return $this->output->getAsString();
     }
 
     /**
@@ -202,6 +191,8 @@ class SSHConnection implements
      * method. Populates the stdout, stderr, and exit code variables.
      *
      * @param SSHCommandInterface $command
+     *
+     * @noinspection PhpInconsistentReturnPointsInspection
      */
     public function exec(SSHCommandInterface $command): void
     {
@@ -209,9 +200,10 @@ class SSHConnection implements
 
         $this->debug('EXEC: ' . Utils::oneLine((string)$command));
 
-        $this->sshExec((string)$command, function ($str) use ($command) {
-            // collect the stdout stream
-            $this->output->add($str);
+        $this->sshExec((string)$command, function ($str) {
+            if ($this->processPartialOutput($str)) {
+                return true;
+            }
         });
 
         // don't forget to collect the error stream too
@@ -240,77 +232,79 @@ class SSHConnection implements
     }
 
     /**
-     * Set the currently used config from the provided command object.
-     *
-     * @param SSHCommandInterface $command
-     *
-     * @return $this
-     */
-    public function configureForCommand(SSHCommandInterface $command): SSHConnectionInterface
-    {
-        $config = $command->getConfig();
-
-        $this->setConfig($config);
-        $this->setOutputProcessor(new SSHOutputProcessor($config));
-        $this->getSSH2()->configureReadCycle(
-            0.5,
-            function ($streamSelectResult) use ($command) {
-                return $this->runReadIterationHooks($command, $streamSelectResult);
-            }
-        );
-
-        return $this;
-    }
-
-    /**
-     * Add a function that will be run on each iteration of
-     *
-     * @param callable $hook
-     */
-    public function addReadIterationHook(callable $hook): void
-    {
-        $this->readIterationHooks[] = $hook;
-    }
-
-    /**
-     * This SSHConnection object registers a number of hook functions to be
+     * This SSHCommand object registers a number of hook functions to be
      * executed after each stream_select iteration (by default this happens
-     * every 0.5 seconds while connection is waiting for output. If output comes
-     * earlier than 0.5s, the hooks will be executed as soon as output is
-     * available).
+     * every 0.5 seconds while connection is waiting for output. If the command
+     * produces output earlier, the hooks will be executed immediately upon output.
      *
      * CRTimeoutDecorator and other decorators register their own logic as hooks.
      * You may also register your own watcher to run per iteration, by calling
      * addReadIterationHook(). Your hook, when called, will receive $connection
-     * (this object), current $command and $streamSelectResult as arguments.
-     * If you return a truthy value, the read iteration will stop and control
+     * (this object) and $stepOutput (new output that became available on the
+     * channel since last reading, if any, an empty string otherwise) as arguments.
+     * If you return a truthy value, the read cycle will stop and control
      * will be returned to your program.
      *
      * Please note that if you break the normal flow of command run,
-     * it's your responsibility to clean up the channel from remaining output
-     * artifacts by calling $connection->getSSH()->read() in your hook function.
+     * it's your responsibility to stop the command e.g. by calling
+     * $connection->terminateCommand(), and clean up channel artifacts via e.g.
+     * $connection->getSSH2()->read() in your hook function.
      *
-     * @param SSHCommandInterface $command
-     * @param int|bool            $streamSelectResult the result of stream_select
-     *                                                on this iteration. A non-falsy
-     *                                                value means some output is
-     *                                                available on this iteration.
+     * @param string $stepOutput the new (portion of) output returned by
+     *                           the command on this step
      *
      * @return bool
      */
-    protected function runReadIterationHooks(
-        SSHCommandInterface $command,
-        $streamSelectResult
-    ) {
+    public function runReadCycleHooks(string $stepOutput = ''): bool
+    {
+        if (!$this->command instanceof SSHCommandInterface) {
+            // we don't have any hooks to run
+            return false;
+        }
+
         $shouldBreak = false;
 
-        foreach ($this->readIterationHooks as $hook) {
-            if ($hook($this, $command, $streamSelectResult)) {
+        foreach ($this->command->getReadCycleHooks() as $hook) {
+            if ($hook($this, $stepOutput)) {
                 $shouldBreak = true;
             }
         }
 
         return $shouldBreak;
+    }
+
+    /**
+     * Ingest the output of the current read iteration and analyze it.
+     * Return true to stop command execution, false otherwise.
+     *
+     * The breaking conditions are:
+     * - one of the read cycle hooks returned true;
+     * - a boolean was returned by SSH2::_get_channel_packet()
+     *
+     * @param $stepResult
+     *
+     * @return bool
+     */
+    protected function processPartialOutput($stepResult): bool
+    {
+        if (is_string($stepResult)) {
+            $this->output->add($stepResult);
+        }
+
+        $str = is_string($stepResult) ? $stepResult : '';
+
+        // run various hooks to see if we should break out of the reading cycle
+        // these should be run even if a boolean was returned
+        if ($shouldBreak = $this->runReadCycleHooks($str)) {
+            return true;
+        }
+
+        // if SSH2::read() returned a boolean, we should break anyway
+        if (!is_string($stepResult)) {
+            return true;
+        }
+
+        return false;
     }
 
     /**
@@ -324,15 +318,19 @@ class SSHConnection implements
      */
     public function execIsolated(SSHCommandInterface $command): SSHConnectionInterface
     {
-        $this->configureForCommand($command);
+        $this->setCommand($command);
         $this->authenticateIfNecessary();
         $this->resetResults();
 
+        $this->startTimer();
         $this->exec($command);
+        $this->stopTimer();
 
         // get back the output (and error) as separate lines
-        // (without cleaning it)
+        // (without cleaning)
         $this->collectOutput(false);
+
+        $this->resetCommand();
 
         return $this;
     }
@@ -349,16 +347,20 @@ class SSHConnection implements
      */
     public function execInteractive(SSHCommandInterface $command): SSHConnectionInterface
     {
-        $this->configureForCommand($command);
+        $this->setCommand($command);
         $this->authenticateIfNecessary();
         $this->resetResults();
-        $this->writeAndSend((string)$command);
 
-        $output = $this->read();
-        $this->output->add($output);
+        $this->startTimer();
+        $this->writeAndSend((string)$command);
+        $this->read();
+        $this->stopTimer();
 
         // get back the output split into separate lines
+        // and possibly separate stdout and stderr
         $this->collectOutput();
+
+        $this->resetCommand();
 
         return $this;
     }
@@ -433,7 +435,7 @@ class SSHConnection implements
     {
         $timeout             = $this->getConfig('timeout');
         $condition           = $this->getConfig('timeout_condition');
-        $timeSinceLastPacket = $this->timeSinceLastPacket();
+        $timeSinceLastPacket = $this->timeSinceLastResponse();
 
         return (
             // user wants to timeout by 'noout'
@@ -586,13 +588,13 @@ class SSHConnection implements
      *
      * @return float
      */
-    protected function timeSinceLastPacket(): float
+    public function timeSinceLastResponse(): float
     {
-        $lastPacketTime = $this->getSSH2()->getLastPacketTime();
+        $lastPacketTime = $this->getSSH2()->getLastResponseTime();
 
         // if no packet was yet received, we count from the time when command
         // started running
-        if (is_null($lastPacketTime)) {
+        if (!is_float($lastPacketTime)) {
             return $this->timeSinceCommandStart();
         }
 
@@ -605,7 +607,7 @@ class SSHConnection implements
      *
      * @return float
      */
-    protected function timeSinceCommandStart(): float
+    public function timeSinceCommandStart(): float
     {
         return microtime(true) - $this->getTimerStart();
     }
@@ -618,5 +620,13 @@ class SSHConnection implements
     protected function usesMarkers(): bool
     {
         return (bool)$this->markerRegex;
+    }
+
+    /**
+     * Clean up some variables after running a command.
+     */
+    protected function resetCommand()
+    {
+        $this->command = null;
     }
 }

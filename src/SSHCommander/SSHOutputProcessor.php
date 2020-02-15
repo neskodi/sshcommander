@@ -65,6 +65,37 @@ class SSHOutputProcessor implements OutputProcessorInterface
     }
 
     /**
+     * Return the (optionally) cleaned output imploded into a string.
+     *
+     * @param bool $clean
+     *
+     * @return string
+     */
+    public function getAsString(bool $clean = true): string
+    {
+        return implode(
+            $this->getConfig('delimiter_join_output'),
+            $this->get($clean)
+        );
+    }
+
+    /**
+     * If stderr is a separate stream, return it (optionally cleaned) imploded
+     * into a single string.
+     *
+     * @param bool $clean
+     *
+     * @return string
+     */
+    public function getErrAsString(bool $clean = true): string
+    {
+        return implode(
+            $this->getConfig('delimiter_join_output'),
+            $this->get($clean)
+        );
+    }
+
+    /**
      * If stderr is a separate stream, return it optionally cleaned and split
      * into separate lines.
      *

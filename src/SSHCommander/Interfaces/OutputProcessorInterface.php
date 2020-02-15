@@ -12,6 +12,10 @@ interface OutputProcessorInterface
 
     public function getErr(bool $clean = true): array;
 
+    public function getAsString(bool $clean = true): string;
+
+    public function getErrAsString(bool $clean = true): string;
+
     public function getRaw(): string;
 
     public function getRawErr(): string;

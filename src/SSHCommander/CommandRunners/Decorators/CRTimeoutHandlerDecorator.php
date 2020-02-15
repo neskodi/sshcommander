@@ -30,8 +30,6 @@ class CRTimeoutHandlerDecorator
      * it in a proper manner.
      *
      * @param SSHCommandInterface $command
-     *
-     * @noinspection PhpMethodParametersCountMismatchInspection
      */
     public function setupTimeoutHandler(SSHCommandInterface $command): void
     {
@@ -39,16 +37,6 @@ class CRTimeoutHandlerDecorator
         $timeoutValue = $command->getConfig('timeout');
 
         $connection->setTimeout($timeoutValue);
-
-        if ($timeoutValue) {
-            $connection->getSSH2()->configureTimeouts(
-                0.5,
-                $this->getTimeoutWatcherFunction($command),
-                $this->getTimeoutHandlerFunction($command)
-            );
-        } else {
-            $this->disableTimeoutHandling();
-        }
     }
 
     /**
@@ -83,15 +71,6 @@ class CRTimeoutHandlerDecorator
     }
 
     /**
-     * Tell the underlying SSH2 instance to disable any timeout watching / handling
-     * behavior.
-     */
-    protected function disableTimeoutHandling()
-    {
-        $this->getConnection()->getSSH2()->configureTimeouts(null, null, null);
-    }
-
-    /**
      * Execute the behavior user has set up for the timeout situations (i.e. for
      * situations when SSH connection is waiting for command output longer than
      * allowed). User can define this behavior by setting e.g.
@@ -106,10 +85,6 @@ class CRTimeoutHandlerDecorator
     {
         $behavior   = $command->getConfig('timeout_behavior');
         $connection = $this->getConnection();
-
-        // disable any timeout handler so that if we want to read from the connection
-        // again, we don't fall into endless nesting loop
-        $this->disableTimeoutHandling();
 
         // if user wants to send a control character such as CTRL+C, just send it
         if (Utils::isAsciiControlCharacter($behavior)) {

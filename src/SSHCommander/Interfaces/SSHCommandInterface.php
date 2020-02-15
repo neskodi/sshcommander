@@ -23,4 +23,8 @@ interface SSHCommandInterface
     public function toLoggableString(): string;
 
     public function getSuccessfulExitCodes(): array;
+
+    public function addReadCycleHook(callable $hook): void;
+
+    public function getReadCycleHooks(): array;
 }

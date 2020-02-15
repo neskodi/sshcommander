@@ -9,11 +9,12 @@ use Neskodi\SSHCommander\Exceptions\InvalidCommandException;
 use Neskodi\SSHCommander\Interfaces\ConfigAwareInterface;
 use Neskodi\SSHCommander\Interfaces\SSHCommandInterface;
 use Neskodi\SSHCommander\Interfaces\SSHConfigInterface;
+use Neskodi\SSHCommander\Traits\hasReadCycleHooks;
 use Neskodi\SSHCommander\Traits\ConfigAware;
 
 class SSHCommand implements SSHCommandInterface, ConfigAwareInterface
 {
-    use ConfigAware;
+    use ConfigAware, hasReadCycleHooks;
 
     /**
      * @var string
