@@ -63,8 +63,8 @@ trait SetsConfigValues
      *                                     time of the command, or the time when
      *                                     no more packets are coming.
      *                                     Possible values:
-     *                                     - SSHConfig::TIMEOUT_CONDITION_RUNTIME
-     *                                     - SSHConfig::TIMEOUT_CONDITION_NOOUT
+     *                                     - SSHConfig::TIMEOUT_CONDITION_RUNNING_TIMELIMIT
+     *                                     - SSHConfig::TIMEOUT_CONDITION_READING_TIMEOUT
      *                                     - null (argument is ignored)
      * @param null|string|false $behavior  Whether to send anything to the channel
      *                                     after a timeout is detected.
@@ -144,8 +144,8 @@ trait SetsConfigValues
     protected function setTimeoutConditionOnTheFly(string $condition): void
     {
         $this->ensureValueInArray('timeout condition', $condition, [
-            SSHConfig::TIMEOUT_CONDITION_RUNTIME,
-            SSHConfig::TIMEOUT_CONDITION_NOOUT,
+            SSHConfig::TIMEOUT_CONDITION_RUNNING_TIMELIMIT,
+            SSHConfig::TIMEOUT_CONDITION_READING_TIMEOUT,
         ]);
 
         $this->set('timeout_condition', $condition);

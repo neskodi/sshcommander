@@ -24,7 +24,11 @@ interface SSHCommandInterface
 
     public function getSuccessfulExitCodes(): array;
 
-    public function addReadCycleHook(callable $hook): void;
+    public function addReadCycleHook(callable $hook, ?string $name = null): void;
 
     public function getReadCycleHooks(): array;
+
+    public function deleteReadCycleHook(string $name): void;
+
+    public function detectsPrompt(bool $flag = true): void;
 }

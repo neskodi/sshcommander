@@ -1,11 +1,10 @@
-<?php
+<?php /** @noinspection PhpUnhandledExceptionInspection */
 
 namespace Neskodi\SSHCommander\Tests\Integration;
 
 use Neskodi\SSHCommander\Interfaces\SSHConnectionInterface;
 use Neskodi\SSHCommander\Tests\IntegrationTestCase;
 use Neskodi\SSHCommander\SSHConfig;
-
 
 class ControlFlowTest extends IntegrationTestCase
 {
@@ -27,7 +26,7 @@ class ControlFlowTest extends IntegrationTestCase
         $timeoutValue = 1;
         $commander->timeout(
             $timeoutValue,
-            SSHConfig::TIMEOUT_CONDITION_RUNTIME,
+            SSHConfig::TIMEOUT_CONDITION_RUNNING_TIMELIMIT,
             $behavior
         );
 
@@ -57,7 +56,7 @@ class ControlFlowTest extends IntegrationTestCase
         $timeoutValue = 1;
         $commander->timeout(
             $timeoutValue,
-            SSHConfig::TIMEOUT_CONDITION_RUNTIME,
+            SSHConfig::TIMEOUT_CONDITION_RUNNING_TIMELIMIT,
             $behavior
         );
 

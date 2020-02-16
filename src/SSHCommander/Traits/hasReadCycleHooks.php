@@ -7,13 +7,25 @@ trait hasReadCycleHooks
     protected $readCycleHooks = [];
 
     /**
-     * Add a function that will be run on each iteration of
+     * Add a function that will be run on each iteration of the reading cycle.
      *
-     * @param callable $hook
+     * @param callable    $hook
+     * @param string|null $name
      */
-    public function addReadCycleHook(callable $hook): void
+    public function addReadCycleHook(callable $hook, ?string $name = null): void
     {
-        $this->readCycleHooks[] = $hook;
+        if (!empty($name)) {
+            $this->readCycleHooks[$name] = $hook;
+        } else {
+            $this->readCycleHooks[] = $hook;
+        }
+    }
+
+    public function deleteReadCycleHook(string $name): void
+    {
+        if (array_search($name, $this->readCycleHooks)) {
+            unset($this->readCycleHooks[$name]);
+        }
     }
 
     /**

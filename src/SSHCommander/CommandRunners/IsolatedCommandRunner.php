@@ -2,6 +2,15 @@
 
 namespace Neskodi\SSHCommander\CommandRunners;
 
+use Neskodi\SSHCommander\CommandRunners\Decorators\CRPromptDetectionDecorator;
+use Neskodi\SSHCommander\CommandRunners\Decorators\CRTimeoutHandlerDecorator;
+use Neskodi\SSHCommander\CommandRunners\Decorators\CRErrorHandlerDecorator;
+use Neskodi\SSHCommander\CommandRunners\Decorators\CRConnectionDecorator;
+use Neskodi\SSHCommander\CommandRunners\Decorators\CRBasedirDecorator;
+use Neskodi\SSHCommander\CommandRunners\Decorators\CRCleanupDecorator;
+use Neskodi\SSHCommander\CommandRunners\Decorators\CRLoggerDecorator;
+use Neskodi\SSHCommander\CommandRunners\Decorators\CRResultDecorator;
+use Neskodi\SSHCommander\CommandRunners\Decorators\CRTimerDecorator;
 use Neskodi\SSHCommander\Interfaces\DecoratedCommandRunnerInterface;
 use Neskodi\SSHCommander\Interfaces\SSHCommandRunnerInterface;
 use Neskodi\SSHCommander\Interfaces\SSHCommandInterface;
@@ -21,6 +30,21 @@ class IsolatedCommandRunner
     public function executeOnConnection(SSHCommandInterface $command): void
     {
         $this->getConnection()->execIsolated($command);
+    }
+
+    public function withDecorators(): DecoratedCommandRunnerInterface
+    {
+        // Add command decorators
+        // !! ORDER MATTERS !!
+        return $this->with(CRTimerDecorator::class)
+                    ->with(CRLoggerDecorator::class)
+                    ->with(CRResultDecorator::class)
+                    ->with(CRBasedirDecorator::class)
+                    ->with(CRErrorHandlerDecorator::class)
+                    ->with(CRTimeoutHandlerDecorator::class)
+                    ->with(CRPromptDetectionDecorator::class)
+                    ->with(CRCleanupDecorator::class)
+                    ->with(CRConnectionDecorator::class);
     }
 
     /**

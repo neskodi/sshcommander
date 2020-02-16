@@ -76,10 +76,6 @@ interface SSHConnectionInterface
 
     public function resetResults(): SSHConnectionInterface;
 
-    public function setMarkerRegex(string $regex): SSHConnectionInterface;
-
-    public function resetMarkers(): SSHConnectionInterface;
-
 
     public function terminateCommand(): void;
 

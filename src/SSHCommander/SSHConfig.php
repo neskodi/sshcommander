@@ -22,8 +22,8 @@ class SSHConfig implements SSHConfigInterface
     const BREAK_ON_ERROR_ALWAYS          = true;
     const BREAK_ON_ERROR_LAST_SUBCOMMAND = 'softfail';
 
-    const TIMEOUT_CONDITION_RUNTIME = 'runtime';
-    const TIMEOUT_CONDITION_NOOUT   = 'noout';
+    const TIMEOUT_CONDITION_RUNNING_TIMELIMIT = 'timelimit';
+    const TIMEOUT_CONDITION_READING_TIMEOUT   = 'timeout';
 
     const TIMEOUT_BEHAVIOR_TERMINATE              = "\x03"; // CTRL+C
     const TIMEOUT_BEHAVIOR_SUSPEND                = "\x1A"; // CTRL+Z

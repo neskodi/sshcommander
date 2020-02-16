@@ -2,11 +2,22 @@
 
 namespace Neskodi\SSHCommander\CommandRunners;
 
+use Neskodi\SSHCommander\CommandRunners\Decorators\CRMarkerDetectionDecorator;
+use Neskodi\SSHCommander\CommandRunners\Decorators\CRPromptDetectionDecorator;
+use Neskodi\SSHCommander\CommandRunners\Decorators\CRTimeoutHandlerDecorator;
+use Neskodi\SSHCommander\CommandRunners\Decorators\CRErrorHandlerDecorator;
+use Neskodi\SSHCommander\CommandRunners\Decorators\CRConnectionDecorator;
+use Neskodi\SSHCommander\CommandRunners\Decorators\CRBasedirDecorator;
+use Neskodi\SSHCommander\CommandRunners\Decorators\CRCleanupDecorator;
+use Neskodi\SSHCommander\CommandRunners\Decorators\CRLoggerDecorator;
+use Neskodi\SSHCommander\CommandRunners\Decorators\CRResultDecorator;
+use Neskodi\SSHCommander\CommandRunners\Decorators\CRTimerDecorator;
 use Neskodi\SSHCommander\Interfaces\DecoratedCommandRunnerInterface;
 use Neskodi\SSHCommander\Interfaces\SSHCommandResultInterface;
 use Neskodi\SSHCommander\Interfaces\SSHCommandRunnerInterface;
 use Neskodi\SSHCommander\Exceptions\CommandRunException;
 use Neskodi\SSHCommander\Interfaces\SSHCommandInterface;
+use Neskodi\SSHCommander\Traits\UsesMarkers;
 use Neskodi\SSHCommander\SSHCommand;
 use Neskodi\SSHCommander\SSHConfig;
 
@@ -15,21 +26,39 @@ class InteractiveCommandRunner
     implements SSHCommandRunnerInterface,
                DecoratedCommandRunnerInterface
 {
-    protected $endMarker = '';
-
-    protected $errMarker = '';
+    use UsesMarkers;
 
     protected $outputLines = [];
 
-    protected $exitCode = null;
+    protected $exitCode;
 
-    protected $detectedMarker = null;
+    protected $detectedMarker;
 
-    protected $initialWorkingDirectory = null;
+    protected $detectedMarkerType;
 
-    protected $errorTrapStatus = false;
+    protected $initialWorkingDirectory;
 
+    /** @var bool */
+    protected $errorTrapIsEnabled = false;
+
+    /**@var bool */
     protected $errorWasTrapped = false;
+
+    public function withDecorators(): DecoratedCommandRunnerInterface
+    {
+        // Add command decorators
+        // !! ORDER MATTERS !!
+        return $this->with(CRTimerDecorator::class)
+                    ->with(CRLoggerDecorator::class)
+                    ->with(CRResultDecorator::class)
+                    ->with(CRBasedirDecorator::class)
+                    ->with(CRErrorHandlerDecorator::class)
+                    ->with(CRTimeoutHandlerDecorator::class)
+                    ->with(CRPromptDetectionDecorator::class)
+                    ->with(CRMarkerDetectionDecorator::class)
+                    ->with(CRCleanupDecorator::class)
+                    ->with(CRConnectionDecorator::class);
+    }
 
     /**
      * Run the command in the interactive shell and return the result object.
@@ -43,31 +72,22 @@ class InteractiveCommandRunner
         // Reset the environment before each run
         $this->reset();
 
-        // append command end marker to the command so that SSHConnection
-        // can stop reading when it detects either this marker or the error one
-        // in the output
-        $this->appendCommandEndMarkerEcho($command);
-
         return parent::run($command);
     }
 
     /**
-     * Reset the environment before each run by creating unique end and error
-     * markers, clearing the current working directory etc.
+     * Reset the variables before each run.
      */
     protected function reset(): void
     {
-        // ensure a unique command end and error markers for each run
-        $this->createEndMarker();
-        $this->createErrMarker();
-
         // reset flags and variables
         $this->initialWorkingDirectory = null;
         $this->outputLines             = [];
         $this->exitCode                = null;
         $this->detectedMarker          = null;
+        $this->detectedMarkerType      = null;
         $this->errorWasTrapped         = false;
-        $this->errorTrapStatus         = false;
+        $this->errorTrapIsEnabled      = false;
     }
 
     /**
@@ -81,11 +101,7 @@ class InteractiveCommandRunner
      */
     public function execDecorated(SSHCommandInterface $command): void
     {
-        $this->enableMarkers();
-
         $this->executeOnConnection($command);
-
-        $this->disableMarkers();
 
         // Prepare the output before running decorators' closing methods.
         $this->analyzeOutput();
@@ -115,15 +131,13 @@ class InteractiveCommandRunner
     ): array {
         $defaultOptions = [
             'timeout'           => 1,
-            'timeout_condition' => SSHConfig::TIMEOUT_CONDITION_RUNTIME,
+            'timeout_condition' => SSHConfig::TIMEOUT_CONDITION_RUNNING_TIMELIMIT,
         ];
 
         $options = array_merge($defaultOptions, $options);
 
         $command = new SSHCommand($command, $options);
-
-        // intermediate commands run without marker
-        $this->disableMarkers();
+        $command->detectsPrompt();
 
         $this->executeOnConnection($command);
 
@@ -142,8 +156,7 @@ class InteractiveCommandRunner
         $this->outputLines = $this->getConnection()->getStdOutLines();
 
         if (
-            empty($this->endMarker) ||
-            empty($this->errMarker) ||
+            empty($this->markers) ||
             !count($this->outputLines)
         ) {
             return;
@@ -155,42 +168,18 @@ class InteractiveCommandRunner
                 unset($this->outputLines[$i]);
 
                 // set the exit code
-                $this->exitCode       = $found['code'];
-                $this->detectedMarker = $found['marker'];
+                $this->exitCode           = $found['code'];
+                $this->detectedMarker     = $found['marker'];
+                $this->detectedMarkerType = $found['type'];
 
                 // if it's a trapped error, set the flag
-                if ($this->getErrMarker() === $found['marker']) {
+                if (CRMarkerDetectionDecorator::MARKER_TYPE_ERROR === $found['type']) {
                     $this->errorWasTrapped = true;
                 }
 
                 break;
             }
         }
-    }
-
-    /**
-     * Read a line of output and see if it contains a marker with an exit code,
-     * if so, return them.
-     *
-     * @param string $line
-     *
-     * @return null|array
-     */
-    protected function readMarker(string $line): ?array
-    {
-        $regex   = $this->getEndMarkerRegex();
-        $matches = [];
-
-        preg_match_all($regex, $line, $matches);
-
-        if (!empty($matches[0])) {
-            return [
-                'code'   => $matches['CODE'][0],
-                'marker' => $matches['MARKER'][0],
-            ];
-        }
-
-        return null;
     }
 
     /**
@@ -236,151 +225,8 @@ class InteractiveCommandRunner
     }
 
     /**
-     * Generate a unique sequence of characters that will be echoed by the shell
-     * after running the main command. We will watch the output for this sequence
-     * and understand when the command finished running.
+     * ERROR HANDLING LOGIC SPECIFIC TO THE INTERACTIVE COMMAND RUNNER
      */
-    protected function createEndMarker(): void
-    {
-        $this->endMarker = uniqid();
-    }
-
-    /**
-     * Generate a unique sequence of characters that will be echoed by the shell
-     * when an error is trapped. We will watch the output for this sequence and
-     * and understand when something went wrong.
-     */
-    protected function createErrMarker(): void
-    {
-        $this->errMarker = uniqid();
-    }
-
-    /**
-     * Get the currently used end marker. If none was created yet, create one
-     * now.
-     *
-     * @return string
-     */
-    protected function getEndMarker(): string
-    {
-        if (!$this->endMarker) {
-            $this->createEndMarker();
-        }
-
-        return $this->endMarker;
-    }
-
-    /**
-     * Get the currently used error marker. If none was created yet, create one
-     * now.
-     *
-     * @return string
-     */
-    protected function getErrMarker(): string
-    {
-        if (!$this->errMarker) {
-            $this->createErrMarker();
-        }
-
-        return $this->errMarker;
-    }
-
-    /**
-     * Enable the SSHConnection to look for markers in the command output by
-     * telling it which regular expression to use. SSHConnection will stop
-     * reading when it detects any of the markers.
-     *
-     * @return void
-     */
-    protected function enableMarkers(): void
-    {
-        $this->getConnection()->setMarkerRegex($this->getEndMarkerRegex());
-    }
-
-    /**
-     * Tell the SSHConnection not to look for any markers in the output. It will
-     * rely on reading the command prompt, using the 'prompt_regex' config value.
-     *
-     * @return void
-     */
-    protected function disableMarkers(): void
-    {
-        $this->getConnection()->resetMarkers();
-    }
-
-    /**
-     * Get the echo command that will be appended at the end of user's command
-     * and will echo the 'end marker'. SSHConnection will expect to see this
-     * marker in the output to understand that user's command has finished
-     * running, and stop reading further. In this output, we'll also capture the
-     * exit code of the last command in user's input, to compensate for inability
-     * to get exit codes from phpseclib during an interactive shell session.
-     *
-     * @return string
-     */
-    protected function getEndMarkerEchoCommand(): string
-    {
-        return sprintf('echo "$?:%s"', $this->getEndMarker());
-    }
-
-    /**
-     * Get the echo command that will be appended to the error trap. When the
-     * shell traps an error, it will echo this marker. SSHConnection will watch
-     * for this marker in the output to understand that an error happened while
-     * running user's command, and stop reading further. In this output, we'll
-     * also capture the exit code of the last command in user's input.
-     *
-     * @return string
-     */
-    protected function getErrMarkerEchoCommand(): string
-    {
-        return sprintf('echo "$?:%s"', $this->getErrMarker());
-    }
-
-    /**
-     * Build the command that will set an error trap. This trap will be used
-     * when 'break_on_error' is true (i.e. BREAK_ON_ERROR_ALWAYS) and we need
-     * to catch errors that happen in the middle of user-provided sequence of
-     * commands.
-     *
-     * @return string
-     */
-    protected function buildErrMarkerTrap(): string
-    {
-        $errMarkerEchoCommand = $this->getErrMarkerEchoCommand();
-
-        return sprintf("trap '%s;exit' ERR", $errMarkerEchoCommand);
-    }
-
-    /**
-     * Append the command echoing the end marker to the end of user's command.
-     *
-     * @param SSHCommandInterface $command
-     */
-    protected function appendCommandEndMarkerEcho(
-        SSHCommandInterface $command
-    ): void {
-        // make shell display the last command exit code and the marker
-        $append = $this->getEndMarkerEchoCommand();
-
-        // append to command
-        $command->appendCommand($append);
-    }
-
-    /**
-     * Get the regular expression used to detect our marker in the output
-     * produced by the command.
-     *
-     * @return string|null
-     */
-    protected function getEndMarkerRegex(): ?string
-    {
-        return sprintf(
-            '/(?<CODE>\d+):(?<MARKER>%s|%s)/',
-            $this->getEndMarker(),
-            $this->getErrMarker()
-        );
-    }
 
     /**
      * Before the main command gets executed on the connection, run the
@@ -398,8 +244,25 @@ class InteractiveCommandRunner
         if (SSHConfig::BREAK_ON_ERROR_ALWAYS === $command->getConfig('break_on_error')) {
             $trap = $this->buildErrMarkerTrap();
             $this->executeIntermediateCommand($trap);
-            $this->errorTrapStatus = true;
+            $this->errorTrapIsEnabled = true;
         }
+    }
+
+    /**
+     * Build the command that will set an error trap. This trap will be used
+     * when 'break_on_error' is true (i.e. BREAK_ON_ERROR_ALWAYS) and we need
+     * to catch errors that happen in the middle of user-provided sequence of
+     * commands.
+     *
+     * @return string
+     */
+    protected function buildErrMarkerTrap(): string
+    {
+        $errMarkerEchoCommand = $this->getMarkerEchoCommand(
+            CRMarkerDetectionDecorator::MARKER_TYPE_ERROR
+        );
+
+        return sprintf("trap '%s;exit' ERR", $errMarkerEchoCommand);
     }
 
     /**
@@ -411,11 +274,15 @@ class InteractiveCommandRunner
      */
     public function handleErrors(): void
     {
-        if ($this->errorTrapStatus) {
+        if ($this->errorTrapIsEnabled) {
             $this->executeIntermediateCommand('trap - ERR');
-            $this->errorTrapStatus = false;
+            $this->errorTrapIsEnabled = false;
         }
     }
+
+    /**
+     * BASEDIR HANDLING LOGIC SPECIFIC TO THE INTERACTIVE COMMAND RUNNER
+     */
 
     /**
      * If user's command needs to be executed in a specific working directory,
@@ -498,6 +365,10 @@ class InteractiveCommandRunner
 
         $this->initialWorkingDirectory = null;
     }
+
+    /**
+     * CLEANUP LOGIC SPECIFIC TO THE INTERACTIVE COMMAND RUNNER
+     */
 
     /**
      * After running the main command, we need to see if an error was trapped.

@@ -2,14 +2,6 @@
 
 namespace Neskodi\SSHCommander\CommandRunners;
 
-use Neskodi\SSHCommander\CommandRunners\Decorators\CRTimeoutHandlerDecorator;
-use Neskodi\SSHCommander\CommandRunners\Decorators\CRErrorHandlerDecorator;
-use Neskodi\SSHCommander\CommandRunners\Decorators\CRConnectionDecorator;
-use Neskodi\SSHCommander\CommandRunners\Decorators\CRCleanupDecorator;
-use Neskodi\SSHCommander\CommandRunners\Decorators\CRBasedirDecorator;
-use Neskodi\SSHCommander\CommandRunners\Decorators\CRLoggerDecorator;
-use Neskodi\SSHCommander\CommandRunners\Decorators\CRResultDecorator;
-use Neskodi\SSHCommander\CommandRunners\Decorators\CRTimerDecorator;
 use Neskodi\SSHCommander\Interfaces\DecoratedCommandRunnerInterface;
 use Neskodi\SSHCommander\Interfaces\SSHCommandResultInterface;
 use Neskodi\SSHCommander\Interfaces\SSHCommandRunnerInterface;
@@ -70,19 +62,19 @@ abstract class BaseCommandRunner implements
      */
     public function run(SSHCommandInterface $command): SSHCommandResultInterface
     {
-        // Add command decorators and execute the command.
-        // !! ORDER MATTERS !!
-        $this->with(CRTimerDecorator::class)
-             ->with(CRLoggerDecorator::class)
-             ->with(CRResultDecorator::class)
-             ->with(CRBasedirDecorator::class)
-             ->with(CRErrorHandlerDecorator::class)
-             ->with(CRTimeoutHandlerDecorator::class)
-             ->with(CRCleanupDecorator::class)
-             ->with(CRConnectionDecorator::class)
-             ->execDecorated($command);
+        $this->withDecorators()->execDecorated($command);
 
         return $this->getResult();
+    }
+
+    /**
+     * Wraps command runner into the necessary set of decorators.
+     */
+    public function withDecorators(): DecoratedCommandRunnerInterface
+    {
+        // by default, no decorators are used; child classes will each append
+        // their own set of necessary decorators.
+        return $this;
     }
 
     /**
@@ -113,6 +105,17 @@ abstract class BaseCommandRunner implements
         $result->setOutput($this->getStdOutLines($command))
                ->setErrorOutput($this->getStdErrLines($command))
                ->setExitCode($this->getLastExitCode($command));
+    }
+
+    /**
+     * Tell if this runner is using markers, such as command end marker or error
+     * marker.
+     *
+     * @return bool
+     */
+    public function usesMarkers(): bool
+    {
+        return false;
     }
 
     /**

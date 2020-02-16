@@ -51,9 +51,6 @@ class SSHConnection implements
     /** @var bool */
     protected $isTimelimit = false;
 
-    /** @var string|null */
-    protected $markerRegex = null;
-
     /**
      * SSHConnection constructor.
      *
@@ -157,8 +154,13 @@ class SSHConnection implements
      */
     public function read(): string
     {
+        // processPartialOutput() will run read cycle hooks and return true
+        // if one of them tells us to stop reading.
         while ($result = $this->sshRead('', SSH2::READ_NEXT)) {
-            if ($this->processPartialOutput($result)) {
+            if (
+                $this->processPartialOutput($result) ||
+                $this->getSSH2()->isTimeout()
+            ) {
                 break;
             }
         }
@@ -396,7 +398,7 @@ class SSHConnection implements
     }
 
     /**
-     * If user has set the timeout condition to be 'runtime' and the command is
+     * If user has set the timeout condition to be 'timelimit' and the command is
      * already running longer than specified by the 'timeout' config value,
      * return true.
      *
@@ -409,8 +411,8 @@ class SSHConnection implements
         $timeSinceCommandStart = $this->timeSinceCommandStart();
 
         $result = (
-            // user wants to timeout by 'runtime'
-            (SSHConfig::TIMEOUT_CONDITION_RUNTIME === $condition) &&
+            // user wants to timeout by 'timelimit'
+            (SSHConfig::TIMEOUT_CONDITION_RUNNING_TIMELIMIT === $condition) &&
             // user has set a non-zero timeout value
             $timeout &&
             // and this time has passed since the command started
@@ -425,7 +427,7 @@ class SSHConnection implements
     }
 
     /**
-     * If user has set the timeout condition to be 'noout' and we have been waiting
+     * If user has set the timeout condition to be 'timeout' and we have been waiting
      * for output  already longer than specified by the 'timeout' config value,
      * return true.
      *
@@ -438,41 +440,13 @@ class SSHConnection implements
         $timeSinceLastPacket = $this->timeSinceLastResponse();
 
         return (
-            // user wants to timeout by 'noout'
-            (SSHConfig::TIMEOUT_CONDITION_NOOUT === $condition) &&
+            // user wants to timeout by 'READING_TIMEOUT'
+            (SSHConfig::TIMEOUT_CONDITION_READING_TIMEOUT === $condition) &&
             // user has set a non-zero timeout value
             $timeout &&
             // and this time has passed since the last packet was received
             ($timeSinceLastPacket >= $timeout)
         );
-    }
-
-    /**
-     * Set the regular expression used to detect 'end' and 'error' markers in
-     * the output.
-     *
-     * @param string $regex
-     *
-     * @return SSHConnectionInterface
-     */
-    public function setMarkerRegex(string $regex): SSHConnectionInterface
-    {
-        $this->markerRegex = $regex;
-
-        return $this;
-    }
-
-    /**
-     * Tell the connection not to look for any markers and just rely on the
-     * prompt.
-     *
-     * @return $this
-     */
-    public function resetMarkers(): SSHConnectionInterface
-    {
-        $this->markerRegex = null;
-
-        return $this;
     }
 
     /**
@@ -523,7 +497,7 @@ class SSHConnection implements
     }
 
     /**
-     * Check if either 'noout' or 'runtime' timeout condition has been reached
+     * Check if either 'timeout' or 'timelimit' condition has been reached
      * while running this command.
      *
      * @return bool
@@ -534,7 +508,7 @@ class SSHConnection implements
     }
 
     /**
-     * Check if the 'runtime' timeout condition has specifically been reached
+     * Check if the 'timelimit' timeout condition has specifically been reached
      * while running this command.
      *
      * @return bool
@@ -610,16 +584,6 @@ class SSHConnection implements
     public function timeSinceCommandStart(): float
     {
         return microtime(true) - $this->getTimerStart();
-    }
-
-    /**
-     * See if we are told to look for markers in the output.
-     *
-     * @return bool
-     */
-    protected function usesMarkers(): bool
-    {
-        return (bool)$this->markerRegex;
     }
 
     /**

@@ -216,4 +216,25 @@ class SSHCommand implements SSHCommandInterface, ConfigAwareInterface
     {
         //
     }
+
+    /**
+     * Toggle prompt detection on or off.
+     *
+     * @param bool|null $flag
+     *
+     * @noinspection PhpUnusedParameterInspection
+     * @noinspection PhpInconsistentReturnPointsInspection
+     */
+    public function detectsPrompt(bool $flag = true): void
+    {
+        if ($flag && ($regex = $this->getConfig()->getPromptRegex())) {
+            $this->addReadCycleHook(function ($conn, $newOutput) use ($regex) {
+                if (preg_match($regex, $newOutput)) {
+                    return true;
+                }
+            }, 'detect_prompt');
+        } elseif (!$flag) {
+            $this->deleteReadCycleHook('detect_prompt');
+        }
+    }
 }
