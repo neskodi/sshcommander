@@ -56,13 +56,16 @@ class SSHConfig implements SSHConfigInterface
      * are always present.
      *
      * @param array $config
-     * @param bool  $skipValidation
+     * @param bool  $addDefaultValues
      */
     public function __construct(
-        array $config = []
+        array $config = [],
+        bool $addDefaultValues = true
     ) {
-        $this->loadDefaultConfigFile()
-             ->loadUserConfigFile();
+        if ($addDefaultValues) {
+            $this->loadDefaultConfigFile()
+                 ->loadUserConfigFile();
+        }
 
         $this->set($config);
     }
@@ -108,7 +111,8 @@ class SSHConfig implements SSHConfigInterface
      * Load the specified config file into $this->config.
      *
      * @param string $file
-     */
+     *
+     * @noinspection PhpIncludeInspection*/
     protected function loadConfigFile(string $file): void
     {
         if (file_exists($file) && is_readable($file)) {

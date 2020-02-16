@@ -223,7 +223,7 @@ class SSHCommander implements
         array $options = []
     ): SSHCommandInterface {
         // Get the final set of options that apply to this command run.
-        $options = $this->getMergedOptions($command, $options);
+        $options = $this->getMergedConfig($command, $options);
 
         if ($command instanceof SSHCommandInterface) {
             $command->set($options);
@@ -371,7 +371,7 @@ class SSHCommander implements
      *
      * @return array
      */
-    protected function getMergedOptions(
+    protected function getMergedConfig(
         $command,
         array $options
     ): array {
@@ -381,7 +381,9 @@ class SSHCommander implements
 
             // if passed command is an object having its own options, they will
             // apply here
-            ($command instanceof SSHCommandInterface) ? $command->getConfig()->all() : [],
+            ($command instanceof SSHCommandInterface)
+                ? $command->getConfig()->all()
+                : [],
 
             // finally, merge command level options provided immediately at command
             // run time

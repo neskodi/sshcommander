@@ -6,6 +6,7 @@
 namespace Neskodi\SSHCommander;
 
 use Neskodi\SSHCommander\Exceptions\InvalidCommandException;
+use Neskodi\SSHCommander\Exceptions\InvalidConfigException;
 use Neskodi\SSHCommander\Interfaces\ConfigAwareInterface;
 use Neskodi\SSHCommander\Interfaces\SSHCommandInterface;
 use Neskodi\SSHCommander\Interfaces\SSHConfigInterface;
@@ -236,5 +237,28 @@ class SSHCommand implements SSHCommandInterface, ConfigAwareInterface
         } elseif (!$flag) {
             $this->deleteReadCycleHook('detect_prompt');
         }
+    }
+
+    /**
+     * Override ConfigAware::toConfigObject(), because SSHCommand works with
+     * incomplete config objects by default (it is harmful to load default
+     * config options here because they will override those of SSHCommander when
+     * the command is run).
+     *
+     * @param array|SSHConfigInterface $config
+     *
+     * @return SSHConfigInterface|SSHConfig
+     */
+    protected function toConfigObject($config): SSHConfigInterface
+    {
+        if (is_array($config)) {
+            $configObject = new SSHConfig($config, empty($config));
+        } elseif ($config instanceof SSHConfigInterface) {
+            $configObject = $config;
+        } else {
+            throw new InvalidConfigException(gettype($config));
+        }
+
+        return $configObject;
     }
 }
