@@ -1,17 +1,16 @@
 <?php /** @noinspection PhpParamsInspection */
 /** @noinspection PhpUndefinedMethodInspection */
-
 /** @noinspection PhpUnhandledExceptionInspection */
 /** @noinspection PhpUnusedLocalVariableInspection */
 /** @noinspection PhpIncludeInspection */
 
 namespace Neskodi\SSHCommander\Tests\Unit;
 
+use Neskodi\SSHCommander\Interfaces\SSHResultCollectionInterface;
 use Neskodi\SSHCommander\Interfaces\SSHCommandResultInterface;
 use Neskodi\SSHCommander\CommandRunners\IsolatedCommandRunner;
 use Neskodi\SSHCommander\Exceptions\InvalidConfigException;
 use Neskodi\SSHCommander\Interfaces\SSHConnectionInterface;
-use Neskodi\SSHCommander\Interfaces\SSHResultCollectionInterface;
 use Neskodi\SSHCommander\Tests\Mocks\MockSSHConnection;
 use Neskodi\SSHCommander\Tests\TestCase;
 use Neskodi\SSHCommander\SSHConnection;
@@ -198,14 +197,14 @@ class SSHCommanderTest extends TestCase
 
     public function testDefaultConfigurationIsUsedByDefault(): void
     {
-        $defaultConfig = (array)include(SSHConfig::getDefaultConfigFileLocation());
+        $vendorConfig = (array)include(SSHConfig::getDefaultConfigFileLocation());
         $extra         = [
             'host'      => 'example.com',
             'user'      => 'foo',
             'password'  => 'bar',
             'autologin' => false,
         ];
-        $defaultConfig = array_merge($defaultConfig, $extra);
+        $mergedConfig = array_merge($vendorConfig, $extra);
 
         // we are providing only extra to the commander
         $commander = new SSHCommander($extra);
@@ -213,7 +212,7 @@ class SSHCommanderTest extends TestCase
         $resultConfig = $commander->getConfig()->all();
 
         // and we expect the rest of values to be picked up
-        $this->assertEquals($defaultConfig, $resultConfig);
+        $this->assertEquals($mergedConfig, $resultConfig);
     }
 
     public function testUserCanSetConfigurationAsFile(): void
