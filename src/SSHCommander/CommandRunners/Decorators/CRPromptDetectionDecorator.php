@@ -18,8 +18,8 @@ class CRPromptDetectionDecorator
      */
     public function execDecorated(SSHCommandInterface $command): void
     {
-        // either we are looking for prompt or for markers
-        $command->detectsPrompt(!$this->usesMarkers());
+        // we either wait for a marker or for a prompt
+        $command->stopsOnPrompt(!$this->usesMarkers());
 
         $this->runner->execDecorated($command);
     }

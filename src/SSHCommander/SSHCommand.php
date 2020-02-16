@@ -10,12 +10,13 @@ use Neskodi\SSHCommander\Exceptions\InvalidConfigException;
 use Neskodi\SSHCommander\Interfaces\ConfigAwareInterface;
 use Neskodi\SSHCommander\Interfaces\SSHCommandInterface;
 use Neskodi\SSHCommander\Interfaces\SSHConfigInterface;
-use Neskodi\SSHCommander\Traits\hasReadCycleHooks;
+use Neskodi\SSHCommander\Traits\HasReadCycleHooks;
+use Neskodi\SSHCommander\Traits\StopsOnPrompt;
 use Neskodi\SSHCommander\Traits\ConfigAware;
 
 class SSHCommand implements SSHCommandInterface, ConfigAwareInterface
 {
-    use ConfigAware, hasReadCycleHooks;
+    use ConfigAware, HasReadCycleHooks, StopsOnPrompt;
 
     /**
      * @var string
@@ -219,31 +220,11 @@ class SSHCommand implements SSHCommandInterface, ConfigAwareInterface
     }
 
     /**
-     * Toggle prompt detection on or off.
-     *
-     * @param bool|null $flag
-     *
-     * @noinspection PhpUnusedParameterInspection
-     * @noinspection PhpInconsistentReturnPointsInspection
-     */
-    public function detectsPrompt(bool $flag = true): void
-    {
-        if ($flag && ($regex = $this->getConfig()->getPromptRegex())) {
-            $this->addReadCycleHook(function ($conn, $newOutput) use ($regex) {
-                if (preg_match($regex, $newOutput)) {
-                    return true;
-                }
-            }, 'detect_prompt');
-        } elseif (!$flag) {
-            $this->deleteReadCycleHook('detect_prompt');
-        }
-    }
-
-    /**
      * Override ConfigAware::toConfigObject(), because SSHCommand works with
-     * incomplete config objects by default (it is harmful to load default
-     * config options here because they will override those of SSHCommander when
-     * the command is run).
+     * incomplete config objects by default (here it is harmful to load default
+     * config options in addition to provided ones, because they will override
+     * global SSHCommander options when the command is run, even if not set
+     * directly on the command).
      *
      * @param array|SSHConfigInterface $config
      *
@@ -252,7 +233,7 @@ class SSHCommand implements SSHCommandInterface, ConfigAwareInterface
     protected function toConfigObject($config): SSHConfigInterface
     {
         if (is_array($config)) {
-            $configObject = new SSHConfig($config, empty($config));
+            $configObject = new SSHConfig($config, false);
         } elseif ($config instanceof SSHConfigInterface) {
             $configObject = $config;
         } else {

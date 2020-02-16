@@ -30,44 +30,27 @@ class CRTimeoutHandlerDecorator
      * it in a proper manner.
      *
      * @param SSHCommandInterface $command
+     *
+     * @noinspection PhpInconsistentReturnPointsInspection
      */
     public function setupTimeoutHandler(SSHCommandInterface $command): void
     {
-        $connection   = $this->getConnection();
-        $timeoutValue = $command->getConfig('timeout');
+        $command->addReadCycleHook(function ($connection) use ($command) {
+            $timeout   = $connection->reachedTimeout();
+            $timelimit = $connection->reachedTimeLimit();
 
-        $connection->setTimeout($timeoutValue);
-    }
+            if ($timelimit) {
+                // mark this condition specifically
+                $connection->setIsTimelimit(true);
+            }
 
-    /**
-     * Generate the function that will be used to watch for timelimit condition
-     * and return true when this condition occurs. This function will be called
-     * upon each iteration of read(), which normally is 0.5 sec.
-     *
-     * @return callable
-     */
-    protected function getTimeoutWatcherFunction(): callable
-    {
-        return function () {
-            $connection = $this->getConnection();
+            if ($timeout || $timelimit) {
+                $connection->setIsTimeout(true);
+                $this->executeTimeoutBehavior($command);
 
-            return $connection->reachedTimeout() ||
-                   $connection->reachedTimeLimit();
-        };
-    }
-
-    /**
-     * Generate the function that will be called in case of timelimit condition.
-     *
-     * @param SSHCommandInterface $command
-     *
-     * @return callable
-     */
-    protected function getTimeoutHandlerFunction(SSHCommandInterface $command): callable
-    {
-        return function () use ($command) {
-            $this->executeTimeoutBehavior($command);
-        };
+                return true;
+            }
+        });
     }
 
     /**
@@ -85,6 +68,7 @@ class CRTimeoutHandlerDecorator
     {
         $behavior   = $command->getConfig('timeout_behavior');
         $connection = $this->getConnection();
+        $connection->clearReadCycleHooks();
 
         // if user wants to send a control character such as CTRL+C, just send it
         if (Utils::isAsciiControlCharacter($behavior)) {

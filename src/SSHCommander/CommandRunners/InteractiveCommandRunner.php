@@ -129,15 +129,10 @@ class InteractiveCommandRunner
         string $command,
         array $options = []
     ): array {
-        $defaultOptions = [
-            'timeout'           => 1,
-            'timeout_condition' => SSHConfig::TIMEOUT_CONDITION_RUNNING_TIMELIMIT,
-        ];
-
-        $options = array_merge($defaultOptions, $options);
-
         $command = new SSHCommand($command, $options);
-        $command->detectsPrompt();
+        $command->stopsOnPrompt();
+
+        $this->getConnection()->setTimeout(1);
 
         $this->executeOnConnection($command);
 

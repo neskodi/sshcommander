@@ -3,6 +3,7 @@
 namespace Neskodi\SSHCommander;
 
 use Neskodi\SSHCommander\Traits\SSHConnection\ControlsCommandFlow;
+use Neskodi\SSHCommander\Traits\SSHConnection\ControlsCommandTime;
 use Neskodi\SSHCommander\Traits\SSHConnection\AuthenticatesSSH2;
 use Neskodi\SSHCommander\Traits\SSHConnection\InteractsWithSSH2;
 use Neskodi\SSHCommander\Traits\SSHConnection\ConfiguresSSH2;
@@ -15,6 +16,8 @@ use Neskodi\SSHCommander\Interfaces\SSHCommandInterface;
 use Neskodi\SSHCommander\Interfaces\SSHConfigInterface;
 use Neskodi\SSHCommander\Traits\HasOutputProcessor;
 use Neskodi\SSHCommander\Interfaces\TimerInterface;
+use Neskodi\SSHCommander\Traits\HasReadCycleHooks;
+use Neskodi\SSHCommander\Traits\StopsOnPrompt;
 use Neskodi\SSHCommander\Traits\ConfigAware;
 use Neskodi\SSHCommander\Traits\Loggable;
 use Neskodi\SSHCommander\Traits\Timer;
@@ -26,9 +29,10 @@ class SSHConnection implements
     ConfigAwareInterface,
     TimerInterface
 {
-    use Loggable, Timer, ConfigAware;
-    use AuthenticatesSSH2, ConfiguresSSH2, InteractsWithSSH2, ControlsCommandFlow;
-    use HasOutputProcessor;
+    use Loggable, Timer, ConfigAware,
+        AuthenticatesSSH2, ConfiguresSSH2, InteractsWithSSH2,
+        ControlsCommandTime, ControlsCommandFlow,
+        HasOutputProcessor, HasReadCycleHooks, StopsOnPrompt;
 
     /** @var SSH2 */
     protected $ssh2;
@@ -44,12 +48,6 @@ class SSHConnection implements
 
     /** @var SSHCommandInterface */
     protected $command;
-
-    /** @var bool */
-    protected $isTimeout = false;
-
-    /** @var bool */
-    protected $isTimelimit = false;
 
     /**
      * SSHConnection constructor.
@@ -68,6 +66,11 @@ class SSHConnection implements
         if ($logger) {
             $this->setLogger($logger);
         }
+
+        // by default, we will stop reading from the SSH stream as soon as
+        // a prompt is detected on command line - unless told otherwise
+        // by calling $this->stopsOnPrompt(false).
+        $this->stopsOnPrompt();
 
         // the default output processor, mainly for the authentication stage
         $this->setOutputProcessor(new SSHOutputProcessor($config));
@@ -138,10 +141,12 @@ class SSHConnection implements
     public function setCommand(SSHCommandInterface $command): SSHConnectionInterface
     {
         $this->command = $command;
-        $config = $command->getConfig();
+        $config        = $command->getConfig();
 
         $this->setConfig($config);
         $this->setOutputProcessor(new SSHOutputProcessor($config));
+        $this->setReadCycleHooks($command->getReadCycleHooks());
+        $this->setTimeout($command->getConfig('timeout'));
 
         return $this;
     }
@@ -231,48 +236,6 @@ class SSHConnection implements
         }
 
         return $this->write($chars);
-    }
-
-    /**
-     * This SSHCommand object registers a number of hook functions to be
-     * executed after each stream_select iteration (by default this happens
-     * every 0.5 seconds while connection is waiting for output. If the command
-     * produces output earlier, the hooks will be executed immediately upon output.
-     *
-     * CRTimeoutDecorator and other decorators register their own logic as hooks.
-     * You may also register your own watcher to run per iteration, by calling
-     * addReadIterationHook(). Your hook, when called, will receive $connection
-     * (this object) and $stepOutput (new output that became available on the
-     * channel since last reading, if any, an empty string otherwise) as arguments.
-     * If you return a truthy value, the read cycle will stop and control
-     * will be returned to your program.
-     *
-     * Please note that if you break the normal flow of command run,
-     * it's your responsibility to stop the command e.g. by calling
-     * $connection->terminateCommand(), and clean up channel artifacts via e.g.
-     * $connection->getSSH2()->read() in your hook function.
-     *
-     * @param string $stepOutput the new (portion of) output returned by
-     *                           the command on this step
-     *
-     * @return bool
-     */
-    public function runReadCycleHooks(string $stepOutput = ''): bool
-    {
-        if (!$this->command instanceof SSHCommandInterface) {
-            // we don't have any hooks to run
-            return false;
-        }
-
-        $shouldBreak = false;
-
-        foreach ($this->command->getReadCycleHooks() as $hook) {
-            if ($hook($this, $stepOutput)) {
-                $shouldBreak = true;
-            }
-        }
-
-        return $shouldBreak;
     }
 
     /**
@@ -398,58 +361,6 @@ class SSHConnection implements
     }
 
     /**
-     * If user has set the timeout condition to be 'timelimit' and the command is
-     * already running longer than specified by the 'timeout' config value,
-     * return true.
-     *
-     * @return bool
-     */
-    public function reachedTimeLimit(): bool
-    {
-        $timeout               = $this->getConfig('timeout');
-        $condition             = $this->getConfig('timeout_condition');
-        $timeSinceCommandStart = $this->timeSinceCommandStart();
-
-        $result = (
-            // user wants to timeout by 'timelimit'
-            (SSHConfig::TIMEOUT_CONDITION_RUNNING_TIMELIMIT === $condition) &&
-            // user has set a non-zero timeout value
-            $timeout &&
-            // and this time has passed since the command started
-            ($timeSinceCommandStart >= $timeout)
-        );
-
-        if ($result) {
-            $this->isTimelimit = true;
-        }
-
-        return $result;
-    }
-
-    /**
-     * If user has set the timeout condition to be 'timeout' and we have been waiting
-     * for output  already longer than specified by the 'timeout' config value,
-     * return true.
-     *
-     * @return bool
-     */
-    public function reachedTimeout(): bool
-    {
-        $timeout             = $this->getConfig('timeout');
-        $condition           = $this->getConfig('timeout_condition');
-        $timeSinceLastPacket = $this->timeSinceLastResponse();
-
-        return (
-            // user wants to timeout by 'READING_TIMEOUT'
-            (SSHConfig::TIMEOUT_CONDITION_READING_TIMEOUT === $condition) &&
-            // user has set a non-zero timeout value
-            $timeout &&
-            // and this time has passed since the last packet was received
-            ($timeSinceLastPacket >= $timeout)
-        );
-    }
-
-    /**
      * Get the array of output lines returned by last command.
      *
      * @return array
@@ -497,28 +408,6 @@ class SSHConnection implements
     }
 
     /**
-     * Check if either 'timeout' or 'timelimit' condition has been reached
-     * while running this command.
-     *
-     * @return bool
-     */
-    public function isTimeout(): bool
-    {
-        return (bool)$this->getSSH2()->isTimeout();
-    }
-
-    /**
-     * Check if the 'timelimit' timeout condition has specifically been reached
-     * while running this command.
-     *
-     * @return bool
-     */
-    public function isTimelimit(): bool
-    {
-        return $this->isTimelimit;
-    }
-
-    /**
      * Clear all traces of previous commands.
      *
      * @return $this
@@ -527,19 +416,6 @@ class SSHConnection implements
     {
         $this->stdoutLines  = $this->stderrLines = [];
         $this->lastExitCode = null;
-
-        return $this;
-    }
-
-    /**
-     * Clear the timeout status of possible previous commands.
-     *
-     * @return $this
-     */
-    protected function resetTimeoutStatus(): SSHConnectionInterface
-    {
-        $this->isTimeout   = false;
-        $this->isTimelimit = false;
 
         return $this;
     }
@@ -555,35 +431,6 @@ class SSHConnection implements
     {
         $this->stdoutLines = $this->output->get($clean);
         $this->stderrLines = $this->output->getErr($clean);
-    }
-
-    /**
-     * Return the time since last packet was received
-     *
-     * @return float
-     */
-    public function timeSinceLastResponse(): float
-    {
-        $lastPacketTime = $this->getSSH2()->getLastResponseTime();
-
-        // if no packet was yet received, we count from the time when command
-        // started running
-        if (!is_float($lastPacketTime)) {
-            return $this->timeSinceCommandStart();
-        }
-
-        // return the actual time since last packet
-        return microtime(true) - $lastPacketTime;
-    }
-
-    /**
-     * Return the time since the current command started running.
-     *
-     * @return float
-     */
-    public function timeSinceCommandStart(): float
-    {
-        return microtime(true) - $this->getTimerStart();
     }
 
     /**

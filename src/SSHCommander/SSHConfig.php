@@ -331,10 +331,12 @@ class SSHConfig implements SSHConfigInterface
         if (method_exists($this, $method)) {
             // we have a special getter for this
             return $this->$method($param, $default);
+        } elseif (array_key_exists($param, $this->config)) {
+            return $this->config[$param];
+        } elseif (array_key_exists($param, $this->defaultConfig)) {
+            return $this->defaultConfig[$param];
         } else {
-            return array_key_exists($param, $this->config)
-                ? $this->config[$param]
-                : $default;
+            return $default;
         }
     }
 

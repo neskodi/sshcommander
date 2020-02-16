@@ -54,6 +54,9 @@ interface SSHConnectionInterface
 
     public function runReadCycleHooks(string $stepOutput = ''): bool;
 
+    public function clearReadCycleHooks(): void;
+
+
     public function getStdOutLines(): array;
 
     public function getStdErrLines(): array;
@@ -64,6 +67,10 @@ interface SSHConnectionInterface
     public function isTimeout(): bool;
 
     public function isTimelimit(): bool;
+
+    public function setIsTimeout(bool $flag);
+
+    public function setIsTimelimit(bool $flag);
 
     public function reachedTimeLimit(): bool;
 
@@ -82,4 +89,6 @@ interface SSHConnectionInterface
     public function suspendCommand(): void;
 
     public function getOutputProcessor(): ?OutputProcessorInterface;
+
+    public function stopsOnPrompt(bool $flag = true): void;
 }

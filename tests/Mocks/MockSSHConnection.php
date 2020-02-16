@@ -16,7 +16,7 @@ class MockSSHConnection extends SSHConnection implements
     TimerInterface
 {
     const RESULT_SUCCESS = 'ok';
-    const RESULT_ERROR = 'error';
+    const RESULT_ERROR   = 'error';
 
     const LINES_STDOUT = [
         'test line 1',
@@ -72,6 +72,7 @@ class MockSSHConnection extends SSHConnection implements
     {
         usleep(rand(100000, 200000));
         $this->populateOutput();
+        $this->addEmptyLine();
         $this->populateStdErrIfNecessary($command);
         $this->setExitCode();
     }
@@ -81,9 +82,13 @@ class MockSSHConnection extends SSHConnection implements
         $this->populateOutput();
 
         // set the last output line and return the entire output
-        $this->stdoutLines[] = static::expects(self::RESULT_ERROR)
+        $markerLine = static::expects(self::RESULT_ERROR)
             ? sprintf('1:%s', $this->errMarker)
             : sprintf('0:%s', $this->endMarker);
+
+        $this->output->add($markerLine);
+
+        $this->addEmptyLine();
 
         return implode("\n", $this->stdoutLines);
     }
@@ -102,15 +107,15 @@ class MockSSHConnection extends SSHConnection implements
     }
 
     public function read(): string
-        {
-            return $this->sshRead('', 0);
-        }
+    {
+        return $this->sshRead('', 0);
+    }
 
     public function cleanCommandBuffer(): void
-        {
-            $this->debug('Cleaning buffer...');
-            $this->debug('End cleaning buffer');
-        }
+    {
+        $this->debug('Cleaning buffer...');
+        $this->debug('End cleaning buffer');
+    }
 
     protected function setExitCode()
     {
@@ -132,13 +137,24 @@ class MockSSHConnection extends SSHConnection implements
 
     protected function populateStderr(): void
     {
-        $this->stderrLines   = static::LINES_STDERR;
-        $this->stderrLines[] = '';
+        foreach (static::LINES_STDERR as $line) {
+            $this->output->addErr($line . "\n");
+        }
     }
 
     protected function populateOutput(): void
     {
-        $this->stdoutLines = static::LINES_STDOUT;
-        $this->stdoutLines[] = '';
+        foreach (static::LINES_STDOUT as $line) {
+            $this->output->add($line . "\n");
+        }
+    }
+
+    protected function addEmptyLine(?string $stream = null): void
+    {
+        if ('err' === $stream) {
+            $this->output->addErr("\n");
+        } else {
+            $this->output->add("\n");
+        }
     }
 }

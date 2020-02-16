@@ -4,6 +4,7 @@ namespace Neskodi\SSHCommander\Traits\SSHConnection;
 
 use Neskodi\SSHCommander\Exceptions\AuthenticationException;
 use Neskodi\SSHCommander\VendorOverrides\phpseclib\Net\SSH2;
+use Neskodi\SSHCommander\Interfaces\SSHConfigInterface;
 use Neskodi\SSHCommander\SSHConfig;
 use phpseclib\Crypt\RSA;
 
@@ -15,6 +16,11 @@ trait AuthenticatesSSH2
 
     abstract public function getSSH2(): SSH2;
 
+    /**
+     * @param string|null $param
+     *
+     * @return SSHConfigInterface|mixed
+     */
     abstract public function getConfig(?string $param = null);
 
     abstract public function setTimeout(int $timeout);
