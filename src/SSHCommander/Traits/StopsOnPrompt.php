@@ -16,11 +16,13 @@ trait StopsOnPrompt
     abstract function getConfig(?string $param = null);
 
     /**
-     * Create a read cycle hook that will make SSH2 stop reading as soon as
+     * Create a read cycle hook that will make SSH2 stop reading as soon as the
      * prompt is detected in output.
      *
      * @noinspection PhpUnusedParameterInspection
      * @noinspection PhpInconsistentReturnPointsInspection
+     *
+     * @param bool $flag
      */
     public function stopsOnPrompt(bool $flag = true): void
     {

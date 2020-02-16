@@ -69,7 +69,7 @@ class SSHConnection implements
 
         // by default, we will stop reading from the SSH stream as soon as
         // a prompt is detected on command line - unless told otherwise
-        // by calling $this->stopsOnPrompt(false).
+        // by calling stopsOnPrompt(false).
         $this->stopsOnPrompt();
 
         // the default output processor, mainly for the authentication stage
