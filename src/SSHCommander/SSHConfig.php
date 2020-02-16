@@ -43,6 +43,12 @@ class SSHConfig implements SSHConfigInterface
      */
     protected $config = [];
 
+    protected static $vendorConfig = [];
+
+    protected static $userConfig = [];
+
+    protected static $loadedConfigFiles = [];
+
     protected $defaultConfig = [];
 
     /**
@@ -62,62 +68,99 @@ class SSHConfig implements SSHConfigInterface
         array $config = [],
         bool $addDefaultValues = true
     ) {
+        // ensure we always have default values to fallback to
+        // files will be read only once, unless the $force option is true
+        static::loadDefaultConfigFile();
+        static::loadUserConfigFile();
+
+        $this->composeDefaultConfig();
+
         if ($addDefaultValues) {
-            $this->loadDefaultConfigFile()
-                 ->loadUserConfigFile();
+            $this->set($this->defaultConfig);
         }
 
         $this->set($config);
     }
 
     /**
-     * Load the default configuration file.
+     * Load the default configuration file. If the file has been previously read,
+     * it will not be addressed again, unless you apply $force.
      *
-     * @return $this
+     * @param bool $force
+     *
+     * @return void
      */
-    protected function loadDefaultConfigFile(): SSHConfigInterface
+    protected static function loadDefaultConfigFile(bool $force = false): void
     {
         $file = static::getDefaultConfigFileLocation();
+
+        if (in_array($file, static::$loadedConfigFiles) && !$force) {
+            return;
+        }
 
         if (!file_exists($file) || !is_readable($file)) {
             throw new ConfigFileMissingException($file);
         }
 
-        $this->loadConfigFile($file);
+        static::$vendorConfig = static::loadConfigFile($file);
 
-        // save the default config, to be able to restore default values at any
-        // time
-        $this->defaultConfig = $this->config;
-
-        return $this;
+        static::$loadedConfigFiles['vendor'] = $file;
     }
 
     /**
      * If user has provided their own configuration file, override the default
-     * values with values read from user's file.
+     * values with values read from user's file. If the file has been previously
+     * read, it will not be addressed again, unless you apply $force.
      *
-     * @return $this
+     * @param bool $force
+     *
+     * @return void
      */
-    protected function loadUserConfigFile(): SSHConfigInterface
+    protected static function loadUserConfigFile(bool $force = false): void
     {
-        if ($file = static::getConfigFileLocation()) {
-            $this->loadConfigFile($file);
+        $file = static::getConfigFileLocation();
+
+        if (in_array($file, static::$loadedConfigFiles) && !$force) {
+            return;
         }
 
-        return $this;
+        if (!file_exists($file) || !is_readable($file)) {
+            throw new ConfigFileMissingException($file);
+        }
+
+        static::$userConfig = static::loadConfigFile($file);
+
+        static::$loadedConfigFiles['user'] = $file;
     }
 
     /**
-     * Load the specified config file into $this->config.
+     * Compose default config by overriding the vendor-provided values with
+     * whatever user has provided in their custom config file.
+     */
+    protected function composeDefaultConfig(): void
+    {
+        $this->defaultConfig = array_merge(
+            static::$vendorConfig,
+            static::$userConfig
+        );
+    }
+
+    /**
+     * Read the specified config file and return the resulting array.
      *
      * @param string $file
      *
-     * @noinspection PhpIncludeInspection*/
-    protected function loadConfigFile(string $file): void
+     * @return array
+     *
+     * @noinspection PhpIncludeInspection
+     */
+    protected static function loadConfigFile(string $file): array
     {
         if (file_exists($file) && is_readable($file)) {
-            $this->set((array)include($file));
+            return (array)include($file);
         }
+
+        return [];
     }
 
     /**
@@ -358,6 +401,10 @@ class SSHConfig implements SSHConfigInterface
     public static function setUserConfigFileLocation(string $location): void
     {
         static::$configFileLocation = $location;
+
+        // force re-reading
+        static::$userConfig = [];
+        unset(static::$loadedConfigFiles['user']);
     }
 
     /**
@@ -378,6 +425,10 @@ class SSHConfig implements SSHConfigInterface
     public static function resetConfigFileLocation(): void
     {
         static::$configFileLocation = null;
+
+        // force re-reading
+        static::$userConfig = [];
+        unset(static::$loadedConfigFiles['user']);
     }
 
     /**
