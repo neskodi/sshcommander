@@ -12,7 +12,10 @@ class ControlFlowTest extends IntegrationTestCase
 
     public function testTerminateCommand()
     {
+        $this->enableDebugLog();
+
         $this->tailOutput = '';
+
         $behavior = function (SSHConnectionInterface $connection) {
             $connection->terminateCommand();
             // read the final output produced by the command when terminating

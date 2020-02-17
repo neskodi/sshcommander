@@ -68,7 +68,12 @@ class CRTimeoutHandlerDecorator
     {
         $behavior   = $command->getConfig('timeout_behavior');
         $connection = $this->getConnection();
+
+        // we don't want to loop back into this method accidentally
         $connection->clearReadCycleHooks();
+
+        // but we do want to stop on prompt though
+        $connection->stopsOnPrompt();
 
         // if user wants to send a control character such as CTRL+C, just send it
         if (Utils::isAsciiControlCharacter($behavior)) {
