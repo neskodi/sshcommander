@@ -125,7 +125,7 @@ class SSH2 extends PhpSecLibSSH2
                     if (!$result && !count($read)) {
                         $this->is_timeout = true;
                         if ($client_channel == self::CHANNEL_EXEC && !$this->request_pty) {
-                            $this->getConnection()->debug('closing exec channel...');
+                            // $this->getConnection()->debug('closing exec channel...');
                             $this->_close_channel($client_channel);
                         }
 
@@ -193,6 +193,7 @@ class SSH2 extends PhpSecLibSSH2
                             continue 2;
                         }
                         if ($client_channel == $channel && $this->channel_status[$channel] == NET_SSH2_MSG_CHANNEL_DATA) {
+                            // $this->getConnection()->debug('_get_channel_packet returns (1): ' . $data);
                             return $data;
                         }
                         if (!isset($this->channel_buffers[$channel])) {
@@ -276,13 +277,23 @@ class SSH2 extends PhpSecLibSSH2
                                 if (strlen($response) < 4) {
                                     return false;
                                 }
-                                $temp                                         = unpack('Npacket_size_client_to_server',
-                                    $this->_string_shift($response, 4));
+                                $temp = unpack(
+                                    'Npacket_size_client_to_server',
+                                    $this->_string_shift($response, 4)
+                                );
+
                                 $this->packet_size_client_to_server[$channel] = $temp['packet_size_client_to_server'];
-                                $result                                       = $client_channel == $channel ? true : $this->_get_channel_packet($client_channel,
-                                    $skip_extended);
+
+                                $result = $client_channel == $channel
+                                    ? true
+                                    : $this->_get_channel_packet(
+                                        $client_channel,
+                                        $skip_extended
+                                    );
+
                                 $this->_on_channel_open();
 
+                                // $this->getConnection()->debug('_get_channel_packet returns (2): ' . $result);
                                 return $result;
                             //case NET_SSH2_MSG_CHANNEL_OPEN_FAILURE:
                             default:
@@ -303,8 +314,12 @@ class SSH2 extends PhpSecLibSSH2
                                 return $this->_disconnect(NET_SSH2_DISCONNECT_BY_APPLICATION);
                         }
                     case NET_SSH2_MSG_CHANNEL_CLOSE:
-                        return $type == NET_SSH2_MSG_CHANNEL_CLOSE ? true : $this->_get_channel_packet($client_channel,
-                            $skip_extended);
+                        return $type == NET_SSH2_MSG_CHANNEL_CLOSE
+                            ? true
+                            : $this->_get_channel_packet(
+                                $client_channel,
+                                $skip_extended
+                            );
                 }
             }
 
@@ -336,6 +351,7 @@ class SSH2 extends PhpSecLibSSH2
                     }
 
                     if ($client_channel == $channel) {
+                        // $this->getConnection()->debug('_get_channel_packet returns (3): ' . $data);
                         return $data;
                     }
                     if (!isset($this->channel_buffers[$channel])) {
