@@ -88,6 +88,9 @@ interface SSHConnectionInterface
 
     public function suspendCommand(): void;
 
+    public function continueCommandInBackground(): void;
+
+
     public function getOutputProcessor(): ?OutputProcessorInterface;
 
     public function stopsOnPrompt(bool $flag = true): void;

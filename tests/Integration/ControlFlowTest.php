@@ -1,9 +1,11 @@
-<?php /** @noinspection PhpUnhandledExceptionInspection */
+<?php /** @noinspection PhpUndefinedClassInspection */
+
+/** @noinspection PhpUnhandledExceptionInspection */
 
 namespace Neskodi\SSHCommander\Tests\Integration;
 
-use Neskodi\SSHCommander\Interfaces\SSHConnectionInterface;
 use Neskodi\SSHCommander\Tests\IntegrationTestCase;
+use Neskodi\SSHCommander\SSHConnection;
 use Neskodi\SSHCommander\SSHConfig;
 
 class ControlFlowTest extends IntegrationTestCase
@@ -14,7 +16,7 @@ class ControlFlowTest extends IntegrationTestCase
     {
         $this->tailOutput = '';
 
-        $behavior = function (SSHConnectionInterface $connection) {
+        $behavior = function (SSHConnection $connection) {
             $connection->debug('terminating...');
             $connection->terminateCommand();
             // read the final output produced by the command when terminating
@@ -47,7 +49,7 @@ class ControlFlowTest extends IntegrationTestCase
     {
         $this->tailOutput = '';
 
-        $behavior = function (SSHConnectionInterface $connection) {
+        $behavior = function (SSHConnection $connection) {
             $connection->suspendCommand();
             // read the final output produced by the command when terminating
             $connection->getSSH2()->setTimeout(1);
@@ -59,19 +61,21 @@ class ControlFlowTest extends IntegrationTestCase
 
         // let the command run for 2 seconds
         $timeoutValue = 2;
-
         $commander->timeout(
             $timeoutValue,
             SSHConfig::TIMEOUT_CONDITION_RUNNING_TIMELIMIT,
             $behavior
         );
+
+        // when we put the command in background, an error code is returned,
+        // let's ignore it.
         $commander->breakOnError(false);
 
         $result = $commander->run($command);
 
         $this->assertEquals($timeoutValue, (int)$result->getCommandElapsedTime());
 
-        // We can assert that the command has been terminated by analyzing the
+        // We can assert that the command has been suspended by analyzing the
         // tail output after we sent CTRL+Z
         $this->assertStringContainsStringIgnoringCase('stopped', $this->tailOutput);
         $this->assertStringContainsString($command, $this->tailOutput);
@@ -83,6 +87,41 @@ class ControlFlowTest extends IntegrationTestCase
 
     public function testContinueCommandInBackground()
     {
+        $this->tailOutput = '';
 
+        $behavior = function (SSHConnection $connection) {
+            $connection->continueCommandInBackground();
+            // read the final output produced by the command when terminating
+            $connection->getSSH2()->setTimeout(1);
+            $this->tailOutput = $connection->read();
+        };
+
+        $commander = $this->getSSHCommander($this->sshOptions);
+        $command   = 'sleep 10';
+
+        // let the command run for 2 seconds
+        $timeoutValue = 2;
+        $commander->timeout(
+            $timeoutValue,
+            SSHConfig::TIMEOUT_CONDITION_RUNNING_TIMELIMIT,
+            $behavior
+        );
+
+        // when we put the command in background, an error code is returned,
+        // let's ignore it.
+        $commander->breakOnError(false);
+
+        $result = $commander->run($command);
+        $this->assertEquals($timeoutValue, (int)$result->getCommandElapsedTime());
+
+        // Now inspect jobs and assert that the command keeps running
+        // in background
+        $jobs = $commander->run('jobs');
+        $this->assertStringContainsStringIgnoringCase('running', $jobs);
+        $this->assertStringContainsString($command, $jobs);
+
+        // clean up
+        $result2 = $commander->run('fg', ['timeout_behavior' => "\x03"]);
+        $this->assertEquals($timeoutValue, (int)$result2->getCommandElapsedTime());
     }
 }

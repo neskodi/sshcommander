@@ -2,6 +2,10 @@
 
 namespace Neskodi\SSHCommander\Interfaces;
 
+/**
+ * @method timeout(int $timeoutValue, string $condition, callable $behavior)
+ * @method breakOnError(mixed $behavior)
+ */
 interface SSHCommanderInterface
 {
     public static function setConfigFile(string $path);
